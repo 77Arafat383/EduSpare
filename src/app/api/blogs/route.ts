@@ -1,0 +1,102 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    const communityId = searchParams.get('communityId');
+
+    const blogs = await prisma.blog.findMany({
+      where: communityId ? { communityId } : undefined,
+      include: {
+        author: true,
+        comments: {
+          include: { author: true },
+          orderBy: { createdAt: 'asc' },
+        },
+        reactions: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Check saved items for user if userId passed
+    let savedBlogIds: string[] = [];
+    if (userId) {
+      const savedItems = await prisma.savedItem.findMany({
+        where: { userId, itemType: 'blog' },
+      });
+      savedBlogIds = savedItems.map((s) => s.itemId).filter(Boolean) as string[];
+    }
+
+    const formattedBlogs = blogs.map((blog) => {
+      const isLikedByMe = userId ? blog.reactions.some((r) => r.userId === userId) : false;
+      const isSavedByMe = savedBlogIds.includes(blog.id);
+
+      return {
+        ...blog,
+        createdAt: blog.createdAt.toISOString(),
+        updatedAt: blog.updatedAt.toISOString(),
+        attachments: JSON.parse(blog.attachments || '[]'),
+        tags: JSON.parse(blog.tags || '[]'),
+        comments: blog.comments.map((c) => ({
+          ...c,
+          createdAt: c.createdAt.toISOString(),
+        })),
+        likesCount: blog.reactions.length,
+        isLikedByMe,
+        isSavedByMe,
+      };
+    });
+
+    return NextResponse.json({ blogs: formattedBlogs });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch blogs' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { authorId, title, content, coverImage, attachments, tags, communityId } = body;
+
+    if (!authorId || !title || !content) {
+      return NextResponse.json({ error: 'Author, title, and content are required' }, { status: 400 });
+    }
+
+    const newBlog = await prisma.blog.create({
+      data: {
+        authorId,
+        title,
+        content,
+        coverImage: coverImage || null,
+        attachments: typeof attachments === 'string' ? attachments : JSON.stringify(attachments || []),
+        tags: typeof tags === 'string' ? tags : JSON.stringify(tags || []),
+        communityId: communityId || null,
+      },
+      include: {
+        author: true,
+        comments: { include: { author: true } },
+        reactions: true,
+      },
+    });
+
+    return NextResponse.json({
+      blog: {
+        ...newBlog,
+        createdAt: newBlog.createdAt.toISOString(),
+        updatedAt: newBlog.updatedAt.toISOString(),
+        attachments: JSON.parse(newBlog.attachments || '[]'),
+        tags: JSON.parse(newBlog.tags || '[]'),
+        comments: [],
+        reactions: [],
+        likesCount: 0,
+        isLikedByMe: false,
+        isSavedByMe: false,
+      },
+    });
+  } catch (error) {
+    console.error('Blog create error:', error);
+    return NextResponse.json({ error: 'Failed to create blog post' }, { status: 500 });
+  }
+}

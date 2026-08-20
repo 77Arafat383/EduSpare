@@ -1,0 +1,340 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>EduSpare - Research Notes: Microservices Architecture</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#434656",
+                        "surface-container-high": "#e2e7ff",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#004ced",
+                        "on-primary-fixed-variant": "#0038b6",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#dae2fd",
+                        "outline-variant": "#c3c5d9",
+                        "tertiary": "#952200",
+                        "on-primary-fixed": "#001452",
+                        "surface-container-lowest": "#ffffff",
+                        "background": "#faf8ff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "surface-container": "#eaedff",
+                        "primary": "#003ec7",
+                        "on-tertiary-fixed": "#3c0800",
+                        "inverse-surface": "#283044",
+                        "on-secondary-container": "#54647a",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#737688",
+                        "surface-container-low": "#f2f3ff",
+                        "on-surface": "#131b2e",
+                        "error-container": "#ffdad6",
+                        "surface": "#faf8ff",
+                        "tertiary-container": "#bf3003",
+                        "secondary-container": "#d0e1fb",
+                        "tertiary-fixed-dim": "#ffb4a1",
+                        "on-tertiary-container": "#ffddd5",
+                        "surface-dim": "#d2d9f4",
+                        "surface-container-highest": "#dae2fd",
+                        "on-primary-container": "#dfe3ff",
+                        "on-error-container": "#93000a",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#d3e4fe",
+                        "primary-container": "#0052ff",
+                        "surface-bright": "#faf8ff",
+                        "on-background": "#131b2e",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#dde1ff",
+                        "secondary": "#505f76",
+                        "on-secondary-fixed": "#0b1c30",
+                        "inverse-on-surface": "#eef0ff",
+                        "on-tertiary-fixed-variant": "#891e00",
+                        "tertiary-fixed": "#ffdbd2",
+                        "inverse-primary": "#b7c4ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "3xl": "64px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "margin-desktop": "40px",
+                        "base": "4px",
+                        "lg": "24px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "letterSpacing": "0", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .block-hover:hover .block-actions {
+            opacity: 1;
+        }
+        .block-actions {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased h-screen overflow-hidden flex">
+<!-- Sidebar (Shared Component Style Mapping) -->
+<aside class="bg-surface border-r border-outline-variant shadow-sm h-screen w-72 left-0 top-0 hidden lg:flex flex-col p-md transition-transform duration-300 ease-in-out shrink-0">
+<!-- Header -->
+<div class="flex items-center gap-sm mb-lg">
+<img alt="EduSpare Logo" class="w-8 h-8 rounded-sm object-cover bg-primary-container" src="https://lh3.googleusercontent.com/aida/AP1WRLtwkiyIXYnlG0YWsLN-trxJw9WgV9TEa0gcIlRp0RRO1zJkQLJ41j85eCESeyC98fYOHQUxESiuxbQPvnRLI2_5od3Moa0Cb3qmkXpKN9XcnZDDOpFcUy82_28gOiIZktj7eRgAASJS7lGyc0MTNQr93b_y2NSg0HSz-T2TgYBceH8FiN2zNGOP0KeoZoSG3Jy0ah5CxtcP-y02uhxZOqPtnbBHCTV9MKHR3lF_eV-sYtleQ1_sTTEc_c8">
+<div class="font-headline-sm text-headline-sm font-black text-primary">EduSpare</div>
+</div>
+<!-- Navigation (Workspace) -->
+<div class="flex flex-col gap-xs flex-1 overflow-y-auto">
+<div class="text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider mb-sm px-sm">Workspace</div>
+<a class="flex items-center gap-sm px-sm py-xs rounded-full text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="search">search</span>
+<span>Search</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-xs rounded-full text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="schedule">schedule</span>
+<span>Updates</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-xs rounded-full text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+<!-- Tree View -->
+<div class="mt-lg">
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider mb-sm px-sm group cursor-pointer hover:bg-surface-container-low rounded"><span class="">Tasks</span><span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" data-icon="add">add</span></div>
+<div class="flex flex-col gap-xs pl-sm"><div class="flex items-center gap-xs px-sm py-xs rounded-md text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md cursor-pointer transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="folder">folder</span><span class="truncate">Notes</span></div><div class="flex flex-col gap-xs pl-lg"><div class="flex items-center gap-xs px-sm py-xs rounded-md bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold cursor-pointer"><span class="material-symbols-outlined text-[18px]" data-icon="description">description</span><span class="truncate">Research: Microservices</span></div></div><div class="flex items-center gap-xs px-sm py-xs rounded-md text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md cursor-pointer transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="description">description</span><span class="truncate">System Design Interview Prep</span></div><div class="flex items-center gap-xs px-sm py-xs rounded-md text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md cursor-pointer transition-colors"><span class="material-symbols-outlined text-[18px] opacity-50" data-icon="folder">folder</span><span class="truncate">Algorithms</span></div><div class="flex flex-col gap-xs pl-lg"><div class="flex items-center gap-xs px-sm py-xs rounded-md text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md cursor-pointer transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="description">description</span><span class="truncate">Dynamic Programming</span></div></div></div>
+</div>
+</div>
+<!-- User Profile (Bottom) -->
+<div class="mt-auto pt-md border-t border-outline-variant flex items-center gap-sm cursor-pointer hover:bg-surface-container-low p-sm rounded-lg transition-colors">
+<div class="w-8 h-8 rounded-full bg-primary-container text-primary flex items-center justify-center font-bold text-sm">
+                AC
+            </div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-primary">Alex Chen</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Software Architect</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col relative h-full">
+<!-- Top App Bar (Mobile Nav - Only visible on small screens) -->
+<header class="bg-surface text-primary border-b border-outline-variant fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin-mobile h-16 lg:hidden shrink-0">
+<div class="flex items-center gap-sm">
+<button class="material-symbols-outlined hover:bg-surface-container-low p-sm rounded-full transition-colors" data-icon="menu">menu</button>
+<span class="font-headline-md text-headline-md font-bold text-primary">EduSpare</span>
+</div>
+<button class="material-symbols-outlined hover:bg-surface-container-low p-sm rounded-full transition-colors" data-icon="search">search</button>
+</header>
+<!-- Canvas Container -->
+<div class="flex-1 overflow-y-auto mt-16 lg:mt-0 pt-lg lg:pt-3xl pb-3xl px-margin-mobile md:px-margin-desktop w-full max-w-[900px] mx-auto">
+<!-- Cover / Icon Space (Notion style) -->
+<div class="group relative mb-lg">
+<div class="text-[64px] leading-none mb-4 cursor-pointer hover:bg-surface-container-low inline-block rounded-lg p-2 transition-colors">
+                    🏗️
+                </div>
+<div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+<button class="text-on-surface-variant hover:text-primary font-label-sm text-label-sm bg-surface-container-low hover:bg-surface-variant px-3 py-1 rounded transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="image">image</span> Add Cover
+                    </button>
+</div>
+</div>
+<!-- Title Area -->
+<input class="w-full bg-transparent font-display text-display font-bold text-on-surface border-none p-0 focus:ring-0 placeholder-outline-variant mb-md" placeholder="Untitled" type="text" value="Research Notes: Microservices Architecture">
+<!-- Metadata Properties -->
+<div class="flex flex-col gap-2 mb-xl pb-md border-b border-outline-variant text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center">
+<div class="w-32 flex items-center gap-2 opacity-70">
+<span class="material-symbols-outlined text-[18px]" data-icon="person">person</span> Created by
+                    </div>
+<div class="flex items-center gap-2 bg-surface-container-low px-2 py-0.5 rounded">
+<div class="w-5 h-5 rounded-full bg-primary-container text-primary flex items-center justify-center font-bold text-[10px]">AC</div>
+<span>Alex Chen</span>
+</div>
+</div>
+<div class="flex items-center">
+<div class="w-32 flex items-center gap-2 opacity-70">
+<span class="material-symbols-outlined text-[18px]" data-icon="schedule">schedule</span> Last Edited
+                    </div>
+<div>Today at 10:42 AM</div>
+</div>
+<div class="flex items-center">
+<div class="w-32 flex items-center gap-2 opacity-70">
+<span class="material-symbols-outlined text-[18px]" data-icon="sell">sell</span> Tags
+                    </div>
+<div class="flex gap-2">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-[12px] font-medium">Architecture</span>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded-full text-[12px] font-medium">Backend</span>
+</div>
+</div>
+</div>
+<!-- Block-based Content System -->
+<div class="flex flex-col gap-1">
+<!-- Text Block -->
+<div class="flex items-start group block-hover py-1">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-1">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<div class="flex-1 font-body-lg text-body-lg text-on-surface leading-relaxed">
+                        Microservices are an architectural and organizational approach to software development where software is composed of small independent services that communicate over well-defined APIs.
+                    </div>
+</div>
+<!-- Text Block -->
+<div class="flex items-start group block-hover py-1">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-1">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<div class="flex-1 font-body-lg text-body-lg text-on-surface leading-relaxed">
+                        Unlike a monolithic approach, microservices allow teams to operate independently, speeding up deployment cycles and improving fault isolation.
+                    </div>
+</div>
+<!-- Spacer Block -->
+<div class="h-4"></div>
+<!-- Heading Block (H3) -->
+<div class="flex items-start group block-hover py-2">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-1">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<h3 class="flex-1 font-headline-md text-headline-md font-semibold text-on-surface">Key Characteristics</h3>
+</div>
+<!-- Checklist Blocks -->
+<div class="flex items-start group block-hover py-1">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-1">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<div class="flex-1 flex items-start gap-2 pt-1">
+<input checked="" class="mt-1 rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer" type="checkbox">
+<span class="font-body-md text-body-md text-on-surface line-through opacity-70">Decentralized Data Management</span>
+</div>
+</div>
+<div class="flex items-start group block-hover py-1">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-1">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<div class="flex-1 flex items-start gap-2 pt-1">
+<input class="mt-1 rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer" type="checkbox">
+<span class="font-body-md text-body-md text-on-surface">Infrastructure Automation (CI/CD)</span>
+</div>
+</div>
+<div class="flex items-start group block-hover py-1">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-1">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<div class="flex-1 flex items-start gap-2 pt-1">
+<input class="mt-1 rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer" type="checkbox">
+<span class="font-body-md text-body-md text-on-surface">Design for Failure</span>
+</div>
+</div>
+<!-- Spacer Block -->
+<div class="h-6"></div>
+<!-- Code Block -->
+<div class="flex items-start group block-hover py-1">
+<div class="block-actions w-10 flex-shrink-0 flex items-center justify-center text-outline cursor-grab pt-2">
+<span class="material-symbols-outlined text-[20px] hover:bg-surface-container-high rounded" data-icon="drag_indicator">drag_indicator</span>
+</div>
+<div class="flex-1 relative">
+<div class="absolute top-2 right-2 text-label-sm font-label-sm text-outline-variant bg-inverse-surface/50 px-2 py-1 rounded">YAML</div>
+<pre class="bg-[#1e1e1e] text-[#d4d4d4] p-4 rounded-lg font-mono text-[14px] overflow-x-auto shadow-sm border border-outline-variant/20"><code><span class="text-[#569cd6]">version:</span> <span class="text-[#ce9178]">'3'</span>
+<span class="text-[#569cd6]">services:</span>
+  <span class="text-[#9cdcfe]">api-gateway:</span>
+    <span class="text-[#569cd6]">image:</span> <span class="text-[#ce9178]">nginx:alpine</span>
+    <span class="text-[#569cd6]">ports:</span>
+      <span class="text-[#b5cea8]">- "80:80"</span>
+  
+  <span class="text-[#9cdcfe]">user-service:</span>
+    <span class="text-[#569cd6]">build:</span> <span class="text-[#ce9178]">./users</span>
+    <span class="text-[#569cd6]">environment:</span>
+      <span class="text-[#b5cea8]">- DB_HOST=postgres</span></code></pre>
+</div>
+</div>
+<!-- Empty Block Placeholder for interaction -->
+<div class="flex items-center group py-2 mt-4 text-outline-variant hover:text-primary cursor-text">
+<div class="w-10"></div>
+<span class="font-body-md text-body-md">Type '/' for commands...</span>
+</div>
+</div>
+</div>
+<!-- Floating AI Assistant Widget (Positioned lower-middle) -->
+<div class="absolute bottom-lg left-1/2 -translate-x-1/2 w-[400px] max-w-[90vw] z-40 bg-surface border border-outline-variant shadow-[0_10px_25px_rgba(0,0,0,0.1)] rounded-xl overflow-hidden flex flex-col">
+<!-- Widget Header -->
+<div class="bg-surface-container-low px-md py-sm flex justify-between items-center border-b border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="auto_awesome">auto_awesome</span>
+<span class="font-label-md text-label-md font-semibold text-on-surface">EduSpare AI</span>
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container-high rounded p-1 transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Widget Content (Suggested Actions) -->
+<div class="p-sm flex gap-2 overflow-x-auto no-scrollbar">
+<button class="whitespace-nowrap bg-surface-variant text-on-surface hover:bg-surface-container-highest px-3 py-1.5 rounded-full font-label-sm text-label-sm transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="summarize">summarize</span> Summarize notes
+                </button>
+<button class="whitespace-nowrap bg-surface-variant text-on-surface hover:bg-surface-container-highest px-3 py-1.5 rounded-full font-label-sm text-label-sm transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span> Extract action items
+                </button>
+</div>
+<!-- Widget Input -->
+<div class="p-md pt-0">
+<div class="relative">
+<input class="w-full bg-surface border border-outline-variant rounded-lg pl-3 pr-10 py-2 font-body-sm text-body-sm focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all placeholder-outline-variant" placeholder="Ask AI to generate, edit, or summarize..." type="text">
+<button class="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:bg-primary-container/50 p-1 rounded transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<style>
+        /* Utility for hiding scrollbar in horizontal lists */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</body></html>

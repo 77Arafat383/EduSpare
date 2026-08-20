@@ -1,0 +1,144 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String     @id @default(uuid())
+  username     String     @unique
+  name         String
+  email        String     @unique
+  password     String     @default("password123")
+  avatar       String     @default("/assets/default_avatar.png")
+  coverImage   String?    @default("/assets/default_cover.png")
+  bio          String?
+  university   String?
+  birthday           String?
+  gender             String?
+  academicStatus     String?
+  relationshipStatus String?
+  phone              String?
+  address            String?
+  interests          String?
+  activeStreak Int        @default(14)
+  totalPoints  Int        @default(1250)
+  rank         String     @default("Top 5% Contributor")
+  createdAt    DateTime   @default(now())
+  
+  tasks        Task[]
+  blogs        Blog[]
+  comments     Comment[]
+  reactions    Reaction[]
+  savedItems   SavedItem[]
+  
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  
+  blockedUsers  UserBlock[] @relation("BlockerRelation")
+  blockedBy     UserBlock[] @relation("BlockedRelation")
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String   @default("General")
+  dueAt       DateTime
+  importance  Int      @default(50) // 0 to 100
+  status      String   @default("Pending") // Pending, In Progress, Completed
+  notes       String?  @default("")
+  materials   String   @default("[]") // JSON array of materials
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Blog {
+  id          String     @id @default(uuid())
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  coverImage  String?
+  attachments String     @default("[]") // JSON array of attachments (PDF, DOC, PNG)
+  tags        String     @default("[]") // JSON array of tags
+  communityId String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  comments    Comment[]
+  reactions   Reaction[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("like") // like, love, insightful, fire
+  createdAt DateTime @default(now())
+
+  @@unique([blogId, userId])
+}
+
+model SavedItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemType  String   // blog, pdf, document, image
+  itemId    String?
+  title     String
+  url       String?
+  meta      String?  // JSON additional meta
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blocker   User     @relation("BlockerRelation", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlockedRelation", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Community {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  image       String
+  tags        String   @default("[]") // JSON array of tags
+  isPrivate   Boolean  @default(false)
+  memberIds   String   @default("[]") // JSON array of user IDs
+  createdById String
+  createdAt   DateTime @default(now())
+}

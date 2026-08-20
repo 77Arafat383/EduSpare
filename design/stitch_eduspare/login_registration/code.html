@@ -1,0 +1,249 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Proton - Login &amp; Registration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-on-surface": "#eef0ff",
+                      "inverse-surface": "#283044",
+                      "secondary-fixed-dim": "#b7c8e1",
+                      "surface-dim": "#d2d9f4",
+                      "on-primary-fixed-variant": "#0038b6",
+                      "background": "#faf8ff",
+                      "secondary-fixed": "#d3e4fe",
+                      "on-tertiary-container": "#ffddd5",
+                      "on-secondary-container": "#54647a",
+                      "secondary-container": "#d0e1fb",
+                      "on-error": "#ffffff",
+                      "surface": "#faf8ff",
+                      "outline": "#737688",
+                      "on-secondary-fixed-variant": "#38485d",
+                      "surface-container-high": "#e2e7ff",
+                      "outline-variant": "#c3c5d9",
+                      "tertiary-container": "#bf3003",
+                      "on-tertiary-fixed-variant": "#891e00",
+                      "on-primary-fixed": "#001452",
+                      "surface-container": "#eaedff",
+                      "primary-fixed": "#dde1ff",
+                      "tertiary-fixed-dim": "#ffb4a1",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-low": "#f2f3ff",
+                      "inverse-primary": "#b7c4ff",
+                      "surface-bright": "#faf8ff",
+                      "on-secondary": "#ffffff",
+                      "primary-container": "#0052ff",
+                      "on-background": "#131b2e",
+                      "error-container": "#ffdad6",
+                      "surface-tint": "#004ced",
+                      "secondary": "#505f76",
+                      "on-primary": "#ffffff",
+                      "on-surface-variant": "#434656",
+                      "surface-variant": "#dae2fd",
+                      "on-error-container": "#93000a",
+                      "surface-container-highest": "#dae2fd",
+                      "primary-fixed-dim": "#b7c4ff",
+                      "primary": "#003ec7",
+                      "on-secondary-fixed": "#0b1c30",
+                      "error": "#ba1a1a",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed": "#3c0800",
+                      "on-surface": "#131b2e",
+                      "tertiary": "#952200",
+                      "tertiary-fixed": "#ffdbd2",
+                      "on-primary-container": "#dfe3ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "sm": "8px",
+                      "margin-desktop": "40px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "3xl": "64px",
+                      "gutter": "24px",
+                      "margin-mobile": "16px",
+                      "2xl": "48px",
+                      "base": "4px",
+                      "xl": "32px"
+              },
+              "fontFamily": {
+                      "headline-lg-mobile": ["Inter"],
+                      "display": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "label-sm": ["Inter"],
+                      "headline-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "letterSpacing": "0", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                      "headline-sm": ["20px", {"lineHeight": "28px", "letterSpacing": "0", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        /* Custom Input Glow based on guidance */
+        .input-glow:focus {
+            border-color: #003ec7; /* primary */
+            box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.2); /* primary-container approx with opacity */
+            outline: none;
+        }
+        
+        /* Subtle animated background gradient */
+        .bg-animated-mesh {
+            background-color: #faf8ff;
+            background-image: 
+                radial-gradient(at 40% 20%, #e2e7ff 0px, transparent 50%),
+                radial-gradient(at 80% 0%, #d0e1fb 0px, transparent 50%),
+                radial-gradient(at 0% 50%, #eef0ff 0px, transparent 50%);
+            background-size: 100% 100%;
+            background-attachment: fixed;
+        }
+    </style>
+</head>
+<body class="bg-animated-mesh min-h-screen flex items-center justify-center p-margin-mobile md:p-margin-desktop font-body-md text-body-md text-on-surface antialiased">
+<!-- Transactional Screen - Suppressing Global Navigation Shells -->
+<main class="w-full max-w-[420px] bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col relative z-10">
+<!-- Header & Logo -->
+<header class="pt-xl px-lg pb-md flex flex-col items-center">
+<img alt="EduSpare Logo" class="w-auto mb-6 h-16 object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLscUVPChqJsCkcwmrxeI7I0Pj-8YTGlw2q3F1t5YKLDjYn_S7jITO48S_8HfimGYkJbkDzL5RXWU61qnjlyjpteFzGrQwtVy-nDXkv7WRRMHW_VMH4OhyhWRtPbznibbcx9Jm687PIU57jtERjzGxjCYpI7u9aN2Srf0KGAXjf7_PO87ZTjRMNJ91wXJUHWSffsp-y1x4CeJ_w0C4czaR4UFYvW_qTIfLXu89eW0YISAijSmUi3jbw_vQ">
+<h1 class="font-headline-md text-headline-md text-on-surface text-center mb-2">Welcome to EduSpare</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant text-center">Your Online Guardian.</p>
+</header>
+<!-- Tabs -->
+<div class="px-lg border-b border-outline-variant flex space-x-lg relative">
+<button class="flex-1 pb-sm font-label-md text-label-md border-b-2 transition-colors border-primary text-primary" id="tab-login" onclick="switchTab('login')">
+                Login
+            </button>
+<button class="flex-1 pb-sm font-label-md text-label-md border-b-2 hover:text-on-surface transition-colors border-transparent text-on-surface-variant" id="tab-signup" onclick="switchTab('signup')">
+                Sign Up
+            </button>
+</div>
+<div class="p-lg">
+<!-- Login Form -->
+<form class="flex flex-col space-y-md" id="form-login">
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface" for="login-email">Email or Username</label>
+<input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="login-email" placeholder="Email or username" required="" type="text">
+</div>
+<div class="flex flex-col space-y-xs">
+<div class="flex justify-between items-center">
+<label class="font-label-sm text-label-sm text-on-surface" for="login-password">Password</label>
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">Forgot?</a>
+</div>
+<input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="login-password" placeholder="••••••••" required="" type="password">
+</div>
+<button class="mt-sm w-full py-sm px-lg bg-primary text-on-primary font-label-md text-label-md rounded-lg hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-center gap-2" type="submit">
+                    Sign In
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</form>
+<!-- Registration Form (Hidden by default) -->
+<form class="flex flex-col space-y-md hidden" id="form-signup">
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface" for="signup-name">Full Name</label>
+<input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="signup-name" placeholder="Alex Chen" required="" type="text">
+</div><div class="flex flex-col space-y-xs"><label class="font-label-sm text-label-sm text-on-surface" for="signup-username">Username</label><input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="signup-username" placeholder="Choose a username" required="" type="text"></div>
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface" for="signup-email">Email Address</label>
+<input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="signup-email" placeholder="you@company.com" required="" type="email">
+</div>
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface" for="signup-password">Password</label>
+<input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="signup-password" placeholder="Create a strong password" required="" type="password">
+</div>
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface" for="signup-confirm">Confirm Password</label>
+<input class="px-sm py-sm border border-outline-variant rounded-lg bg-surface-container-lowest font-body-sm text-body-sm text-on-surface input-glow transition-all" id="signup-confirm" placeholder="Repeat password" required="" type="password">
+</div>
+<button class="mt-sm w-full py-sm px-lg bg-primary text-on-primary font-label-md text-label-md rounded-lg hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-center gap-2" type="submit">
+                    Create Account
+                    <span class="material-symbols-outlined text-[18px]">person_add</span>
+</button>
+</form>
+<!-- Divider -->
+<div class="my-lg flex items-center">
+<div class="flex-grow border-t border-outline-variant"></div>
+<span class="mx-md font-label-sm text-label-sm text-on-surface-variant bg-surface-container-lowest px-2">Or continue with</span>
+<div class="flex-grow border-t border-outline-variant"></div>
+</div>
+<!-- Social Logins -->
+<div class="flex flex-col space-y-sm">
+<button class="w-full py-sm px-lg border border-outline bg-surface-container-lowest text-on-surface font-label-md text-label-md rounded-lg hover:bg-surface-container-low transition-colors flex items-center justify-center gap-3" type="button">
+<svg class="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+                    Google
+                </button>
+<button class="w-full py-sm px-lg border border-outline bg-surface-container-lowest text-on-surface font-label-md text-label-md rounded-lg hover:bg-surface-container-low transition-colors flex items-center justify-center gap-3" type="button">
+<svg class="w-5 h-5 text-on-surface" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fill-rule="evenodd"></path>
+</svg>
+                    GitHub
+                </button>
+</div>
+<p class="mt-lg text-center font-body-sm text-body-sm text-on-surface-variant">By continuing, you agree to EduSpare's <a class="text-primary hover:underline" href="#">Terms of Service</a> and <a class="text-primary hover:underline" href="#">Privacy Policy</a>.</p>
+</div>
+</main>
+<script>
+        function switchTab(tabName) {
+            const loginForm = document.getElementById('form-login');
+            const signupForm = document.getElementById('form-signup');
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+
+            if (tabName === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                
+                tabLogin.classList.remove('border-transparent', 'text-on-surface-variant');
+                tabLogin.classList.add('border-primary', 'text-primary');
+                
+                tabSignup.classList.remove('border-primary', 'text-primary');
+                tabSignup.classList.add('border-transparent', 'text-on-surface-variant');
+            } else {
+                signupForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+                
+                tabSignup.classList.remove('border-transparent', 'text-on-surface-variant');
+                tabSignup.classList.add('border-primary', 'text-primary');
+                
+                tabLogin.classList.remove('border-primary', 'text-primary');
+                tabLogin.classList.add('border-transparent', 'text-on-surface-variant');
+            }
+        }
+    </script>
+
+
+</body></html>

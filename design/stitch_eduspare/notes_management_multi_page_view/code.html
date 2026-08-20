@@ -1,0 +1,416 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>EduSpare - Notes Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#ffb4a1",
+                      "surface-tint": "#004ced",
+                      "tertiary": "#952200",
+                      "on-primary-fixed": "#001452",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#c3c5d9",
+                      "primary-fixed": "#dde1ff",
+                      "on-error": "#ffffff",
+                      "on-background": "#131b2e",
+                      "secondary": "#505f76",
+                      "on-tertiary": "#ffffff",
+                      "inverse-primary": "#b7c4ff",
+                      "error-container": "#ffdad6",
+                      "surface-container": "#eaedff",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container-highest": "#dae2fd",
+                      "surface": "#faf8ff",
+                      "inverse-on-surface": "#eef0ff",
+                      "on-secondary-fixed": "#0b1c30",
+                      "primary": "#003ec7",
+                      "on-surface-variant": "#434656",
+                      "surface-dim": "#d2d9f4",
+                      "primary-fixed-dim": "#b7c4ff",
+                      "on-primary-container": "#dfe3ff",
+                      "surface-container-high": "#e2e7ff",
+                      "surface-container-low": "#f2f3ff",
+                      "surface-bright": "#faf8ff",
+                      "tertiary-container": "#bf3003",
+                      "outline": "#737688",
+                      "on-tertiary-fixed-variant": "#891e00",
+                      "secondary-fixed": "#d3e4fe",
+                      "surface-variant": "#dae2fd",
+                      "error": "#ba1a1a",
+                      "background": "#faf8ff",
+                      "secondary-fixed-dim": "#b7c8e1",
+                      "on-secondary-fixed-variant": "#38485d",
+                      "inverse-surface": "#283044",
+                      "on-tertiary-fixed": "#3c0800",
+                      "on-primary-fixed-variant": "#0038b6",
+                      "secondary-container": "#d0e1fb",
+                      "on-error-container": "#93000a",
+                      "on-secondary": "#ffffff",
+                      "on-secondary-container": "#54647a",
+                      "on-tertiary-container": "#ffddd5",
+                      "tertiary-fixed": "#ffdbd2",
+                      "on-surface": "#131b2e",
+                      "primary-container": "#0052ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "xl": "32px",
+                      "2xl": "48px",
+                      "margin-mobile": "16px",
+                      "base": "4px",
+                      "xs": "4px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "3xl": "64px",
+                      "margin-desktop": "40px",
+                      "lg": "24px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "display": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-sm": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased h-screen flex overflow-hidden">
+<!-- Sidebar / NavigationDrawer -->
+<nav class="hidden lg:flex flex-col bg-surface border-r border-outline-variant h-screen w-72 flex-shrink-0 z-20">
+<!-- Brand / Header -->
+<div class="h-16 flex items-center px-md border-b border-outline-variant">
+<img alt="EduSpare Logo" class="h-8 w-8 object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLtwkiyIXYnlG0YWsLN-trxJw9WgV9TEa0gcIlRp0RRO1zJkQLJ41j85eCESeyC98fYOHQUxESiuxbQPvnRLI2_5od3Moa0Cb3qmkXpKN9XcnZDDOpFcUy82_28gOiIZktj7eRgAASJS7lGyc0MTNQr93b_y2NSg0HSz-T2TgYBceH8FiN2zNGOP0KeoZoSG3Jy0ah5CxtcP-y02uhxZOqPtnbBHCTV9MKHR3lF_eV-sYtleQ1_sTTEc_c8">
+<span class="ml-sm font-headline-md text-headline-md font-bold text-primary">EduSpare</span>
+</div>
+<!-- User Profile Area -->
+<div class="p-md border-b border-outline-variant">
+<div class="flex items-center gap-sm">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="A professional headshot of a software architect in their 30s. The portrait is well-lit with natural light, modern clean background, high resolution, corporate lifestyle aesthetic, wearing casual tech attire." src="https://lh3.googleusercontent.com/aida-public/AB6AXuByiENsPOqiUa0M6QzJGaJOWXlZnwaCy5hMbL2-XoCtmKoMofaLhPdN9_hgliUVQnZJkgRrCnf3NICLyukJL40WH28njGYiynlU7n2ptMp0iT-wZ5grtej2QGQIrChPo-Zx4pNARgK5W3eZcOsa-DFhVFlniT2Tnq6AgZ3OWRfCAORWtXnu2M1UYVjrIeVv00QxmHmhBZAHwry9Q2GmMnFo_blvN_Ns4eDM3W15W45t_RJ2x143KYU8">
+<div>
+<h3 class="font-label-md text-label-md font-semibold">Alex Chen</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Software Architect</p>
+</div>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 overflow-y-auto p-sm">
+<div class="space-y-1 mb-lg">
+<p class="px-sm py-xs font-label-sm text-label-sm text-outline uppercase tracking-wider mb-sm">Main</p>
+<a class="flex items-center gap-sm px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="assignment">assignment</span>
+<span class="font-label-md text-label-md">Tasks</span>
+</a><a class="flex items-center gap-sm px-md py-sm ml-sm rounded-full bg-secondary-container text-on-secondary-container font-semibold transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] icon-fill" data-icon="description">description</span>
+<span class="font-label-md text-label-md">Notes</span>
+</a>
+
+</div>
+<!-- Pages/Documents -->
+<div class="space-y-1 mb-lg">
+<div class="flex items-center justify-between px-sm py-xs mb-sm">
+<p class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Pages</p>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<a class="flex items-center gap-sm px-md py-xs rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
+<span class="material-symbols-outlined text-[18px] opacity-70 group-hover:opacity-100">article</span>
+<span class="font-body-sm text-body-sm truncate">Architecture Notes</span>
+</a>
+<a class="flex items-center gap-sm px-md py-xs rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
+<span class="material-symbols-outlined text-[18px] opacity-70 group-hover:opacity-100">data_object</span>
+<span class="font-body-sm text-body-sm truncate">Backend Setup</span>
+</a>
+<a class="flex items-center gap-sm px-md py-xs rounded-lg bg-surface-container-high text-primary font-medium transition-colors group" href="#">
+<span class="material-symbols-outlined text-[18px]">science</span>
+<span class="font-body-sm text-body-sm truncate">Research Notes</span>
+</a>
+<a class="flex items-center gap-sm px-md py-xs rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
+<span class="material-symbols-outlined text-[18px] opacity-70 group-hover:opacity-100">map</span>
+<span class="font-body-sm text-body-sm truncate">Product Roadmap</span>
+</a>
+</div>
+<!-- History -->
+<div class="space-y-1">
+<p class="px-sm py-xs font-label-sm text-label-sm text-outline uppercase tracking-wider mb-sm">History</p>
+<a class="block px-md py-xs font-body-sm text-body-sm text-on-surface-variant hover:text-primary truncate transition-colors" href="#">Meeting Notes - Oct 12</a>
+<a class="block px-md py-xs font-body-sm text-body-sm text-on-surface-variant hover:text-primary truncate transition-colors" href="#">Q3 Ideation Brainstorm</a>
+<a class="block px-md py-xs font-body-sm text-body-sm text-on-surface-variant hover:text-primary truncate transition-colors" href="#">Client Feedback V1</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 bg-surface-container-lowest relative z-10">
+<!-- Top App Bar (Mobile & Contextual) -->
+<header class="h-16 border-b border-outline-variant flex items-center justify-between px-md md:px-margin-desktop bg-surface sticky top-0 z-30">
+<div class="flex items-center gap-sm">
+<button class="lg:hidden text-on-surface-variant p-sm rounded-full hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<!-- Breadcrumbs -->
+<nav class="hidden sm:flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">home</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span>Engineering Space</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-on-surface font-medium">Research Notes</span>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<p class="hidden md:block font-label-sm text-label-sm text-outline">Edited 2 mins ago</p>
+<button class="px-md py-xs border border-outline-variant rounded bg-surface-container-lowest hover:bg-surface-container-low font-label-md text-label-md transition-colors">Share</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</header>
+<!-- Editor Canvas -->
+<div class="flex-1 overflow-y-auto">
+<div class="max-w-[800px] mx-auto px-margin-mobile md:px-lg py-xl md:py-2xl">
+<!-- Page Header -->
+<div class="mb-xl">
+<div class="text-[64px] mb-md leading-none">🔬</div>
+<h1 class="font-display text-display text-on-surface mb-md">Research Notes: AI Integration</h1>
+<!-- Metadata tags -->
+<div class="flex flex-wrap items-center gap-sm mb-lg">
+<span class="inline-flex items-center gap-xs px-sm py-xs bg-surface-container-low text-on-surface-variant rounded font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+                            Oct 24, 2023
+                        </span>
+<span class="inline-flex items-center gap-xs px-sm py-xs bg-surface-container-low text-on-surface-variant rounded font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">person</span>
+                            Alex Chen
+                        </span>
+<span class="inline-flex items-center gap-xs px-sm py-xs bg-primary-container text-on-primary-container rounded font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">local_offer</span>
+                            Q4 Goals
+                        </span>
+<span class="inline-flex items-center gap-xs px-sm py-xs bg-surface-container-low text-on-surface-variant rounded font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">add</span>
+                            Add Tag
+                        </span>
+</div>
+</div>
+<!-- Editor Blocks (Simulated) -->
+<div class="space-y-md font-body-lg text-body-lg text-on-surface">
+<p class="leading-relaxed">
+                        This document outlines the initial findings for integrating the new LLM models into our existing EduSpare architecture. The primary goal is to enhance the note-taking experience with contextual auto-completion and intelligent summarization.
+                    </p>
+<h2 class="font-headline-lg text-headline-lg mt-xl mb-sm font-semibold text-on-surface">1. Core Objectives</h2>
+<ul class="list-disc pl-lg space-y-sm text-on-surface-variant">
+<li>Reduce latency for auto-complete suggestions to &lt; 200ms.</li>
+<li>Ensure user data privacy (sandbox processing where possible).</li>
+<li>Implement a seamless UI for accepting/rejecting suggestions without breaking typing flow.</li>
+</ul>
+<h2 class="font-headline-lg text-headline-lg mt-xl mb-sm font-semibold text-on-surface">2. Initial Technical Spikes</h2>
+<!-- Callout Block -->
+<div class="bg-surface-variant rounded-lg p-md border-l-4 border-primary flex gap-md my-lg">
+<span class="material-symbols-outlined text-primary mt-xs">lightbulb</span>
+<div>
+<h4 class="font-headline-sm text-headline-sm mb-xs">Key Finding</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Local caching of recent vector embeddings significantly improves retrieval times for contextual queries. We should prioritize a client-side vector database approach.</p>
+</div>
+</div>
+<p class="leading-relaxed">
+                        Testing with standard REST APIs showed unacceptable latency during peak hours. We will likely need to move to a WebSocket-based streaming architecture for real-time inference delivery.
+                    </p>
+<div class="flex items-center gap-sm mt-lg opacity-50 cursor-text">
+<span class="material-symbols-outlined">add</span>
+<span class="font-body-md text-body-md text-outline">Click to add a block or type '/' for commands</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Right Sidebar - AI Assistant (Contextual Panel) -->
+<aside class="hidden xl:flex flex-col w-80 bg-surface border-l border-outline-variant h-screen flex-shrink-0 relative z-20">
+<!-- Panel Header -->
+<div class="h-16 flex items-center justify-between px-md border-b border-outline-variant bg-surface-container-lowest">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary icon-fill">smart_toy</span>
+<span class="font-headline-sm text-headline-sm font-semibold">EduSpare AI</span>
+</div>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- AI Content Area -->
+<div class="flex-1 overflow-y-auto p-md space-y-md bg-surface-container-lowest">
+<!-- AI Welcome Message -->
+<div class="bg-surface-container-low rounded-xl p-md rounded-tl-none border border-outline-variant/30">
+<p class="font-body-sm text-body-sm">Hi Alex! I'm analyzing your "Research Notes". Here are a few things I can help with:</p>
+<div class="mt-sm space-y-sm">
+<button class="w-full text-left px-sm py-xs bg-surface border border-outline-variant rounded text-on-surface-variant font-label-sm text-label-sm hover:border-primary hover:text-primary transition-colors">
+                        Summarize this document
+                    </button>
+<button class="w-full text-left px-sm py-xs bg-surface border border-outline-variant rounded text-on-surface-variant font-label-sm text-label-sm hover:border-primary hover:text-primary transition-colors">
+                        Extract action items
+                    </button>
+<button class="w-full text-left px-sm py-xs bg-surface border border-outline-variant rounded text-on-surface-variant font-label-sm text-label-sm hover:border-primary hover:text-primary transition-colors">
+                        Find related notes
+                    </button>
+</div>
+</div>
+<!-- Contextual Insights Widget -->
+<div class="bg-surface border border-outline-variant rounded-xl p-md shadow-sm">
+<div class="flex items-center gap-xs mb-sm text-primary">
+<span class="material-symbols-outlined text-[18px]">insights</span>
+<h4 class="font-label-md text-label-md font-semibold uppercase">Related Context</h4>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-sm">
+                    You mentioned "WebSocket-based streaming". This was also discussed in the <a class="text-primary hover:underline" href="#">Backend Architecture</a> meeting last week.
+                </p>
+</div>
+</div>
+<!-- AI Input Area -->
+<div class="p-md border-t border-outline-variant bg-surface-container-lowest">
+<div class="relative">
+<textarea class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-sm pr-10 py-sm font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-all" placeholder="Ask AI anything about this note..." rows="2"></textarea>
+<button class="absolute right-sm bottom-sm p-xs text-primary hover:bg-surface-variant rounded transition-colors">
+<span class="material-symbols-outlined icon-fill">send</span>
+</button>
+</div>
+<p class="text-center font-label-sm text-[10px] text-outline mt-sm">AI can make mistakes. Verify important information.</p>
+</div>
+</aside>
+
+
+</body></html>
