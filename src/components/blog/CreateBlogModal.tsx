@@ -1,12 +1,117 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Image as ImageIcon, FileText, Tag, Upload } from 'lucide-react';
+import { X, Image as ImageIcon, FileText, Tag, Upload, Eye, Edit3, Sparkles, Sigma } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
+import { BlogAttachment } from '@/types/eduspare';
+import { MarkdownRenderer } from '../common/MarkdownRenderer';
 
 interface CreateBlogModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function convertHtmlToMarkdownAndLatex(html: string, fallbackText: string): string {
+  if (!html) return fallbackText;
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // 1. Extract KaTeX / MathJax / MathML LaTeX annotations
+    const annotations = doc.querySelectorAll('annotation[encoding*="tex"], annotation[encoding*="latex"]');
+    annotations.forEach((ann) => {
+      const tex = ann.textContent?.trim();
+      if (tex) {
+        const container = ann.closest('.katex-display, .katex, math, .math') || ann.parentElement;
+        if (container) {
+          const isDisplay = container.classList.contains('katex-display') || container.tagName.toLowerCase() === 'div';
+          const replacement = isDisplay ? `\n\n$$\n${tex}\n$$\n\n` : `$${tex}$`;
+          const textNode = doc.createTextNode(replacement);
+          container.parentNode?.replaceChild(textNode, container);
+        }
+      }
+    });
+
+    // 2. Walk DOM and convert HTML structure into Markdown
+    function walk(node: Node): string {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent || '';
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const elem = node as HTMLElement;
+      const tag = elem.tagName.toLowerCase();
+      const childrenText = Array.from(elem.childNodes).map(walk).join('');
+
+      switch (tag) {
+        case 'h1':
+          return `\n\n# ${childrenText.trim()}\n\n`;
+        case 'h2':
+          return `\n\n## ${childrenText.trim()}\n\n`;
+        case 'h3':
+          return `\n\n### ${childrenText.trim()}\n\n`;
+        case 'h4':
+          return `\n\n#### ${childrenText.trim()}\n\n`;
+        case 'h5':
+          return `\n\n##### ${childrenText.trim()}\n\n`;
+        case 'h6':
+          return `\n\n###### ${childrenText.trim()}\n\n`;
+        case 'strong':
+        case 'b':
+          return childrenText.trim() ? `**${childrenText.trim()}**` : '';
+        case 'em':
+        case 'i':
+          return childrenText.trim() ? `*${childrenText.trim()}*` : '';
+        case 'code':
+          if (elem.parentElement?.tagName.toLowerCase() === 'pre') {
+            return childrenText;
+          }
+          return childrenText.trim() ? `\`${childrenText.trim()}\`` : '';
+        case 'pre':
+          return `\n\n\`\`\`\n${childrenText.trim()}\n\`\`\`\n\n`;
+        case 'blockquote':
+          return `\n\n> ${childrenText.trim().replace(/\n/g, '\n> ')}\n\n`;
+        case 'a':
+          const href = elem.getAttribute('href');
+          return href ? `[${childrenText.trim()}](${href})` : childrenText;
+        case 'ul':
+        case 'ol':
+          return `\n\n${childrenText.trim()}\n\n`;
+        case 'li':
+          const parentTag = elem.parentElement?.tagName.toLowerCase();
+          const prefix = parentTag === 'ol' ? '1. ' : '- ';
+          return `${prefix}${childrenText.trim()}\n`;
+        case 'p':
+        case 'div':
+          return `\n${childrenText.trim()}\n`;
+        case 'br':
+          return '\n';
+        case 'span':
+          return childrenText;
+        case 'table':
+          return `\n\n${childrenText.trim()}\n\n`;
+        case 'tr':
+          return `| ${childrenText.trim()} |\n`;
+        case 'th':
+        case 'td':
+          return `${childrenText.trim()} | `;
+        default:
+          return childrenText;
+      }
+    }
+
+    const converted = walk(doc.body).replace(/\n{3,}/g, '\n\n').trim();
+
+    if (converted && converted.length > 0) {
+      return converted;
+    }
+  } catch (err) {
+    console.warn('HTML clipboard conversion error:', err);
+  }
+
+  return fallbackText;
 }
 
 export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClose }) => {
@@ -15,27 +120,100 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
   const [content, setContent] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [tagInput, setTagInput] = useState('WebSockets, System Architecture');
-  const [docName, setDocName] = useState('');
-  const [docUrl, setDocUrl] = useState('');
+  const [attachments, setAttachments] = useState<BlogAttachment[]>([]);
+  const [activeContentTab, setActiveContentTab] = useState<'write' | 'preview'>('write');
 
   if (!isOpen) return null;
+
+  // Format Detections
+  const hasLatex = Boolean(
+    content &&
+    /\\(?:text|boxed|qquad|quad|times|frac|dfrac|tfrac|cfrac|sqrt|sum|int|lim|vec|alpha|beta|gamma|theta|pi|infty|cdot|partial|approx|le|ge|neq|begin|end)|\$|\\\[|\\\(|\[\s*[a-zA-Z0-9\s\\=+\-*\/^]+\s*\]/i.test(
+      content
+    )
+  );
+
+  const hasMarkdown = Boolean(
+    content &&
+    /(?:^|\n)(?:#{1,6}\s|\*\s|-\s|\d+\.\s|>|```|\|)|(?:\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))/m.test(content)
+  );
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const htmlData = e.clipboardData.getData('text/html');
+    const textData = e.clipboardData.getData('text/plain');
+
+    if (htmlData) {
+      const converted = convertHtmlToMarkdownAndLatex(htmlData, textData);
+      if (converted && converted !== textData) {
+        e.preventDefault();
+        const target = e.currentTarget;
+        const start = target.selectionStart;
+        const end = target.selectionEnd;
+        const newContent = content.substring(0, start) + converted + content.substring(end);
+        setContent(newContent);
+
+        setTimeout(() => {
+          target.selectionStart = target.selectionEnd = start + converted.length;
+        }, 0);
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    const newAttachments: BlogAttachment[] = [];
+    let processedCount = 0;
+
+    fileArray.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const sizeMB = file.size / (1024 * 1024);
+        const sizeKB = file.size / 1024;
+        const sizeStr = sizeMB >= 1 ? `${sizeMB.toFixed(1)} MB` : `${Math.round(sizeKB)} KB`;
+
+        newAttachments.push({
+          id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          name: file.name,
+          type: 'pdf',
+          url: reader.result as string,
+          size: sizeStr,
+        });
+
+        processedCount++;
+        if (processedCount === fileArray.length) {
+          setAttachments((prev) => [...prev, ...newAttachments]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((att) => att.id !== id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !content) return;
 
     const tags = tagInput.split(',').map((t) => t.trim()).filter(Boolean);
-    const attachments = docName
-      ? [
-          {
-            id: `att-${Date.now()}`,
-            name: docName,
-            type: 'pdf' as const,
-            url: docUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-            size: '1.5 MB',
-          },
-        ]
-      : [];
 
     await createBlog({
       title,
@@ -47,6 +225,8 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
 
     setTitle('');
     setContent('');
+    setCoverImage('');
+    setAttachments([]);
     onClose();
   };
 
@@ -54,7 +234,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="w-full max-w-2xl bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 p-6 space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-outline-variant/40 pb-4">
-          <h3 className="text-lg font-bold text-on-surface">Publish New Article or Note</h3>
+          <h3 className="text-lg font-bold text-on-surface">Publish New Article</h3>
           <button
             onClick={onClose}
             className="p-1 rounded-full text-outline hover:bg-surface-container-low hover:text-on-surface"
@@ -80,60 +260,142 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
 
           <div>
             <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
-              Cover Image URL (Optional)
+              Cover Image
             </label>
-            <div className="relative">
-              <ImageIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
-              <input
-                type="text"
-                value={coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-surface-container-low text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+            {coverImage ? (
+              <div className="relative rounded-xl overflow-hidden border border-outline-variant/60 group">
+                <img src={coverImage} alt="Cover Preview" className="w-full h-36 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setCoverImage('')}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/70 text-white hover:bg-red-600 transition-colors shadow"
+                  title="Remove cover image"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-outline-variant/60 rounded-xl cursor-pointer bg-surface-container-low hover:bg-surface-container hover:border-primary/50 transition-all">
+                <div className="flex flex-col items-center justify-center pt-3 pb-3">
+                  <Upload className="w-6 h-6 text-outline mb-1" />
+                  <p className="text-xs text-on-surface font-medium">Click to upload cover image</p>
+                  <p className="text-[10px] text-outline">PNG, JPG, WEBP or GIF</p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-bold text-on-surface uppercase tracking-wider">
+                  Content Body
+                </label>
+
+
+              </div>
+
+              <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/40">
+                <button
+                  type="button"
+                  onClick={() => setActiveContentTab('write')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeContentTab === 'write'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-outline hover:text-on-surface'
+                    }`}
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> Write
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveContentTab('preview')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeContentTab === 'preview'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-outline hover:text-on-surface'
+                    }`}
+                >
+                  <Eye className="w-3.5 h-3.5" /> Full Preview
+                </button>
+              </div>
             </div>
+
+            {activeContentTab === 'write' ? (
+              <div className="space-y-3">
+                <textarea
+                  rows={6}
+                  required
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  onPaste={handlePaste}
+                  placeholder="Paste or write Markdown and LaTeX math formulas (e.g. $E=mc^2$ or \frac{a}{b} or [ d = vt ])..."
+                  className="w-full p-4 rounded-xl bg-surface-container-low text-on-surface text-sm border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary font-mono leading-relaxed"
+                />
+
+              </div>
+            ) : (
+              <div className="w-full min-h-[200px] max-h-[350px] overflow-y-auto p-4 rounded-xl bg-surface-container-low border border-outline-variant/60">
+                {content ? (
+                  <MarkdownRenderer content={content} />
+                ) : (
+                  <p className="text-xs text-outline italic">
+                    Nothing to preview yet. Paste or write Markdown and LaTeX math formulas in the Write tab!
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
             <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
-              Content Body (Markdown supported) *
+              Attach Documents
             </label>
-            <textarea
-              rows={6}
-              required
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Write your article, research notes, code snippets, or thoughts here..."
-              className="w-full p-4 rounded-xl bg-surface-container-low text-on-surface text-sm border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
-                Attach Document / PDF Title
-              </label>
-              <input
-                type="text"
-                value={docName}
-                onChange={(e) => setDocName(e.target.value)}
-                placeholder="e.g. Architecture_Blueprint.pdf"
-                className="w-full px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs border border-outline-variant/60"
-              />
-            </div>
+            {attachments.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-on-surface truncate">{att.name}</p>
+                        <p className="text-[10px] text-outline">{att.size}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="p-1 rounded-lg text-outline hover:text-red-500 hover:bg-surface-container transition-colors shrink-0"
+                      title="Remove document"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <div>
-              <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
-                Document URL
-              </label>
+            <label className="flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-dashed border-outline-variant/60 rounded-xl cursor-pointer bg-surface-container-low hover:bg-surface-container hover:border-primary/50 transition-all text-xs font-medium text-on-surface">
+              <Upload className="w-4 h-4 text-outline" />
+              <span>Click to attach documents</span>
               <input
-                type="text"
-                value={docUrl}
-                onChange={(e) => setDocUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs border border-outline-variant/60"
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
               />
-            </div>
+            </label>
           </div>
 
           <div>

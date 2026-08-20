@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { BlogPost } from '@/types/eduspare';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { CommentSection } from './CommentSection';
+import { MarkdownRenderer } from '../common/MarkdownRenderer';
 import {
   Heart,
   MessageCircle,
@@ -100,9 +101,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
       {/* Title & Body Content */}
       <div className="space-y-2">
         <h3 className="text-lg font-bold text-on-surface leading-snug">{post.title}</h3>
-        <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line font-medium">
-          {post.content}
-        </p>
+        <MarkdownRenderer content={post.content} />
       </div>
 
       {/* Cover Image if present */}
@@ -250,7 +249,11 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
 
       {/* Expandable Comments Section */}
       {showComments && (
-        <CommentSection blogId={post.id} comments={post.comments || []} />
+        <CommentSection
+          blogId={post.id}
+          blogAuthorId={post.authorId || post.author?.id}
+          comments={post.comments || []}
+        />
       )}
     </div>
   );

@@ -79,9 +79,7 @@ export const BlogFeedView: React.FC = () => {
             <span className="text-xs text-outline font-semibold flex-1">
               What research, notes, or ideas are you working on today, {currentUser.name.split(' ')[0]}?
             </span>
-            <span className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-xl">
-              Post Note
-            </span>
+
           </div>
         )}
       </div>

@@ -81,6 +81,15 @@ export async function POST(request: Request) {
       },
     });
 
+    // Increment user active streak and reward points (without creating a task)
+    await prisma.user.update({
+      where: { id: authorId },
+      data: {
+        activeStreak: { increment: 1 },
+        totalPoints: { increment: 50 },
+      },
+    });
+
     return NextResponse.json({
       blog: {
         ...newBlog,

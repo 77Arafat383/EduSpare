@@ -151,7 +151,7 @@ export const LoginPage: React.FC = () => {
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className="block text-xs font-bold text-on-surface uppercase tracking-wider">
-                    Password (min 8 chars)
+                    Password
                   </label>
                 </div>
                 <input

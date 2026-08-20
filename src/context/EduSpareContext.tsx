@@ -47,6 +47,8 @@ interface EduSpareContextType {
   deleteBlog: (id: string) => Promise<void>;
   toggleLikeBlog: (blogId: string) => Promise<void>;
   addComment: (blogId: string, content: string) => Promise<void>;
+  updateComment: (blogId: string, commentId: string, content: string) => Promise<void>;
+  deleteComment: (blogId: string, commentId: string) => Promise<void>;
   toggleSaveBlogOrItem: (item: { title: string; itemType: string; url?: string; itemId?: string }) => Promise<void>;
   deleteSavedItem: (id: string) => Promise<void>;
   
@@ -261,7 +263,16 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...blogData, authorId: currentUser.id }),
       });
-      await fetchBlogs();
+      await Promise.all([fetchBlogs(), fetchTasks()]);
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              activeStreak: prev.activeStreak + 1,
+              totalPoints: prev.totalPoints + 50,
+            }
+          : prev
+      );
     } catch (err) {
       console.error('Create blog error:', err);
     }
@@ -301,6 +312,32 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await fetchBlogs();
     } catch (err) {
       console.error('Add comment error:', err);
+    }
+  };
+
+  const updateComment = async (blogId: string, commentId: string, content: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch(`/api/blogs/${blogId}/comments/${commentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorId: currentUser.id, content }),
+      });
+      await fetchBlogs();
+    } catch (err) {
+      console.error('Update comment error:', err);
+    }
+  };
+
+  const deleteComment = async (blogId: string, commentId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch(`/api/blogs/${blogId}/comments/${commentId}?userId=${currentUser.id}`, {
+        method: 'DELETE',
+      });
+      await fetchBlogs();
+    } catch (err) {
+      console.error('Delete comment error:', err);
     }
   };
 
@@ -507,6 +544,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteBlog,
         toggleLikeBlog,
         addComment,
+        updateComment,
+        deleteComment,
         toggleSaveBlogOrItem,
         deleteSavedItem,
         fetchMessages,

@@ -16,9 +16,14 @@ function toLocalDateString(d: Date): string {
 }
 
 export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
-  const { tasks, currentUser } = useEduSpare();
+  const { tasks, blogs, currentUser } = useEduSpare();
   const currentYearNum = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYearNum.toString());
+
+  const userBlogs = useMemo(() => {
+    if (!currentUser) return [];
+    return blogs.filter((b) => b.authorId === currentUser.id || b.author?.id === currentUser.id);
+  }, [blogs, currentUser]);
 
   // Calculate available active years based on user history
   const availableYears = useMemo(() => {
@@ -38,19 +43,26 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
       }
     });
 
+    userBlogs.forEach((b) => {
+      if (b.createdAt) {
+        const yr = new Date(b.createdAt).getFullYear();
+        if (!isNaN(yr)) yearsSet.add(yr);
+      }
+    });
+
     yearsSet.add(currentYearNum - 1);
     yearsSet.add(currentYearNum - 2);
 
     const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
     return sortedYears.map(String);
-  }, [tasks, currentUser, currentYearNum]);
+  }, [tasks, userBlogs, currentUser, currentYearNum]);
 
   // Filter tasks completed by current user strictly based on user performance
   const completedTasks = useMemo(() => {
     return tasks.filter((t) => t.status === 'Completed');
   }, [tasks]);
 
-  // Map completion dates to task count per day YYYY-MM-DD (local timezone)
+  // Map completion dates to task & blog activity count per day YYYY-MM-DD (local timezone)
   const completionMap = useMemo(() => {
     const map: Record<string, number> = {};
     completedTasks.forEach((t) => {
@@ -60,8 +72,16 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
         map[dateStr] = (map[dateStr] || 0) + 1;
       }
     });
+
+    userBlogs.forEach((b) => {
+      if (b.createdAt) {
+        const dateStr = toLocalDateString(new Date(b.createdAt));
+        map[dateStr] = (map[dateStr] || 0) + 1;
+      }
+    });
+
     return map;
-  }, [completedTasks]);
+  }, [completedTasks, userBlogs]);
 
   // Generate 52 weeks activity grid aligned with Sunday as row 0
   const gridData = useMemo(() => {
