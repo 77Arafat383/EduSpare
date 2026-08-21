@@ -32,11 +32,13 @@ interface EduSpareContextType {
   communities: CommunityItem[];
   savedItems: SavedVaultItem[];
   messages: MessageItem[];
+  recentConversations: Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean }>;
   activeChatUser: User | null;
   setActiveChatUser: (user: User | null) => void;
   isChatBlocked: boolean;
   
   // Actions
+  fetchConversations: () => Promise<void>;
   fetchTasks: () => Promise<void>;
   createTask: (data: Partial<TaskItem>) => Promise<TaskItem | null>;
   updateTask: (id: string, data: Partial<TaskItem>) => Promise<void>;
@@ -83,6 +85,9 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [communities, setCommunities] = useState<CommunityItem[]>([]);
   const [savedItems, setSavedItems] = useState<SavedVaultItem[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [recentConversations, setRecentConversations] = useState<
+    Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean }>
+  >({});
   const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -370,6 +375,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Chat Actions
+  const fetchConversations = async () => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`/api/chat?userId=${currentUser.id}`);
+      const data = await res.json();
+      if (data.recentConversations) {
+        setRecentConversations(data.recentConversations);
+      }
+    } catch (err) {
+      console.error('Fetch conversations error:', err);
+    }
+  };
+
   const fetchMessages = async (targetUserId: string) => {
     if (!currentUser) return;
     try {
@@ -398,6 +416,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
       if (res.ok) {
         await fetchMessages(receiverId);
+        await fetchConversations();
       }
     } catch (err) {
       console.error('Send message error:', err);
@@ -532,9 +551,11 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         communities,
         savedItems,
         messages,
+        recentConversations,
         activeChatUser,
         setActiveChatUser,
         isChatBlocked,
+        fetchConversations,
         fetchTasks,
         createTask,
         updateTask,

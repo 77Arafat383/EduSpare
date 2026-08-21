@@ -46,29 +46,38 @@ export async function GET(request: Request) {
       });
     }
 
-    // Get all unique conversation contacts for userId
-    const sentMessages = await prisma.message.findMany({
-      where: { senderId: userId },
-      select: { receiverId: true },
+    // Get all messages involving userId to compute last message timestamp per contact
+    const allUserMessages = await prisma.message.findMany({
+      where: {
+        OR: [{ senderId: userId }, { receiverId: userId }],
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const receivedMessages = await prisma.message.findMany({
-      where: { receiverId: userId },
-      select: { senderId: true },
-    });
+    const recentConversations: Record<
+      string,
+      { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean }
+    > = {};
 
-    const contactIds = Array.from(
-      new Set([
-        ...sentMessages.map((m) => m.receiverId),
-        ...receivedMessages.map((m) => m.senderId),
-      ])
-    );
+    const contactIdsSet = new Set<string>();
+
+    allUserMessages.forEach((msg) => {
+      const contactId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      contactIdsSet.add(contactId);
+      if (!recentConversations[contactId]) {
+        recentConversations[contactId] = {
+          lastMessageAt: msg.createdAt.toISOString(),
+          lastMessageSnippet: msg.content,
+          isMeSender: msg.senderId === userId,
+        };
+      }
+    });
 
     const contacts = await prisma.user.findMany({
-      where: { id: { in: contactIds } },
+      where: { id: { in: Array.from(contactIdsSet) } },
     });
 
-    return NextResponse.json({ contacts });
+    return NextResponse.json({ contacts, recentConversations });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
   }

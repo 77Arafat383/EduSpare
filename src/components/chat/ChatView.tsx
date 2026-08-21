@@ -11,16 +11,36 @@ import {
   ShieldCheck,
   Search,
   CheckCheck,
+  MoreVertical,
 } from 'lucide-react';
+
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
 export const ChatView: React.FC = () => {
   const {
     currentUser,
     allUsers,
     messages,
+    recentConversations,
     activeChatUser,
     setActiveChatUser,
     isChatBlocked,
+    fetchConversations,
     fetchMessages,
     sendMessage,
     toggleBlockUser,
@@ -30,10 +50,42 @@ export const ChatView: React.FC = () => {
 
   const [inputMessage, setInputMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Available users to chat with (excluding current user)
-  const chatContacts = allUsers.filter((u) => u.id !== currentUser?.id);
+  // Close 3-dots menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch user conversations on mount / user change
+  useEffect(() => {
+    if (currentUser) {
+      fetchConversations();
+    }
+  }, [currentUser]);
+
+  // Available users to chat with, sorted by latest conversation timestamp descending
+  const chatContacts = [...allUsers]
+    .filter((u) => u.id !== currentUser?.id)
+    .sort((a, b) => {
+      const convA = recentConversations[a.id];
+      const convB = recentConversations[b.id];
+      const timeA = convA ? new Date(convA.lastMessageAt).getTime() : 0;
+      const timeB = convB ? new Date(convB.lastMessageAt).getTime() : 0;
+
+      if (timeA !== timeB) {
+        return timeB - timeA; // Latest person talked to / received message from appears strictly at top
+      }
+      return a.name.localeCompare(b.name);
+    });
 
   const filteredContacts = chatContacts.filter((u) => {
     if (!searchTerm) return true;
@@ -41,7 +93,7 @@ export const ChatView: React.FC = () => {
     return u.name.toLowerCase().includes(term) || u.username.toLowerCase().includes(term);
   });
 
-  // Default select first contact if none selected
+  // Default select first contact at top of list if none selected
   useEffect(() => {
     if (!activeChatUser && filteredContacts.length > 0) {
       setActiveChatUser(filteredContacts[0]);
@@ -50,6 +102,7 @@ export const ChatView: React.FC = () => {
 
   // Fetch message thread when activeChatUser changes
   useEffect(() => {
+    setIsMenuOpen(false);
     if (activeChatUser && currentUser) {
       fetchMessages(activeChatUser.id);
     }
@@ -98,17 +151,22 @@ export const ChatView: React.FC = () => {
         <div className="flex-1 overflow-y-auto divide-y divide-outline-variant/30 p-2 space-y-1">
           {filteredContacts.map((contact) => {
             const isSelected = activeChatUser?.id === contact.id;
+            const conv = recentConversations[contact.id];
+            const timeStr = conv ? formatRelativeTime(conv.lastMessageAt) : '';
+            const lastSnippet = conv
+              ? (conv.isMeSender ? `You: ${conv.lastMessageSnippet}` : conv.lastMessageSnippet)
+              : `@${contact.username} • ${contact.university || 'Scholar'}`;
+
             return (
               <div
                 key={contact.id}
                 onClick={() => setActiveChatUser(contact)}
-                className={`p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all ${
-                  isSelected
+                className={`p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all ${isSelected
                     ? 'bg-primary text-white shadow-md'
                     : 'hover:bg-surface-container-high text-on-surface'
-                }`}
+                  }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="relative shrink-0">
                     <img
                       src={contact.avatar}
@@ -117,20 +175,28 @@ export const ChatView: React.FC = () => {
                     />
                     <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
                   </div>
-                  <div className="min-w-0">
-                    <h4
-                      className={`text-xs font-bold truncate ${
-                        isSelected ? 'text-white' : 'text-on-surface'
-                      }`}
-                    >
-                      {contact.name}
-                    </h4>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4
+                        className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-on-surface'
+                          }`}
+                      >
+                        {contact.name}
+                      </h4>
+                      {timeStr && (
+                        <span
+                          className={`text-[10px] shrink-0 font-medium ${isSelected ? 'text-white/80' : 'text-outline'
+                            }`}
+                        >
+                          {timeStr}
+                        </span>
+                      )}
+                    </div>
                     <p
-                      className={`text-[11px] truncate ${
-                        isSelected ? 'text-white/80' : 'text-outline'
-                      }`}
+                      className={`text-[11px] truncate ${isSelected ? 'text-white/80' : 'text-outline'
+                        }`}
                     >
-                      @{contact.username} • {contact.university || 'Scholar'}
+                      {lastSnippet}
                     </p>
                   </div>
                 </div>
@@ -166,32 +232,58 @@ export const ChatView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="relative" ref={menuRef}>
               <button
-                onClick={() => handleVisitProfile(activeChatUser)}
-                className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-xl transition-colors flex items-center gap-1.5"
+                type="button"
+                onClick={() => setIsMenuOpen((prev) => !prev)}
+                className="p-2 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                title="More options"
               >
-                <UserIcon className="w-3.5 h-3.5" /> Profile
+                <MoreVertical className="w-5 h-5" />
               </button>
 
-              <button
-                onClick={() => toggleBlockUser(activeChatUser.id)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 ${
-                  isChatBlocked
-                    ? 'bg-rose-500 text-white'
-                    : 'bg-surface-variant text-on-surface-variant hover:bg-rose-500/10 hover:text-rose-600'
-                }`}
-              >
-                {isChatBlocked ? (
-                  <>
-                    <ShieldCheck className="w-3.5 h-3.5" /> Unblock
-                  </>
-                ) : (
-                  <>
-                    <ShieldAlert className="w-3.5 h-3.5" /> Block User
-                  </>
-                )}
-              </button>
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-surface-lowest border border-outline-variant/80 rounded-2xl shadow-xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleVisitProfile(activeChatUser);
+                    }}
+                    className="w-full px-3 py-2 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl flex items-center gap-2.5 transition-colors"
+                  >
+                    <UserIcon className="w-4 h-4 text-primary" />
+                    <span>View Profile</span>
+                  </button>
+
+                  <div className="my-1 border-t border-outline-variant/40" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      toggleBlockUser(activeChatUser.id);
+                    }}
+                    className={`w-full px-3 py-2 text-xs font-bold rounded-xl flex items-center gap-2.5 transition-colors ${
+                      isChatBlocked
+                        ? 'text-emerald-600 hover:bg-emerald-500/10'
+                        : 'text-rose-600 hover:bg-rose-500/10'
+                    }`}
+                  >
+                    {isChatBlocked ? (
+                      <>
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                        <span>Unblock User</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldAlert className="w-4 h-4 text-rose-600" />
+                        <span>Block User</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -219,19 +311,17 @@ export const ChatView: React.FC = () => {
                     )}
 
                     <div
-                      className={`max-w-[70%] p-3.5 rounded-2xl text-xs space-y-1 ${
-                        isMe
+                      className={`max-w-[70%] p-3.5 rounded-2xl text-xs space-y-1 ${isMe
                           ? 'bg-primary text-white rounded-br-none shadow-sm'
                           : 'bg-surface-container-high text-on-surface rounded-bl-none border border-outline-variant/40'
-                      }`}
+                        }`}
                     >
                       <p className="leading-relaxed whitespace-pre-line font-medium">
                         {msg.content}
                       </p>
                       <div
-                        className={`text-[10px] text-right flex items-center justify-end gap-1 ${
-                          isMe ? 'text-white/70' : 'text-outline'
-                        }`}
+                        className={`text-[10px] text-right flex items-center justify-end gap-1 ${isMe ? 'text-white/70' : 'text-outline'
+                          }`}
                       >
                         <span>
                           {new Date(msg.createdAt).toLocaleTimeString([], {
