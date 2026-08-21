@@ -68,11 +68,13 @@ interface EduSpareContextType {
   createCommunity: (data: any) => Promise<void>;
   toggleJoinCommunity: (communityId: string, action: 'join' | 'leave') => Promise<void>;
   requestToJoinCommunity: (communityId: string) => Promise<void>;
+  cancelRequestToJoinCommunity: (communityId: string) => Promise<void>;
   handleMembershipRequest: (communityId: string, applicantId: string, decision: 'approve' | 'reject') => Promise<void>;
   updateCommunityDetails: (communityId: string, data: any) => Promise<void>;
   approveCommunityBlog: (blogId: string) => Promise<void>;
   removeCommunityMember: (communityId: string, memberId: string) => Promise<void>;
   inviteUserToCommunity: (communityId: string, targetUserId: string) => Promise<void>;
+  deleteCommunity: (communityId: string) => Promise<void>;
   
   notifications: NotificationItem[];
   fetchNotifications: () => Promise<void>;
@@ -642,6 +644,24 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const cancelRequestToJoinCommunity = async (communityId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cancel-request',
+          communityId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Cancel join request error:', err);
+    }
+  };
+
   const handleMembershipRequest = async (
     communityId: string,
     applicantId: string,
@@ -734,6 +754,25 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await fetchCommunities();
     } catch (err) {
       console.error('Invite user to community error:', err);
+    }
+  };
+
+  const deleteCommunity = async (communityId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          communityId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+      setSelectedCommunityId(null);
+    } catch (err) {
+      console.error('Delete community error:', err);
     }
   };
 
@@ -889,11 +928,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         createCommunity,
         toggleJoinCommunity,
         requestToJoinCommunity,
+        cancelRequestToJoinCommunity,
         handleMembershipRequest,
         updateCommunityDetails,
         approveCommunityBlog,
         removeCommunityMember,
         inviteUserToCommunity,
+        deleteCommunity,
         notifications,
         fetchNotifications,
         markNotificationAsRead,

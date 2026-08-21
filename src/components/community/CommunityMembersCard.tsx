@@ -34,18 +34,7 @@ export const CommunityMembersCard: React.FC<CommunityMembersCardProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* 1. Community Rules Section */}
-      <div className="p-6 rounded-3xl bg-surface-lowest border border-outline-variant/60 shadow-sm space-y-3">
-        <div className="flex items-center gap-2">
-          <ScrollText className="w-5 h-5 text-primary" />
-          <h4 className="text-sm font-bold text-on-surface">Community Guidelines & Rules</h4>
-        </div>
-        <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 text-xs font-medium text-on-surface-variant leading-relaxed whitespace-pre-line">
-          {community.rules || DEFAULT_COMMUNITY_RULES}
-        </div>
-      </div>
-
-      {/* 2. Community Members Grid & Admin Invite */}
+      {/* Community Members Grid & Admin Invite */}
       <div className="p-6 rounded-3xl bg-surface-lowest border border-outline-variant/60 shadow-sm space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">

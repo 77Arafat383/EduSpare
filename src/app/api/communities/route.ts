@@ -115,6 +115,45 @@ export async function POST(request: Request) {
       let pending: string[] = (community as any).pendingRequestIds ? JSON.parse((community as any).pendingRequestIds || '[]') : [];
       if (!pending.includes(userId)) pending.push(userId);
 
+      // Create notification for Admin
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: community.createdById,
+            actorId: userId,
+            type: 'community_request',
+            title: 'New Community Join Request',
+            content: `A user requested to join ${community.name}`,
+            linkId: community.id,
+          },
+        });
+      } catch (e) {
+        console.error('Notification creation error:', e);
+      }
+
+      const updated = await prisma.community.update({
+        where: { id: communityId },
+        data: { memberIds: community.memberIds },
+      });
+
+      return NextResponse.json({
+        community: {
+          ...updated,
+          createdAt: updated.createdAt.toISOString(),
+          tags: JSON.parse(updated.tags || '[]'),
+          memberIds: JSON.parse(updated.memberIds || '[]'),
+          pendingRequestIds: pending,
+        },
+      });
+    }
+
+    if (action === 'cancel-request') {
+      const community = await prisma.community.findUnique({ where: { id: communityId } });
+      if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
+
+      let pending: string[] = (community as any).pendingRequestIds ? JSON.parse((community as any).pendingRequestIds || '[]') : [];
+      pending = pending.filter((id) => id !== userId);
+
       const updated = await prisma.community.update({
         where: { id: communityId },
         data: { memberIds: community.memberIds },
@@ -229,6 +268,11 @@ export async function POST(request: Request) {
           memberIds: members,
         },
       });
+    }
+
+    if (action === 'delete') {
+      await prisma.community.delete({ where: { id: communityId } });
+      return NextResponse.json({ success: true, deletedCommunityId: communityId });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

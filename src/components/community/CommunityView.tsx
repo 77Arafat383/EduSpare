@@ -7,6 +7,7 @@ import { CreateBlogModal } from '../blog/CreateBlogModal';
 import { CommunityHeader } from './CommunityHeader';
 import { CommunitySelectorPills } from './CommunitySelectorPills';
 import { CommunityCoverCard } from './CommunityCoverCard';
+import { CommunityPostBoxCard } from './CommunityPostBoxCard';
 import { AdminApprovalQueueCard } from './AdminApprovalQueueCard';
 import { CommunityMembersCard } from './CommunityMembersCard';
 import { CreateCommunityModal } from './CreateCommunityModal';
@@ -22,11 +23,13 @@ export const CommunityView: React.FC = () => {
     createCommunity,
     toggleJoinCommunity,
     requestToJoinCommunity,
+    cancelRequestToJoinCommunity,
     handleMembershipRequest,
     updateCommunityDetails,
     approveCommunityBlog,
     removeCommunityMember,
     inviteUserToCommunity,
+    deleteCommunity,
     deleteBlog,
     selectedCommunityId,
     setSelectedCommunityId,
@@ -101,20 +104,32 @@ export const CommunityView: React.FC = () => {
       {/* 3. Selected Community Workspace */}
       {activeCommunity && (
         <div className="space-y-6">
-          {/* Cover Page Card */}
-          <CommunityCoverCard
-            community={activeCommunity}
-            currentUser={currentUser}
-            communityBlogsCount={approvedCommunityBlogs.length}
-            isMember={isMember}
-            isAdmin={isAdmin}
-            isPending={isPending}
-            onOpenEditCover={() => setIsEditCoverOpen(true)}
-            onOpenCreatePost={() => setIsPostModalOpen(true)}
-            onJoin={() => toggleJoinCommunity(activeCommunity.id, 'join')}
-            onRequestJoin={() => requestToJoinCommunity(activeCommunity.id)}
-            onLeave={() => toggleJoinCommunity(activeCommunity.id, 'leave')}
-          />
+          {/* Cover Page Header & Post Creation Box Group (Tight Spacing) */}
+          <div className="space-y-2">
+            <CommunityCoverCard
+              community={activeCommunity}
+              currentUser={currentUser}
+              communityBlogsCount={approvedCommunityBlogs.length}
+              isMember={isMember}
+              isAdmin={isAdmin}
+              isPending={isPending}
+              onOpenEditCover={() => setIsEditCoverOpen(true)}
+              onOpenCreatePost={() => setIsPostModalOpen(true)}
+              onJoin={() => toggleJoinCommunity(activeCommunity.id, 'join')}
+              onRequestJoin={() => requestToJoinCommunity(activeCommunity.id)}
+              onLeave={() => toggleJoinCommunity(activeCommunity.id, 'leave')}
+              onDeleteCommunity={() => deleteCommunity(activeCommunity.id)}
+              onCancelRequest={() => cancelRequestToJoinCommunity(activeCommunity.id)}
+            />
+
+            {isMember && (
+              <CommunityPostBoxCard
+                community={activeCommunity}
+                currentUser={currentUser}
+                onOpenCreatePost={() => setIsPostModalOpen(true)}
+              />
+            )}
+          </div>
 
           {/* Admin Approval Queue (Pending Membership Join Requests & Pending Blog Posts) */}
           {isAdmin && (

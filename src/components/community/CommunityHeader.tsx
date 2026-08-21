@@ -16,7 +16,7 @@ export const CommunityHeader: React.FC<CommunityHeaderProps> = ({ onOpenCreate }
           <h2 className="text-2xl font-black text-on-surface tracking-tight">Study Communities</h2>
         </div>
         <p className="text-xs text-outline font-medium mt-1">
-          Join member-gated hubs to share research papers, study notes, and admin-moderated articles
+          Join member-gated hubs to share research papers, study notes, and articles.
         </p>
       </div>
 
