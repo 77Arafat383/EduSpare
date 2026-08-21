@@ -30,6 +30,7 @@ interface CommunityCoverCardProps {
   isMember: boolean;
   isAdmin: boolean;
   isPending: boolean;
+  isInvited?: boolean;
   allUsers?: User[];
   onOpenEditCover: () => void;
   onOpenCreatePost: () => void;
@@ -38,6 +39,8 @@ interface CommunityCoverCardProps {
   onLeave: () => void;
   onDeleteCommunity: () => void;
   onCancelRequest?: () => void;
+  onAcceptInvite?: () => void;
+  onDeclineInvite?: () => void;
   onRemoveMember?: (memberId: string) => void;
   onInviteMember?: (targetUserId: string) => void;
 }
@@ -49,6 +52,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
   isMember,
   isAdmin,
   isPending,
+  isInvited = false,
   allUsers = [],
   onOpenEditCover,
   onOpenCreatePost,
@@ -57,6 +61,8 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
   onLeave,
   onDeleteCommunity,
   onCancelRequest,
+  onAcceptInvite,
+  onDeclineInvite,
   onRemoveMember,
   onInviteMember,
 }) => {
@@ -122,7 +128,22 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
         {/* Action CTAs & 3-Dots Menu (Leave Group Option) */}
         <div className="flex items-center gap-2 shrink-0">
           {!isMember && currentUser && (
-            isPending ? (
+            isInvited ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={onAcceptInvite}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Accept Invite
+                </button>
+                <button
+                  onClick={onDeclineInvite}
+                  className="px-3 py-2 bg-surface-container-high hover:bg-rose-500/10 text-outline hover:text-rose-600 font-bold text-xs rounded-xl border border-outline-variant/50 transition-all"
+                >
+                  Decline
+                </button>
+              </div>
+            ) : isPending ? (
               <button
                 onClick={() => {
                   if (confirm(`Cancel your pending join request for ${community.name}?`)) {
@@ -356,31 +377,42 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
                         (u.name.toLowerCase().includes(inviteSearch.toLowerCase()) ||
                           u.username.toLowerCase().includes(inviteSearch.toLowerCase()))
                     )
-                    .map((u) => (
-                      <div
-                        key={u.id}
-                        className="p-2 rounded-xl bg-surface-lowest flex items-center justify-between gap-2 border border-outline-variant/30 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <img
-                            src={u.avatar || '/assets/default_avatar.png'}
-                            alt={u.name}
-                            className="w-7 h-7 rounded-full object-cover shrink-0"
-                          />
-                          <span className="font-bold text-on-surface truncate">{u.name}</span>
-                          <span className="text-[10px] text-outline">@{u.username}</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            onInviteMember?.(u.id);
-                            setInviteSearch('');
-                          }}
-                          className="px-3 py-1 bg-primary text-white text-[11px] font-bold rounded-lg hover:bg-primary-container shadow-xs"
+                    .map((u) => {
+                      const isUserInvited = community.invitedUserIds?.includes(u.id);
+
+                      return (
+                        <div
+                          key={u.id}
+                          className="p-2 rounded-xl bg-surface-lowest flex items-center justify-between gap-2 border border-outline-variant/30 text-xs"
                         >
-                          Send Invite
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img
+                              src={u.avatar || '/assets/default_avatar.png'}
+                              alt={u.name}
+                              className="w-7 h-7 rounded-full object-cover shrink-0"
+                            />
+                            <span className="font-bold text-on-surface truncate">{u.name}</span>
+                            <span className="text-[10px] text-outline">@{u.username}</span>
+                          </div>
+
+                          {isUserInvited ? (
+                            <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 border border-amber-500/30 text-[10px] font-bold rounded-lg flex items-center gap-1">
+                              <Clock className="w-3 h-3 animate-pulse" /> Invite Sent
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                onInviteMember?.(u.id);
+                                setInviteSearch('');
+                              }}
+                              className="px-3 py-1 bg-primary text-white text-[11px] font-bold rounded-lg hover:bg-primary-container shadow-xs"
+                            >
+                              Send Invite
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>

@@ -21,6 +21,7 @@ function parseCommunityMeta(c: any) {
     memberIds: JSON.parse(c.memberIds || '[]'),
     adminIds: meta.adminIds || [c.createdById],
     pendingRequestIds: meta.pendingRequestIds || [],
+    invitedUserIds: meta.invitedUserIds || [],
     avatarImage: meta.avatarImage || c.image,
     rules: meta.rules || null,
   };
@@ -34,6 +35,7 @@ function encodeCommunityMeta(
     rules?: string | null;
     adminIds?: string[];
     pendingRequestIds?: string[];
+    invitedUserIds?: string[];
   }
 ) {
   let meta: any = {};
@@ -53,6 +55,7 @@ function encodeCommunityMeta(
   if (updates.rules !== undefined) meta.rules = updates.rules;
   if (updates.adminIds !== undefined) meta.adminIds = updates.adminIds;
   if (updates.pendingRequestIds !== undefined) meta.pendingRequestIds = updates.pendingRequestIds;
+  if (updates.invitedUserIds !== undefined) meta.invitedUserIds = updates.invitedUserIds;
 
   return JSON.stringify(meta);
 }
@@ -86,11 +89,13 @@ export async function POST(request: Request) {
       isPrivate,
       communityId,
       applicantId,
+      targetUserId,
       memberId,
       decision,
     } = body;
 
     const createdByIdVal = body.createdById || userId;
+    const targetUser = targetUserId || applicantId;
 
     if (action === 'create') {
       if (!name || !description || !createdByIdVal) {
@@ -104,6 +109,7 @@ export async function POST(request: Request) {
         rules: rules || null,
         adminIds: [createdByIdVal],
         pendingRequestIds: [],
+        invitedUserIds: [],
       });
 
       const newCommunity = await prisma.community.create({
@@ -274,14 +280,82 @@ export async function POST(request: Request) {
       const community = await prisma.community.findUnique({ where: { id: communityId } });
       if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
 
-      let members: string[] = JSON.parse(community.memberIds || '[]');
-      if (applicantId && !members.includes(applicantId)) {
-        members.push(applicantId);
+      if (!targetUser) {
+        return NextResponse.json({ error: 'Target user required for invite' }, { status: 400 });
       }
 
+      const parsedMeta = parseCommunityMeta(community);
+      let invited: string[] = parsedMeta.invitedUserIds || [];
+      if (!invited.includes(targetUser)) {
+        invited.push(targetUser);
+      }
+
+      // Dispatch invitation notification to invited user
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: targetUser,
+            actorId: userId || createdByIdVal,
+            type: 'community_invite',
+            title: 'Community Invitation',
+            content: `You were invited to join ${community.name}`,
+            linkId: community.id,
+          },
+        });
+      } catch (e) {
+        console.error('Invite notification error:', e);
+      }
+
+      const newTags = encodeCommunityMeta(community.tags, { invitedUserIds: invited });
       const updated = await prisma.community.update({
         where: { id: communityId },
-        data: { memberIds: JSON.stringify(members) },
+        data: { tags: newTags },
+      });
+
+      return NextResponse.json({
+        community: parseCommunityMeta(updated),
+      });
+    }
+
+    if (action === 'accept-invite') {
+      const community = await prisma.community.findUnique({ where: { id: communityId } });
+      if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
+
+      const parsedMeta = parseCommunityMeta(community);
+      let members: string[] = parsedMeta.memberIds || [];
+      let invited: string[] = parsedMeta.invitedUserIds || [];
+
+      invited = invited.filter((id) => id !== userId);
+      if (!members.includes(userId)) {
+        members.push(userId);
+      }
+
+      const newTags = encodeCommunityMeta(community.tags, { invitedUserIds: invited });
+      const updated = await prisma.community.update({
+        where: { id: communityId },
+        data: {
+          memberIds: JSON.stringify(members),
+          tags: newTags,
+        },
+      });
+
+      return NextResponse.json({
+        community: parseCommunityMeta(updated),
+      });
+    }
+
+    if (action === 'decline-invite') {
+      const community = await prisma.community.findUnique({ where: { id: communityId } });
+      if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
+
+      const parsedMeta = parseCommunityMeta(community);
+      let invited: string[] = parsedMeta.invitedUserIds || [];
+      invited = invited.filter((id) => id !== userId);
+
+      const newTags = encodeCommunityMeta(community.tags, { invitedUserIds: invited });
+      const updated = await prisma.community.update({
+        where: { id: communityId },
+        data: { tags: newTags },
       });
 
       return NextResponse.json({

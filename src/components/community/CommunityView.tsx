@@ -29,6 +29,8 @@ export const CommunityView: React.FC = () => {
     approveCommunityBlog,
     removeCommunityMember,
     inviteUserToCommunity,
+    acceptCommunityInvite,
+    declineCommunityInvite,
     deleteCommunity,
     deleteBlog,
     selectedCommunityId,
@@ -57,6 +59,10 @@ export const CommunityView: React.FC = () => {
 
   const isPending = Boolean(
     currentUser && activeCommunity && activeCommunity.pendingRequestIds?.includes(currentUser.id)
+  );
+
+  const isInvited = Boolean(
+    currentUser && activeCommunity && activeCommunity.invitedUserIds?.includes(currentUser.id)
   );
 
   // Community-exclusive blogs
@@ -113,6 +119,7 @@ export const CommunityView: React.FC = () => {
               isMember={isMember}
               isAdmin={isAdmin}
               isPending={isPending}
+              isInvited={isInvited}
               allUsers={allUsers}
               onOpenEditCover={() => setIsEditCoverOpen(true)}
               onOpenCreatePost={() => setIsPostModalOpen(true)}
@@ -121,6 +128,8 @@ export const CommunityView: React.FC = () => {
               onLeave={() => toggleJoinCommunity(activeCommunity.id, 'leave')}
               onDeleteCommunity={() => deleteCommunity(activeCommunity.id)}
               onCancelRequest={() => cancelRequestToJoinCommunity(activeCommunity.id)}
+              onAcceptInvite={() => acceptCommunityInvite(activeCommunity.id)}
+              onDeclineInvite={() => declineCommunityInvite(activeCommunity.id)}
               onRemoveMember={(memberId) => removeCommunityMember(activeCommunity.id, memberId)}
               onInviteMember={(targetUserId) => inviteUserToCommunity(activeCommunity.id, targetUserId)}
             />

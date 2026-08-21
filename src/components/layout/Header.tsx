@@ -29,6 +29,7 @@ export const Header: React.FC = () => {
     setActiveTab,
     setSelectedUsername,
     setSelectedBlogId,
+    setSelectedCommunityId,
     logout,
     notifications,
     markNotificationAsRead,
@@ -144,11 +145,22 @@ export const Header: React.FC = () => {
                         key={n.id}
                         onClick={() => {
                           markNotificationAsRead(n.id);
-                          if (n.linkId) {
+                          setShowNotifDropdown(false);
+
+                          const type = n.type?.toLowerCase() || '';
+                          if (type.includes('community')) {
+                            if (n.linkId) setSelectedCommunityId(n.linkId);
+                            setActiveTab('communities');
+                          } else if (type === 'message' || type === 'chat') {
+                            if (n.actor?.username) setSelectedUsername(n.actor.username);
+                            setActiveTab('chat');
+                          } else if (type === 'profile' || type === 'follow') {
+                            if (n.actor?.username) setSelectedUsername(n.actor.username);
+                            setActiveTab('profile');
+                          } else if (n.linkId) {
                             setSelectedBlogId(n.linkId);
                             setActiveTab('blog');
                           }
-                          setShowNotifDropdown(false);
                         }}
                         className={`p-2.5 rounded-2xl flex items-start gap-3 cursor-pointer transition-colors ${
                           !n.isRead

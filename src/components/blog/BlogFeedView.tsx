@@ -7,11 +7,23 @@ import { CreateBlogModal } from './CreateBlogModal';
 import { BookOpen, Plus, Search, Bookmark, X } from 'lucide-react';
 
 export const BlogFeedView: React.FC = () => {
-  const { blogs, currentUser, selectedBlogId, setSelectedBlogId } = useEduSpare();
+  const { blogs, currentUser, communities, selectedBlogId, setSelectedBlogId } = useEduSpare();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredBlogs = blogs.filter((b) => {
+    // Community posts are strictly member-gated
+    if (b.communityId) {
+      const comm = communities.find((c) => c.id === b.communityId);
+      const isMemberOrAdmin =
+        currentUser &&
+        comm &&
+        (comm.memberIds?.includes(currentUser.id) ||
+          comm.createdById === currentUser.id ||
+          comm.adminIds?.includes(currentUser.id));
+      if (!isMemberOrAdmin) return false;
+    }
+
     if (selectedBlogId) {
       return b.id === selectedBlogId;
     }

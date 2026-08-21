@@ -19,7 +19,10 @@ export async function GET(request: Request) {
     }
 
     const blogs = await prisma.blog.findMany({
-      where: { authorId: user.id },
+      where: {
+        authorId: user.id,
+        communityId: null,
+      },
       include: {
         author: true,
         comments: { include: { author: true } },

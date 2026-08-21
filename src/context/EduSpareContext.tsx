@@ -74,6 +74,8 @@ interface EduSpareContextType {
   approveCommunityBlog: (blogId: string) => Promise<void>;
   removeCommunityMember: (communityId: string, memberId: string) => Promise<void>;
   inviteUserToCommunity: (communityId: string, targetUserId: string) => Promise<void>;
+  acceptCommunityInvite: (communityId: string) => Promise<void>;
+  declineCommunityInvite: (communityId: string) => Promise<void>;
   deleteCommunity: (communityId: string) => Promise<void>;
   
   notifications: NotificationItem[];
@@ -757,6 +759,42 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const acceptCommunityInvite = async (communityId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'accept-invite',
+          communityId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Accept community invite error:', err);
+    }
+  };
+
+  const declineCommunityInvite = async (communityId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'decline-invite',
+          communityId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Decline community invite error:', err);
+    }
+  };
+
   const deleteCommunity = async (communityId: string) => {
     if (!currentUser) return;
     try {
@@ -934,6 +972,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         approveCommunityBlog,
         removeCommunityMember,
         inviteUserToCommunity,
+        acceptCommunityInvite,
+        declineCommunityInvite,
         deleteCommunity,
         notifications,
         fetchNotifications,

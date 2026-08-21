@@ -19,6 +19,24 @@ export const CommunitySelectorPills: React.FC<CommunitySelectorPillsProps> = ({
 }) => {
   const [filterTab, setFilterTab] = useState<'all' | 'joined' | 'admin'>('all');
 
+  React.useEffect(() => {
+    if (activeCommunityId) {
+      const activeInList = communities.find((c) => c.id === activeCommunityId);
+      if (activeInList) {
+        if (filterTab === 'joined' && currentUser && !activeInList.memberIds?.includes(currentUser.id)) {
+          setFilterTab('all');
+        } else if (
+          filterTab === 'admin' &&
+          currentUser &&
+          activeInList.createdById !== currentUser.id &&
+          !activeInList.adminIds?.includes(currentUser.id)
+        ) {
+          setFilterTab('all');
+        }
+      }
+    }
+  }, [activeCommunityId, communities, currentUser, filterTab]);
+
   const filteredCommunities = communities.filter((comm) => {
     if (filterTab === 'joined' && currentUser) {
       return comm.memberIds?.includes(currentUser.id);
@@ -35,38 +53,35 @@ export const CommunitySelectorPills: React.FC<CommunitySelectorPillsProps> = ({
       <div className="flex items-center gap-2 border-b border-outline-variant/40 pb-2 text-xs font-bold text-outline">
         <button
           onClick={() => setFilterTab('all')}
-          className={`px-3 py-1.5 rounded-xl transition-all ${
-            filterTab === 'all'
-              ? 'bg-primary/10 text-primary border border-primary/20'
-              : 'hover:bg-surface-container-high text-on-surface-variant'
-          }`}
+          className={`px-3 py-1.5 rounded-xl transition-all ${filterTab === 'all'
+            ? 'bg-primary/10 text-primary border border-primary/20'
+            : 'hover:bg-surface-container-high text-on-surface-variant'
+            }`}
         >
-          All Hubs ({communities.length})
+          All Groups ({communities.length})
         </button>
 
         {currentUser && (
           <button
             onClick={() => setFilterTab('joined')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
-              filterTab === 'joined'
-                ? 'bg-primary/10 text-primary border border-primary/20'
-                : 'hover:bg-surface-container-high text-on-surface-variant'
-            }`}
+            className={`px-3 py-1.5 rounded-xl transition-all ${filterTab === 'joined'
+              ? 'bg-primary/10 text-primary border border-primary/20'
+              : 'hover:bg-surface-container-high text-on-surface-variant'
+              }`}
           >
-            Joined Communities ({communities.filter((c) => c.memberIds?.includes(currentUser.id)).length})
+            Joined Groups ({communities.filter((c) => c.memberIds?.includes(currentUser.id)).length})
           </button>
         )}
 
         {currentUser && (
           <button
             onClick={() => setFilterTab('admin')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
-              filterTab === 'admin'
-                ? 'bg-primary/10 text-primary border border-primary/20'
-                : 'hover:bg-surface-container-high text-on-surface-variant'
-            }`}
+            className={`px-3 py-1.5 rounded-xl transition-all ${filterTab === 'admin'
+              ? 'bg-primary/10 text-primary border border-primary/20'
+              : 'hover:bg-surface-container-high text-on-surface-variant'
+              }`}
           >
-            Admin Hubs (
+            Admin Groups (
             {
               communities.filter(
                 (c) => c.createdById === currentUser.id || c.adminIds?.includes(currentUser.id)
@@ -88,11 +103,10 @@ export const CommunitySelectorPills: React.FC<CommunitySelectorPillsProps> = ({
               <button
                 key={comm.id}
                 onClick={() => onSelectCommunity(comm.id)}
-                className={`px-4 py-3 rounded-2xl border transition-all text-left shrink-0 min-w-[210px] ${
-                  isSelected
-                    ? 'bg-primary text-white border-primary shadow-md'
-                    : 'bg-surface-lowest hover:bg-surface-container-low text-on-surface border-outline-variant/50'
-                }`}
+                className={`px-4 py-3 rounded-2xl border transition-all text-left shrink-0 min-w-[210px] ${isSelected
+                  ? 'bg-primary text-white border-primary shadow-md'
+                  : 'bg-surface-lowest hover:bg-surface-container-low text-on-surface border-outline-variant/50'
+                  }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-xs truncate max-w-[140px]">{comm.name}</span>
@@ -108,9 +122,8 @@ export const CommunitySelectorPills: React.FC<CommunitySelectorPillsProps> = ({
                   </span>
                   {comm.createdById === currentUser?.id && (
                     <span
-                      className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
-                      }`}
+                      className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                        }`}
                     >
                       Admin
                     </span>

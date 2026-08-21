@@ -18,6 +18,7 @@ import {
   Edit2,
   MoreVertical,
   Check,
+  Users,
 } from 'lucide-react';
 
 interface BlogPostCardProps {
@@ -32,15 +33,27 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
     deleteBlog,
     setSelectedUsername,
     setActiveTab,
+    selectedBlogId,
+    communities,
+    setSelectedCommunityId,
   } = useEduSpare();
 
-  const [showComments, setShowComments] = useState(false);
+  const isSelectedFromNotification = selectedBlogId === post.id;
+
+  const [showComments, setShowComments] = useState(isSelectedFromNotification);
   const [copied, setCopied] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const isAuthor = currentUser?.id === post.authorId;
+  const targetCommunity = post.communityId ? communities.find((c) => c.id === post.communityId) : null;
+
+  useEffect(() => {
+    if (isSelectedFromNotification) {
+      setShowComments(true);
+    }
+  }, [isSelectedFromNotification]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,7 +84,13 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
   };
 
   return (
-    <div className="bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm p-6 space-y-4 hover:shadow-md transition-all">
+    <div
+      className={`bg-surface-lowest rounded-3xl border ${
+        isSelectedFromNotification
+          ? 'border-primary ring-2 ring-primary/30 shadow-lg'
+          : 'border-outline-variant/60 shadow-sm'
+      } p-6 space-y-4 hover:shadow-md transition-all`}
+    >
       {/* Post Author Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -91,13 +110,29 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
               </span>
               <span className="text-xs text-outline font-medium">@{post.author.username}</span>
             </div>
-            <p className="text-[11px] text-outline font-medium">
-              {new Date(post.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[11px] text-outline font-medium">
+                {new Date(post.createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+              {targetCommunity && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCommunityId(targetCommunity.id);
+                    setActiveTab('communities');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/20 text-[10px] font-bold cursor-pointer transition-all"
+                  title={`Click to open ${targetCommunity.name} community`}
+                >
+                  <Users className="w-3 h-3 text-purple-600" />
+                  <span>{targetCommunity.name}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

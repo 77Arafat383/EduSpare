@@ -148,6 +148,7 @@ export interface CommunityItem {
   memberIds: string[];
   adminIds?: string[];
   pendingRequestIds?: string[];
+  invitedUserIds?: string[];
   createdById: string;
   createdAt: string;
 }
