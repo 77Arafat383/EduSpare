@@ -234,19 +234,16 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="w-full max-w-lg bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Primary Color Header */}
-        <div className="bg-primary text-white px-6 py-5 flex items-center justify-between shadow-sm shrink-0">
+        {/* Modal Header */}
+        <div className="bg-surface-container-low border-b border-outline-variant/40 px-6 py-5 flex items-center justify-between shrink-0">
           <div>
-            <h3 className="text-lg font-bold text-white">
+            <h3 className="text-lg font-bold text-on-surface">
               {taskToEdit ? 'Edit Task' : 'Create New Task'}
             </h3>
-            <p className="text-xs text-white/80 font-medium mt-0.5">
-              Tasks are prioritized by remaining time and importance rating (0-100)
-            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+            className="p-1.5 rounded-full text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -509,9 +506,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
               onChange={(e) => setImportance(Number(e.target.value))}
               className="w-full accent-primary cursor-pointer"
             />
-            <p className="text-[11px] text-outline font-medium">
-              If two tasks have identical deadlines, the task with higher importance rating takes priority.
-            </p>
           </div>
 
           {/* Description */}
