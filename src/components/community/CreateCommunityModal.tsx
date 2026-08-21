@@ -147,17 +147,17 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
             </div>
           </div>
 
-          {/* Avatar Icon Upload */}
+          {/* Profile Photo Upload */}
           <div className="space-y-1.5 p-3 rounded-2xl bg-surface-container-low border border-outline-variant/50">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-on-surface uppercase">
-                Community Profile Icon
+                Profile Photo
               </label>
               <label
                 htmlFor="create-avatar-file"
                 className="px-3 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-container rounded-xl cursor-pointer shadow-xs flex items-center gap-1.5"
               >
-                <Upload className="w-3.5 h-3.5" /> Upload Avatar
+                <Upload className="w-3.5 h-3.5" /> Upload Profile Photo
               </label>
               <input
                 id="create-avatar-file"
@@ -167,7 +167,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                 className="hidden"
               />
             </div>
-            <img src={avatarImage} alt="Avatar Preview" className="w-10 h-10 rounded-xl object-cover" />
+            <img src={avatarImage} alt="Profile Photo Preview" className="w-10 h-10 rounded-xl object-cover" />
           </div>
 
           {/* Community Rules Input */}

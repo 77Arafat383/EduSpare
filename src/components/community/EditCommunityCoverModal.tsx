@@ -156,17 +156,17 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
             </div>
           </div>
 
-          {/* Avatar Icon Upload */}
+          {/* Profile Photo Upload */}
           <div className="space-y-1.5 p-3 rounded-2xl bg-surface-container-low border border-outline-variant/50">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-on-surface uppercase">
-                Profile Avatar Icon
+                Profile Photo
               </label>
               <label
                 htmlFor="edit-avatar-file"
                 className="px-3 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-container rounded-xl cursor-pointer shadow-xs flex items-center gap-1.5"
               >
-                <Upload className="w-3.5 h-3.5" /> Upload Avatar File
+                <Upload className="w-3.5 h-3.5" /> Upload Profile Photo
               </label>
               <input
                 id="edit-avatar-file"
@@ -176,7 +176,7 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
                 className="hidden"
               />
             </div>
-            <img src={avatarImage} alt="Avatar Preview" className="w-12 h-12 rounded-2xl object-cover" />
+            <img src={avatarImage} alt="Profile Photo Preview" className="w-12 h-12 rounded-2xl object-cover" />
           </div>
 
           {/* Community Guidelines & Rules */}

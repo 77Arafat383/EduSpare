@@ -1,6 +1,62 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+function parseCommunityMeta(c: any) {
+  let meta: any = {};
+  try {
+    const parsed = JSON.parse(c.tags || '[]');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      meta = parsed;
+    } else {
+      meta = { tagsList: parsed };
+    }
+  } catch (e) {
+    meta = { tagsList: [] };
+  }
+
+  return {
+    ...c,
+    createdAt: c.createdAt.toISOString(),
+    tags: Array.isArray(meta.tagsList) ? meta.tagsList : [],
+    memberIds: JSON.parse(c.memberIds || '[]'),
+    adminIds: meta.adminIds || [c.createdById],
+    pendingRequestIds: meta.pendingRequestIds || [],
+    avatarImage: meta.avatarImage || c.image,
+    rules: meta.rules || null,
+  };
+}
+
+function encodeCommunityMeta(
+  existingTagsStr: string,
+  updates: {
+    tagsList?: string[];
+    avatarImage?: string | null;
+    rules?: string | null;
+    adminIds?: string[];
+    pendingRequestIds?: string[];
+  }
+) {
+  let meta: any = {};
+  try {
+    const parsed = JSON.parse(existingTagsStr || '[]');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      meta = parsed;
+    } else {
+      meta = { tagsList: parsed };
+    }
+  } catch (e) {
+    meta = { tagsList: [] };
+  }
+
+  if (updates.tagsList !== undefined) meta.tagsList = updates.tagsList;
+  if (updates.avatarImage !== undefined) meta.avatarImage = updates.avatarImage;
+  if (updates.rules !== undefined) meta.rules = updates.rules;
+  if (updates.adminIds !== undefined) meta.adminIds = updates.adminIds;
+  if (updates.pendingRequestIds !== undefined) meta.pendingRequestIds = updates.pendingRequestIds;
+
+  return JSON.stringify(meta);
+}
+
 export async function GET() {
   try {
     const communities = await prisma.community.findMany({
@@ -8,16 +64,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      communities: communities.map((c) => ({
-        ...c,
-        createdAt: c.createdAt.toISOString(),
-        tags: JSON.parse(c.tags || '[]'),
-        memberIds: JSON.parse(c.memberIds || '[]'),
-        adminIds: (c as any).adminIds ? JSON.parse((c as any).adminIds || '[]') : [c.createdById],
-        pendingRequestIds: (c as any).pendingRequestIds ? JSON.parse((c as any).pendingRequestIds || '[]') : [],
-        avatarImage: (c as any).avatarImage || c.image,
-        rules: (c as any).rules || null,
-      })),
+      communities: communities.map((c) => parseCommunityMeta(c)),
     });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch communities' }, { status: 500 });
@@ -50,12 +97,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing community name, description, or creator' }, { status: 400 });
       }
 
+      const tagsList = typeof tags === 'string' ? [tags] : tags || [];
+      const tagsPayload = encodeCommunityMeta('[]', {
+        tagsList,
+        avatarImage: avatarImage || image || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80',
+        rules: rules || null,
+        adminIds: [createdByIdVal],
+        pendingRequestIds: [],
+      });
+
       const newCommunity = await prisma.community.create({
         data: {
           name,
           description,
           image: image || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80',
-          tags: typeof tags === 'string' ? tags : JSON.stringify(tags || []),
+          tags: tagsPayload,
           isPrivate: !!isPrivate,
           memberIds: JSON.stringify([createdByIdVal]),
           createdById: createdByIdVal,
@@ -63,16 +119,7 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({
-        community: {
-          ...newCommunity,
-          createdAt: newCommunity.createdAt.toISOString(),
-          tags: JSON.parse(newCommunity.tags || '[]'),
-          memberIds: JSON.parse(newCommunity.memberIds || '[]'),
-          adminIds: [createdByIdVal],
-          pendingRequestIds: [],
-          avatarImage: avatarImage || newCommunity.image,
-          rules: rules || null,
-        },
+        community: parseCommunityMeta(newCommunity),
       });
     }
 
@@ -95,16 +142,7 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: members,
-          adminIds: (updated as any).adminIds ? JSON.parse((updated as any).adminIds || '[]') : [updated.createdById],
-          pendingRequestIds: (updated as any).pendingRequestIds ? JSON.parse((updated as any).pendingRequestIds || '[]') : [],
-          avatarImage: (updated as any).avatarImage || updated.image,
-          rules: (updated as any).rules || null,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
@@ -112,7 +150,8 @@ export async function POST(request: Request) {
       const community = await prisma.community.findUnique({ where: { id: communityId } });
       if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
 
-      let pending: string[] = (community as any).pendingRequestIds ? JSON.parse((community as any).pendingRequestIds || '[]') : [];
+      const parsedMeta = parseCommunityMeta(community);
+      let pending: string[] = parsedMeta.pendingRequestIds || [];
       if (!pending.includes(userId)) pending.push(userId);
 
       // Create notification for Admin
@@ -131,19 +170,14 @@ export async function POST(request: Request) {
         console.error('Notification creation error:', e);
       }
 
+      const newTags = encodeCommunityMeta(community.tags, { pendingRequestIds: pending });
       const updated = await prisma.community.update({
         where: { id: communityId },
-        data: { memberIds: community.memberIds },
+        data: { tags: newTags },
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: JSON.parse(updated.memberIds || '[]'),
-          pendingRequestIds: pending,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
@@ -151,22 +185,18 @@ export async function POST(request: Request) {
       const community = await prisma.community.findUnique({ where: { id: communityId } });
       if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
 
-      let pending: string[] = (community as any).pendingRequestIds ? JSON.parse((community as any).pendingRequestIds || '[]') : [];
+      const parsedMeta = parseCommunityMeta(community);
+      let pending: string[] = parsedMeta.pendingRequestIds || [];
       pending = pending.filter((id) => id !== userId);
 
+      const newTags = encodeCommunityMeta(community.tags, { pendingRequestIds: pending });
       const updated = await prisma.community.update({
         where: { id: communityId },
-        data: { memberIds: community.memberIds },
+        data: { tags: newTags },
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: JSON.parse(updated.memberIds || '[]'),
-          pendingRequestIds: pending,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
@@ -174,33 +204,38 @@ export async function POST(request: Request) {
       const community = await prisma.community.findUnique({ where: { id: communityId } });
       if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
 
-      let members: string[] = JSON.parse(community.memberIds || '[]');
-      let pending: string[] = (community as any).pendingRequestIds ? JSON.parse((community as any).pendingRequestIds || '[]') : [];
+      const parsedMeta = parseCommunityMeta(community);
+      let members: string[] = parsedMeta.memberIds || [];
+      let pending: string[] = parsedMeta.pendingRequestIds || [];
 
       pending = pending.filter((id) => id !== applicantId);
       if (decision === 'approve' && !members.includes(applicantId)) {
         members.push(applicantId);
       }
 
+      const newTags = encodeCommunityMeta(community.tags, { pendingRequestIds: pending });
       const updated = await prisma.community.update({
         where: { id: communityId },
-        data: { memberIds: JSON.stringify(members) },
+        data: {
+          memberIds: JSON.stringify(members),
+          tags: newTags,
+        },
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: members,
-          pendingRequestIds: pending,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
     if (action === 'update-cover') {
       const community = await prisma.community.findUnique({ where: { id: communityId } });
       if (!community) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
+
+      const parsedMeta = parseCommunityMeta(community);
+      const newTags = encodeCommunityMeta(community.tags, {
+        avatarImage: avatarImage !== undefined ? avatarImage : parsedMeta.avatarImage,
+        rules: rules !== undefined ? rules : parsedMeta.rules,
+      });
 
       const updated = await prisma.community.update({
         where: { id: communityId },
@@ -209,18 +244,12 @@ export async function POST(request: Request) {
           name: name || community.name,
           description: description || community.description,
           isPrivate: typeof isPrivate === 'boolean' ? isPrivate : community.isPrivate,
+          tags: newTags,
         },
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: JSON.parse(updated.memberIds || '[]'),
-          avatarImage: avatarImage || updated.image,
-          rules: rules || null,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
@@ -237,12 +266,7 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: members,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
@@ -261,12 +285,7 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({
-        community: {
-          ...updated,
-          createdAt: updated.createdAt.toISOString(),
-          tags: JSON.parse(updated.tags || '[]'),
-          memberIds: members,
-        },
+        community: parseCommunityMeta(updated),
       });
     }
 
