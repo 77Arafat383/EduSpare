@@ -103,6 +103,8 @@ export interface BlogPost {
   attachments: BlogAttachment[];
   tags: string[];
   communityId?: string | null;
+  sharedToProfile?: boolean;
+  isApproved?: boolean;
   createdAt: string;
   comments: CommentItem[];
   reactions: ReactionItem[];
@@ -139,9 +141,13 @@ export interface CommunityItem {
   name: string;
   description: string;
   image: string;
+  avatarImage?: string | null;
+  rules?: string | null;
   tags: string[];
   isPrivate: boolean;
   memberIds: string[];
+  adminIds?: string[];
+  pendingRequestIds?: string[];
   createdById: string;
   createdAt: string;
 }

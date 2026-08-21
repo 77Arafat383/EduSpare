@@ -67,6 +67,12 @@ interface EduSpareContextType {
   fetchCommunities: () => Promise<void>;
   createCommunity: (data: any) => Promise<void>;
   toggleJoinCommunity: (communityId: string, action: 'join' | 'leave') => Promise<void>;
+  requestToJoinCommunity: (communityId: string) => Promise<void>;
+  handleMembershipRequest: (communityId: string, applicantId: string, decision: 'approve' | 'reject') => Promise<void>;
+  updateCommunityDetails: (communityId: string, data: any) => Promise<void>;
+  approveCommunityBlog: (blogId: string) => Promise<void>;
+  removeCommunityMember: (communityId: string, memberId: string) => Promise<void>;
+  inviteUserToCommunity: (communityId: string, targetUserId: string) => Promise<void>;
   
   notifications: NotificationItem[];
   fetchNotifications: () => Promise<void>;
@@ -618,6 +624,119 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const requestToJoinCommunity = async (communityId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'request-join',
+          communityId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Request join community error:', err);
+    }
+  };
+
+  const handleMembershipRequest = async (
+    communityId: string,
+    applicantId: string,
+    decision: 'approve' | 'reject'
+  ) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'handle-request',
+          communityId,
+          applicantId,
+          decision,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Handle membership request error:', err);
+    }
+  };
+
+  const updateCommunityDetails = async (communityId: string, data: any) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update-cover',
+          communityId,
+          userId: currentUser.id,
+          ...data,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Update community details error:', err);
+    }
+  };
+
+  const approveCommunityBlog = async (blogId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch(`/api/blogs/${blogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isApproved: true }),
+      });
+      await fetchBlogs();
+    } catch (err) {
+      console.error('Approve community blog error:', err);
+    }
+  };
+
+  const removeCommunityMember = async (communityId: string, memberId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove-member',
+          communityId,
+          memberId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Remove community member error:', err);
+    }
+  };
+
+  const inviteUserToCommunity = async (communityId: string, targetUserId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/communities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'invite-user',
+          communityId,
+          applicantId: targetUserId,
+          userId: currentUser.id,
+        }),
+      });
+      await fetchCommunities();
+    } catch (err) {
+      console.error('Invite user to community error:', err);
+    }
+  };
+
   const fetchNotifications = async () => {
     if (!currentUser) return;
     try {
@@ -769,6 +888,12 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchCommunities,
         createCommunity,
         toggleJoinCommunity,
+        requestToJoinCommunity,
+        handleMembershipRequest,
+        updateCommunityDetails,
+        approveCommunityBlog,
+        removeCommunityMember,
+        inviteUserToCommunity,
         notifications,
         fetchNotifications,
         markNotificationAsRead,

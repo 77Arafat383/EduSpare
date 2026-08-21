@@ -10,6 +10,7 @@ interface CreateBlogModalProps {
   isOpen: boolean;
   onClose: () => void;
   postToEdit?: BlogPost | null;
+  defaultCommunityId?: string;
 }
 
 function convertHtmlToMarkdownAndLatex(html: string, fallbackText: string): string {
@@ -115,12 +116,18 @@ function convertHtmlToMarkdownAndLatex(html: string, fallbackText: string): stri
   return fallbackText;
 }
 
-export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClose, postToEdit }) => {
+export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({
+  isOpen,
+  onClose,
+  postToEdit,
+  defaultCommunityId,
+}) => {
   const { createBlog, updateBlog } = useEduSpare();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [coverImage, setCoverImage] = useState('');
-  const [tagInput, setTagInput] = useState('WebSockets, System Architecture');
+  const [communityId, setCommunityId] = useState('');
+  const [tagInput, setTagInput] = useState('');
   const [attachments, setAttachments] = useState<BlogAttachment[]>([]);
   const [activeContentTab, setActiveContentTab] = useState<'write' | 'preview'>('write');
 
@@ -129,16 +136,18 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
       setTitle(postToEdit.title || '');
       setContent(postToEdit.content || '');
       setCoverImage(postToEdit.coverImage || '');
+      setCommunityId(postToEdit.communityId || defaultCommunityId || '');
       setTagInput(postToEdit.tags ? postToEdit.tags.join(', ') : '');
       setAttachments(postToEdit.attachments || []);
     } else {
       setTitle('');
       setContent('');
       setCoverImage('');
-      setTagInput('WebSockets, System Architecture');
+      setCommunityId(defaultCommunityId || '');
+      setTagInput('');
       setAttachments([]);
     }
-  }, [postToEdit, isOpen]);
+  }, [postToEdit, isOpen, defaultCommunityId]);
 
   if (!isOpen) return null;
 
@@ -239,6 +248,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
         coverImage: coverImage || null,
         tags,
         attachments,
+        communityId: communityId || null,
       });
     } else {
       await createBlog({
@@ -247,6 +257,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
         coverImage: coverImage || null,
         tags,
         attachments,
+        communityId: communityId || defaultCommunityId || null,
       });
     }
 
@@ -261,7 +272,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="w-full max-w-2xl bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 p-6 space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-outline-variant/40 pb-4">
-          <h3 className="text-lg font-bold text-on-surface">{postToEdit ? 'Edit Article' : 'Publish New Article'}</h3>
+          <h3 className="text-lg font-bold text-on-surface">{postToEdit ? 'Edit Article' : 'Create New Blog'}</h3>
           <button
             onClick={onClose}
             className="p-1 rounded-full text-outline hover:bg-surface-container-low hover:text-on-surface"
@@ -328,28 +339,21 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
 
               </div>
 
-              <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/40">
-                <button
-                  type="button"
-                  onClick={() => setActiveContentTab('write')}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeContentTab === 'write'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-outline hover:text-on-surface'
-                    }`}
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> Write
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveContentTab('preview')}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeContentTab === 'preview'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-outline hover:text-on-surface'
-                    }`}
-                >
-                  <Eye className="w-3.5 h-3.5" /> Full Preview
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveContentTab(activeContentTab === 'write' ? 'preview' : 'write')}
+                className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-surface-container-high hover:bg-primary/10 text-primary border border-outline-variant/50 transition-all flex items-center gap-1.5 shadow-xs"
+              >
+                {activeContentTab === 'write' ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5" /> Preview
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-3.5 h-3.5" /> Write
+                  </>
+                )}
+              </button>
             </div>
 
             {activeContentTab === 'write' ? (
@@ -427,13 +431,13 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
 
           <div>
             <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
-              Topic Tags (Comma-separated)
+              Tags (Comma-separated)
             </label>
             <input
               type="text"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
-              placeholder="WebSockets, Node.js, Systems Architecture"
+              placeholder="WebSockets, System Architecture"
               className="w-full px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs border border-outline-variant/60"
             />
           </div>
