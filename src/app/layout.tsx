@@ -3,9 +3,14 @@ import './globals.css';
 import { EduSpareProvider } from '@/context/EduSpareContext';
 
 export const metadata: Metadata = {
-  title: 'EduSpare - All-in-One SaaS Educational Platform',
+  title: 'EduSpare',
   description:
     'EduSpare integrates activity heatmaps, intelligent task prioritization, Notion-style task workspaces with AI Tutors, Facebook-style blogs, real-time user chat, profile vaults, and study communities.',
+  icons: {
+    icon: '/assets/eduspare_brain_icon.png',
+    shortcut: '/assets/eduspare_brain_icon.png',
+    apple: '/assets/eduspare_brain_icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -16,6 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" type="image/png" href="/assets/eduspare_brain_icon.png" />
+        <link rel="shortcut icon" href="/assets/eduspare_brain_icon.png" />
+        <link rel="apple-touch-icon" href="/assets/eduspare_brain_icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
