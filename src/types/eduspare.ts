@@ -104,6 +104,7 @@ export interface BlogPost {
   comments: CommentItem[];
   reactions: ReactionItem[];
   likesCount?: number;
+  sharesCount?: number;
   isLikedByMe?: boolean;
   isSavedByMe?: boolean;
 }

@@ -12,7 +12,7 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post }) => {
-  const { currentUser, allUsers, sendMessage, createBlog } = useEduSpare();
+  const { currentUser, allUsers, sendMessage, createBlog, incrementShareCount } = useEduSpare();
 
   const [shareType, setShareType] = useState<'message' | 'blog'>('message');
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
@@ -60,6 +60,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post })
       await sendMessage(user.id, messageText);
     }
     
+    await incrementShareCount(post.id, selectedUsers.length);
+
     setSubmitting(false);
     const count = selectedUsers.length;
     setSuccessMessage(`Successfully sent message to ${count} recipient${count > 1 ? 's' : ''}!`);
@@ -86,6 +88,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post })
       attachments: post.attachments || [],
     });
 
+    await incrementShareCount(post.id, 1);
+
     setSubmitting(false);
     setSuccessMessage('Successfully reshared to your blog feed with author credit!');
     setTimeout(() => {
@@ -97,6 +101,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post })
   const handleCopyLink = () => {
     const link = `${window.location.origin}/blog?post=${post.id}`;
     navigator.clipboard.writeText(link);
+    incrementShareCount(post.id, 1);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2000);
   };

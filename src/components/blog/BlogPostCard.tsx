@@ -245,7 +245,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
             {post.comments?.length || 0} Comments
           </span>
           <span onClick={handleShare} className="hover:text-on-surface cursor-pointer">
-            Share
+            {post.sharesCount || 0} {post.sharesCount === 1 ? 'Share' : 'Shares'}
           </span>
         </div>
       </div>

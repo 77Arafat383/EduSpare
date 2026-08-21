@@ -185,3 +185,75 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { messageId, userId, content } = body;
+
+    if (!messageId || !userId || !content) {
+      return NextResponse.json({ error: 'messageId, userId and content are required' }, { status: 400 });
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+
+    if (message.senderId !== userId) {
+      return NextResponse.json({ error: 'Unauthorized to edit this message' }, { status: 403 });
+    }
+
+    const updatedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: { content },
+      include: { sender: true, receiver: true },
+    });
+
+    return NextResponse.json({
+      message: {
+        ...updatedMessage,
+        createdAt: updatedMessage.createdAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Update message error:', error);
+    return NextResponse.json({ error: 'Failed to update message' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const messageId = searchParams.get('messageId');
+    const userId = searchParams.get('userId');
+
+    if (!messageId || !userId) {
+      return NextResponse.json({ error: 'messageId and userId are required' }, { status: 400 });
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+
+    if (message.senderId !== userId && message.receiverId !== userId) {
+      return NextResponse.json({ error: 'Unauthorized to delete this message' }, { status: 403 });
+    }
+
+    await prisma.message.delete({
+      where: { id: messageId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
+  }
+}

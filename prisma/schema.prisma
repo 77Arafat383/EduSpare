@@ -70,6 +70,7 @@ model Blog {
   attachments String     @default("[]") // JSON array of attachments (PDF, DOC, PNG)
   tags        String     @default("[]") // JSON array of tags
   communityId String?
+  sharesCount Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

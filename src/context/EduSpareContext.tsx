@@ -49,6 +49,7 @@ interface EduSpareContextType {
   updateBlog: (id: string, data: Partial<BlogPost>) => Promise<void>;
   deleteBlog: (id: string) => Promise<void>;
   toggleLikeBlog: (blogId: string) => Promise<void>;
+  incrementShareCount: (blogId: string, count?: number) => Promise<void>;
   addComment: (blogId: string, content: string, parentId?: string) => Promise<void>;
   toggleLikeComment: (blogId: string, commentId: string) => Promise<void>;
   updateComment: (blogId: string, commentId: string, content: string) => Promise<void>;
@@ -58,6 +59,8 @@ interface EduSpareContextType {
   
   fetchMessages: (targetUserId: string) => Promise<void>;
   sendMessage: (receiverId: string, content: string) => Promise<void>;
+  editMessage: (messageId: string, content: string, targetUserId: string) => Promise<void>;
+  deleteMessage: (messageId: string, targetUserId: string) => Promise<void>;
   toggleBlockUser: (targetUserId: string) => Promise<void>;
   
   fetchCommunities: () => Promise<void>;
@@ -357,6 +360,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const incrementShareCount = async (blogId: string, count: number = 1) => {
+    try {
+      await fetch(`/api/blogs/${blogId}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count }),
+      });
+      await fetchBlogs();
+    } catch (err) {
+      console.error('Increment share count error:', err);
+    }
+  };
+
   const addComment = async (blogId: string, content: string, parentId?: string) => {
     if (!currentUser) return;
     try {
@@ -494,7 +510,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const sendMessage = async (receiverId: string, content: string) => {
     if (!currentUser) return;
     try {
-      const res = await fetch('/api/chat', {
+      await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -503,12 +519,35 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           content,
         }),
       });
-      if (res.ok) {
-        await fetchMessages(receiverId);
-        await fetchConversations();
-      }
+      await fetchMessages(receiverId);
     } catch (err) {
       console.error('Send message error:', err);
+    }
+  };
+
+  const editMessage = async (messageId: string, content: string, targetUserId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/chat', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, userId: currentUser.id, content }),
+      });
+      await fetchMessages(targetUserId);
+    } catch (err) {
+      console.error('Edit message error:', err);
+    }
+  };
+
+  const deleteMessage = async (messageId: string, targetUserId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch(`/api/chat?messageId=${messageId}&userId=${currentUser.id}`, {
+        method: 'DELETE',
+      });
+      await fetchMessages(targetUserId);
+    } catch (err) {
+      console.error('Delete message error:', err);
     }
   };
 
@@ -654,6 +693,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateBlog,
         deleteBlog,
         toggleLikeBlog,
+        incrementShareCount,
         addComment,
         toggleLikeComment,
         updateComment,
@@ -662,6 +702,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteSavedItem,
         fetchMessages,
         sendMessage,
+        editMessage,
+        deleteMessage,
         toggleBlockUser,
         fetchCommunities,
         createCommunity,
