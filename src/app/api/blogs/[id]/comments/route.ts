@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { authorId, content } = body;
+    const { authorId, content, parentId } = body;
 
     if (!authorId || !content) {
       return NextResponse.json({ error: 'Author and content required' }, { status: 400 });
@@ -18,6 +18,7 @@ export async function POST(
         blogId: params.id,
         authorId,
         content,
+        parentId: parentId || null,
       },
       include: {
         author: true,
@@ -31,6 +32,7 @@ export async function POST(
       },
     });
   } catch (error) {
+    console.error('Create comment error:', error);
     return NextResponse.json({ error: 'Failed to post comment' }, { status: 500 });
   }
 }

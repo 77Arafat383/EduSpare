@@ -48,7 +48,8 @@ interface EduSpareContextType {
   createBlog: (data: Partial<BlogPost>) => Promise<void>;
   deleteBlog: (id: string) => Promise<void>;
   toggleLikeBlog: (blogId: string) => Promise<void>;
-  addComment: (blogId: string, content: string) => Promise<void>;
+  addComment: (blogId: string, content: string, parentId?: string) => Promise<void>;
+  toggleLikeComment: (blogId: string, commentId: string) => Promise<void>;
   updateComment: (blogId: string, commentId: string, content: string) => Promise<void>;
   deleteComment: (blogId: string, commentId: string) => Promise<void>;
   toggleSaveBlogOrItem: (item: { title: string; itemType: string; url?: string; itemId?: string }) => Promise<void>;
@@ -342,17 +343,31 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const addComment = async (blogId: string, content: string) => {
+  const addComment = async (blogId: string, content: string, parentId?: string) => {
     if (!currentUser) return;
     try {
       await fetch(`/api/blogs/${blogId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorId: currentUser.id, content }),
+        body: JSON.stringify({ authorId: currentUser.id, content, parentId }),
       });
       await fetchBlogs();
     } catch (err) {
       console.error('Add comment error:', err);
+    }
+  };
+
+  const toggleLikeComment = async (blogId: string, commentId: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch(`/api/comments/${commentId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id, type: 'like' }),
+      });
+      await fetchBlogs();
+    } catch (err) {
+      console.error('Comment reaction error:', err);
     }
   };
 
@@ -625,6 +640,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteBlog,
         toggleLikeBlog,
         addComment,
+        toggleLikeComment,
         updateComment,
         deleteComment,
         toggleSaveBlogOrItem,

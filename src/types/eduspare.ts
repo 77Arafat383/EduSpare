@@ -62,13 +62,25 @@ export interface BlogAttachment {
   size?: string;
 }
 
+export interface CommentReactionItem {
+  id: string;
+  commentId: string;
+  userId: string;
+  type: string;
+}
+
 export interface CommentItem {
   id: string;
   blogId: string;
   authorId: string;
   author: User;
   content: string;
+  parentId?: string | null;
   createdAt: string;
+  replies?: CommentItem[];
+  reactions?: CommentReactionItem[];
+  likesCount?: number;
+  isLikedByMe?: boolean;
 }
 
 export interface ReactionItem {

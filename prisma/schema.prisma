@@ -32,9 +32,10 @@ model User {
   
   tasks        Task[]
   blogs        Blog[]
-  comments     Comment[]
-  reactions    Reaction[]
-  savedItems   SavedItem[]
+  comments         Comment[]
+  commentReactions CommentReaction[]
+  reactions        Reaction[]
+  savedItems       SavedItem[]
   
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
@@ -77,14 +78,30 @@ model Blog {
 }
 
 model Comment {
-  id        String   @id @default(uuid())
+  id        String            @id @default(uuid())
   blogId    String
-  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blog      Blog              @relation(fields: [blogId], references: [id], onDelete: Cascade)
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]         @relation("CommentReplies")
   content   String
+  reactions CommentReaction[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model CommentReaction {
+  id        String   @id @default(uuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("like")
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@unique([commentId, userId])
 }
 
 model Reaction {

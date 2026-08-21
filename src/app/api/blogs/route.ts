@@ -12,7 +12,10 @@ export async function GET(request: Request) {
       include: {
         author: true,
         comments: {
-          include: { author: true },
+          include: {
+            author: true,
+            reactions: true,
+          },
           orderBy: { createdAt: 'asc' },
         },
         reactions: true,
@@ -33,16 +36,27 @@ export async function GET(request: Request) {
       const isLikedByMe = userId ? blog.reactions.some((r) => r.userId === userId) : false;
       const isSavedByMe = savedBlogIds.includes(blog.id);
 
+      const allComments = (blog.comments || []).map((c) => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt ? c.updatedAt.toISOString() : c.createdAt.toISOString(),
+        likesCount: c.reactions ? c.reactions.length : 0,
+        isLikedByMe: userId && c.reactions ? c.reactions.some((r) => r.userId === userId) : false,
+      }));
+
+      const topLevelComments = allComments.filter((c) => !c.parentId);
+      const formattedComments = topLevelComments.map((parent) => ({
+        ...parent,
+        replies: allComments.filter((c) => c.parentId === parent.id),
+      }));
+
       return {
         ...blog,
         createdAt: blog.createdAt.toISOString(),
-        updatedAt: blog.updatedAt.toISOString(),
+        updatedAt: blog.updatedAt ? blog.updatedAt.toISOString() : blog.createdAt.toISOString(),
         attachments: JSON.parse(blog.attachments || '[]'),
         tags: JSON.parse(blog.tags || '[]'),
-        comments: blog.comments.map((c) => ({
-          ...c,
-          createdAt: c.createdAt.toISOString(),
-        })),
+        comments: formattedComments,
         likesCount: blog.reactions.length,
         isLikedByMe,
         isSavedByMe,
@@ -51,6 +65,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ blogs: formattedBlogs });
   } catch (error) {
+    console.error('Fetch blogs error:', error);
     return NextResponse.json({ error: 'Failed to fetch blogs' }, { status: 500 });
   }
 }
@@ -76,12 +91,12 @@ export async function POST(request: Request) {
       },
       include: {
         author: true,
-        comments: { include: { author: true } },
+        comments: { include: { author: true, reactions: true } },
         reactions: true,
       },
     });
 
-    // Increment user active streak and reward points (without creating a task)
+    // Increment user active streak and reward points
     await prisma.user.update({
       where: { id: authorId },
       data: {
@@ -94,7 +109,7 @@ export async function POST(request: Request) {
       blog: {
         ...newBlog,
         createdAt: newBlog.createdAt.toISOString(),
-        updatedAt: newBlog.updatedAt.toISOString(),
+        updatedAt: newBlog.updatedAt ? newBlog.updatedAt.toISOString() : newBlog.createdAt.toISOString(),
         attachments: JSON.parse(newBlog.attachments || '[]'),
         tags: JSON.parse(newBlog.tags || '[]'),
         comments: [],
