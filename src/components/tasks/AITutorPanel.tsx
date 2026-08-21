@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Sparkles,
   Send,
@@ -95,9 +96,14 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const initialWelcomeMsg: ChatMessage = {
     id: 'welcome-1',
@@ -201,11 +207,11 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
 
   const activeModelObj = AI_STUDY_MODELS.find((m) => m.id === selectedModel) || AI_STUDY_MODELS[0];
 
-  return (
+  const renderContent = (inFullScreen: boolean) => (
     <div
       className={`bg-surface-lowest dark:bg-slate-950 border border-outline-variant/60 shadow-xl flex flex-col space-y-3 transition-all duration-200 ${
-        isFullScreen
-          ? 'fixed inset-0 z-[9999] w-screen h-screen p-6 rounded-none shadow-2xl'
+        inFullScreen
+          ? 'fixed inset-0 z-[99999] w-screen h-screen p-6 shadow-2xl bg-surface-lowest dark:bg-slate-950 border-none rounded-none'
           : 'relative p-4 rounded-3xl h-[720px] max-h-[82vh]'
       }`}
     >
@@ -228,14 +234,14 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
           </div>
         </div>
 
-        {/* Toolbar controls: Full Screen Expand Toggle */}
+        {/* Toolbar controls: Full Screen Toggle */}
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={toggleFullScreen}
             className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-high rounded-xl transition-colors"
-            title={isFullScreen ? 'Exit Full Window' : 'Expand to Full Window'}
+            title={inFullScreen ? 'Exit Full Screen' : 'Expand to Full Screen'}
           >
-            {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            {inFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
         </div>
       </div>
@@ -443,4 +449,10 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
       </form>
     </div>
   );
+
+  if (isFullScreen && mounted) {
+    return createPortal(renderContent(true), document.body);
+  }
+
+  return renderContent(false);
 };
