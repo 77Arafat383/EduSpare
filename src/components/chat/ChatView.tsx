@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Search,
+  Check,
   CheckCheck,
   MoreVertical,
 } from 'lucide-react';
@@ -98,7 +99,7 @@ export const ChatView: React.FC = () => {
     if (!activeChatUser && filteredContacts.length > 0) {
       setActiveChatUser(filteredContacts[0]);
     }
-  }, [filteredContacts, activeChatUser]);
+  }, [filteredContacts.length, activeChatUser]);
 
   // Fetch message thread when activeChatUser changes
   useEffect(() => {
@@ -106,7 +107,19 @@ export const ChatView: React.FC = () => {
     if (activeChatUser && currentUser) {
       fetchMessages(activeChatUser.id);
     }
-  }, [activeChatUser, currentUser]);
+  }, [activeChatUser?.id, currentUser?.id]);
+
+  // Live polling for real-time messages, seen status & conversation badges every 3 seconds
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      fetchConversations();
+      if (activeChatUser) {
+        fetchMessages(activeChatUser.id);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeChatUser?.id, currentUser?.id]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -160,7 +173,10 @@ export const ChatView: React.FC = () => {
             return (
               <div
                 key={contact.id}
-                onClick={() => setActiveChatUser(contact)}
+                onClick={() => {
+                  setActiveChatUser(contact);
+                  fetchMessages(contact.id);
+                }}
                 className={`p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all ${isSelected
                     ? 'bg-primary text-white shadow-md'
                     : 'hover:bg-surface-container-high text-on-surface'
@@ -192,12 +208,19 @@ export const ChatView: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <p
-                      className={`text-[11px] truncate ${isSelected ? 'text-white/80' : 'text-outline'
-                        }`}
-                    >
-                      {lastSnippet}
-                    </p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p
+                        className={`text-[11px] truncate flex-1 ${isSelected ? 'text-white/80' : 'text-outline'
+                          }`}
+                      >
+                        {lastSnippet}
+                      </p>
+                      {conv && conv.unseenCount > 0 && !isSelected && (
+                        <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-extrabold bg-emerald-500 text-white rounded-full shadow-sm animate-pulse">
+                          {conv.unseenCount} new
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -329,7 +352,17 @@ export const ChatView: React.FC = () => {
                             minute: '2-digit',
                           })}
                         </span>
-                        {isMe && <CheckCheck className="w-3 h-3 text-white/90" />}
+                        {isMe && (
+                          msg.isSeen ? (
+                            <span title="Delivered & Seen">
+                              <CheckCheck className="w-3.5 h-3.5 text-sky-200" />
+                            </span>
+                          ) : (
+                            <span title="Delivered / Unseen">
+                              <Check className="w-3 h-3 text-white/70" />
+                            </span>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>

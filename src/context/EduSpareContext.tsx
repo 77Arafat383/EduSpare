@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   User,
   TaskItem,
@@ -32,7 +32,7 @@ interface EduSpareContextType {
   communities: CommunityItem[];
   savedItems: SavedVaultItem[];
   messages: MessageItem[];
-  recentConversations: Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean }>;
+  recentConversations: Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }>;
   activeChatUser: User | null;
   setActiveChatUser: (user: User | null) => void;
   isChatBlocked: boolean;
@@ -86,7 +86,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [savedItems, setSavedItems] = useState<SavedVaultItem[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [recentConversations, setRecentConversations] = useState<
-    Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean }>
+    Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }>
   >({});
   const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -374,14 +374,28 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const seenTimestampsRef = useRef<Record<string, number>>({});
+
   // Chat Actions
   const fetchConversations = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`/api/chat?userId=${currentUser.id}`);
+      const res = await fetch(`/api/chat?userId=${currentUser.id}&t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       const data = await res.json();
       if (data.recentConversations) {
-        setRecentConversations(data.recentConversations);
+        const updatedConvs = { ...data.recentConversations };
+        Object.keys(updatedConvs).forEach((contactId) => {
+          const openedTime = seenTimestampsRef.current[contactId];
+          if (openedTime) {
+            const msgTime = new Date(updatedConvs[contactId].lastMessageAt).getTime();
+            if (msgTime <= openedTime + 5000) {
+              updatedConvs[contactId].unseenCount = 0;
+            }
+          }
+        });
+        setRecentConversations(updatedConvs);
       }
     } catch (err) {
       console.error('Fetch conversations error:', err);
@@ -390,12 +404,22 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const fetchMessages = async (targetUserId: string) => {
     if (!currentUser) return;
+    seenTimestampsRef.current[targetUserId] = Date.now();
     try {
-      const res = await fetch(`/api/chat?userId=${currentUser.id}&targetUserId=${targetUserId}`);
+      const res = await fetch(`/api/chat?userId=${currentUser.id}&targetUserId=${targetUserId}&t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       const data = await res.json();
       if (data.messages) {
         setMessages(data.messages);
         setIsChatBlocked(data.isBlocked);
+        setRecentConversations((prev) => ({
+          ...prev,
+          [targetUserId]: prev[targetUserId]
+            ? { ...prev[targetUserId], unseenCount: 0 }
+            : prev[targetUserId],
+        }));
+        await fetchConversations();
       }
     } catch (err) {
       console.error('Fetch messages error:', err);

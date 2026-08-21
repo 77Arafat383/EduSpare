@@ -105,6 +105,7 @@ export interface MessageItem {
   sender?: User;
   receiver?: User;
   content: string;
+  isSeen?: boolean;
   createdAt: string;
 }
 

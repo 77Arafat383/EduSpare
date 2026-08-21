@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -12,6 +15,22 @@ export async function GET(request: Request) {
     }
 
     if (targetUserId) {
+      // Mark all messages received from targetUserId as seen by userId
+      try {
+        await prisma.message.updateMany({
+          where: {
+            senderId: targetUserId,
+            receiverId: userId,
+          },
+          data: {
+            isSeen: true,
+            isRead: true,
+          },
+        });
+      } catch (err) {
+        console.warn('Update seen status error:', err);
+      }
+
       // Check block status
       const isBlocked = await prisma.userBlock.findFirst({
         where: {
@@ -39,6 +58,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         messages: messages.map((m) => ({
           ...m,
+          isSeen: m.isSeen ?? (m as any).isRead ?? false,
           createdAt: m.createdAt.toISOString(),
         })),
         isBlocked: !!isBlocked,
@@ -46,7 +66,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // Get all messages involving userId to compute last message timestamp per contact
+    // Get all messages involving userId to compute last message timestamp and unseen counts
     const allUserMessages = await prisma.message.findMany({
       where: {
         OR: [{ senderId: userId }, { receiverId: userId }],
@@ -56,7 +76,7 @@ export async function GET(request: Request) {
 
     const recentConversations: Record<
       string,
-      { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean }
+      { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }
     > = {};
 
     const contactIdsSet = new Set<string>();
@@ -64,12 +84,19 @@ export async function GET(request: Request) {
     allUserMessages.forEach((msg) => {
       const contactId = msg.senderId === userId ? msg.receiverId : msg.senderId;
       contactIdsSet.add(contactId);
+
       if (!recentConversations[contactId]) {
         recentConversations[contactId] = {
           lastMessageAt: msg.createdAt.toISOString(),
           lastMessageSnippet: msg.content,
           isMeSender: msg.senderId === userId,
+          unseenCount: 0,
         };
+      }
+
+      const isSeenVal = msg.isSeen ?? (msg as any).isRead ?? false;
+      if (msg.receiverId === userId && msg.senderId === contactId && !isSeenVal) {
+        recentConversations[contactId].unseenCount += 1;
       }
     });
 
@@ -79,7 +106,34 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ contacts, recentConversations });
   } catch (error) {
+    console.error('Get messages API error:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { userId, targetUserId } = body;
+
+    if (!userId || !targetUserId) {
+      return NextResponse.json({ error: 'userId and targetUserId required' }, { status: 400 });
+    }
+
+    await prisma.message.updateMany({
+      where: {
+        senderId: targetUserId,
+        receiverId: userId,
+        isSeen: false,
+      },
+      data: {
+        isSeen: true,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update seen status' }, { status: 500 });
   }
 }
 
