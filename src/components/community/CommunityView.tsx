@@ -50,9 +50,9 @@ export const CommunityView: React.FC = () => {
 
   const isAdmin = Boolean(
     currentUser &&
-      activeCommunity &&
-      (activeCommunity.createdById === currentUser.id ||
-        activeCommunity.adminIds?.includes(currentUser.id))
+    activeCommunity &&
+    (activeCommunity.createdById === currentUser.id ||
+      activeCommunity.adminIds?.includes(currentUser.id))
   );
 
   const isPending = Boolean(
@@ -103,7 +103,7 @@ export const CommunityView: React.FC = () => {
 
       {/* 3. Selected Community Workspace */}
       {activeCommunity && (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {/* Cover Page Header & Post Creation Box Group (Tight Spacing) */}
           <div className="space-y-2">
             <CommunityCoverCard
@@ -113,6 +113,7 @@ export const CommunityView: React.FC = () => {
               isMember={isMember}
               isAdmin={isAdmin}
               isPending={isPending}
+              allUsers={allUsers}
               onOpenEditCover={() => setIsEditCoverOpen(true)}
               onOpenCreatePost={() => setIsPostModalOpen(true)}
               onJoin={() => toggleJoinCommunity(activeCommunity.id, 'join')}
@@ -120,6 +121,8 @@ export const CommunityView: React.FC = () => {
               onLeave={() => toggleJoinCommunity(activeCommunity.id, 'leave')}
               onDeleteCommunity={() => deleteCommunity(activeCommunity.id)}
               onCancelRequest={() => cancelRequestToJoinCommunity(activeCommunity.id)}
+              onRemoveMember={(memberId) => removeCommunityMember(activeCommunity.id, memberId)}
+              onInviteMember={(targetUserId) => inviteUserToCommunity(activeCommunity.id, targetUserId)}
             />
 
             {isMember && (
@@ -174,29 +177,10 @@ export const CommunityView: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Community Members & Rules Section */}
-              <CommunityMembersCard
-                community={activeCommunity}
-                allUsers={allUsers}
-                isAdmin={isAdmin}
-                onRemoveMember={(memberId) => removeCommunityMember(activeCommunity.id, memberId)}
-                onInviteMember={(userId) => inviteUserToCommunity(activeCommunity.id, userId)}
-              />
-
+            <div className="space-y-3">
               {/* Community Blog Feed */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-outline-variant/40 pb-2">
-                  <h4 className="text-sm font-bold text-on-surface">
-                    Community-Exclusive Blog Feed ({approvedCommunityBlogs.length})
-                  </h4>
-                  <button
-                    onClick={() => setIsPostModalOpen(true)}
-                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-                  >
-                    <PenSquare className="w-3.5 h-3.5" /> Write Community Article
-                  </button>
-                </div>
+
 
                 {approvedCommunityBlogs.length === 0 ? (
                   <div className="p-8 text-center text-xs text-outline bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm space-y-2">

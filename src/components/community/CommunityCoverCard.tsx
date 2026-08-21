@@ -16,6 +16,11 @@ import {
   LogOut,
   Trash2,
   ScrollText,
+  Users,
+  UserMinus,
+  UserPlus,
+  Search,
+  X,
 } from 'lucide-react';
 
 interface CommunityCoverCardProps {
@@ -25,6 +30,7 @@ interface CommunityCoverCardProps {
   isMember: boolean;
   isAdmin: boolean;
   isPending: boolean;
+  allUsers?: User[];
   onOpenEditCover: () => void;
   onOpenCreatePost: () => void;
   onJoin: () => void;
@@ -32,6 +38,8 @@ interface CommunityCoverCardProps {
   onLeave: () => void;
   onDeleteCommunity: () => void;
   onCancelRequest?: () => void;
+  onRemoveMember?: (memberId: string) => void;
+  onInviteMember?: (targetUserId: string) => void;
 }
 
 export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
@@ -41,6 +49,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
   isMember,
   isAdmin,
   isPending,
+  allUsers = [],
   onOpenEditCover,
   onOpenCreatePost,
   onJoin,
@@ -48,10 +57,14 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
   onLeave,
   onDeleteCommunity,
   onCancelRequest,
+  onRemoveMember,
+  onInviteMember,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isViewRulesModalOpen, setIsViewRulesModalOpen] = useState(false);
+  const [isViewMembersModalOpen, setIsViewMembersModalOpen] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState('');
   const [acceptedRules, setAcceptedRules] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +158,16 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
 
               {isMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl py-1.5 z-[100] animate-in fade-in duration-100 opacity-100 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsViewMembersModalOpen(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
+                  >
+                    <Users className="w-4 h-4 text-outline" /> Members ({community.memberIds?.length || 0})
+                  </button>
+
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
@@ -287,6 +310,146 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
 
             <div className="flex justify-end pt-2 border-t border-outline-variant/40">
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Community Members & Invitation Modal */}
+      {isViewMembersModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3 shrink-0">
+              <h3 className="text-sm font-bold text-on-surface flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" /> Community Members ({community.memberIds?.length || 0})
+              </h3>
+              <button
+                onClick={() => setIsViewMembersModalOpen(false)}
+                className="p-1 rounded-full text-outline hover:bg-surface-container-low"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Invite Non-Members Search Section */}
+            <div className="space-y-2 shrink-0 bg-surface-container-low p-3.5 rounded-2xl border border-outline-variant/40">
+              <span className="text-xs font-bold text-on-surface flex items-center gap-1.5">
+                <UserPlus className="w-3.5 h-3.5 text-primary" /> Send Member Join Invitation Request
+              </span>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
+                <input
+                  type="text"
+                  value={inviteSearch}
+                  onChange={(e) => setInviteSearch(e.target.value)}
+                  placeholder="Search user by name or username to invite..."
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-surface-lowest text-on-surface rounded-xl border border-outline-variant/60"
+                />
+              </div>
+
+              {inviteSearch.trim() && (
+                <div className="max-h-40 overflow-y-auto space-y-1.5 pt-1">
+                  {allUsers
+                    .filter(
+                      (u) =>
+                        !community.memberIds?.includes(u.id) &&
+                        (u.name.toLowerCase().includes(inviteSearch.toLowerCase()) ||
+                          u.username.toLowerCase().includes(inviteSearch.toLowerCase()))
+                    )
+                    .map((u) => (
+                      <div
+                        key={u.id}
+                        className="p-2 rounded-xl bg-surface-lowest flex items-center justify-between gap-2 border border-outline-variant/30 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={u.avatar || '/assets/default_avatar.png'}
+                            alt={u.name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                          <span className="font-bold text-on-surface truncate">{u.name}</span>
+                          <span className="text-[10px] text-outline">@{u.username}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            onInviteMember?.(u.id);
+                            setInviteSearch('');
+                          }}
+                          className="px-3 py-1 bg-primary text-white text-[11px] font-bold rounded-lg hover:bg-primary-container shadow-xs"
+                        >
+                          Send Invite
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Roster of Current Members */}
+            <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+              <span className="text-xs font-bold text-outline uppercase tracking-wider block">
+                Current Members ({community.memberIds?.length || 0})
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {allUsers
+                  .filter((u) => community.memberIds?.includes(u.id))
+                  .map((member) => {
+                    const isMemberAdmin =
+                      community.createdById === member.id || community.adminIds?.includes(member.id);
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="p-2.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={member.avatar || '/assets/default_avatar.png'}
+                            alt={member.name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-bold text-on-surface truncate block">
+                                {member.name}
+                              </span>
+                              {isMemberAdmin && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-600">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-outline block truncate">@{member.username}</span>
+                          </div>
+                        </div>
+
+                        {isAdmin && !isMemberAdmin && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Remove ${member.name} from ${community.name}?`)) {
+                                onRemoveMember?.(member.id);
+                              }
+                            }}
+                            className="p-1.5 text-outline hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            title="Remove Member"
+                          >
+                            <UserMinus className="w-4 h-4 text-rose-600" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-outline-variant/40 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsViewMembersModalOpen(false)}
+                className="px-5 py-2 text-xs font-bold text-white bg-primary rounded-xl hover:bg-primary-container shadow-md"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
