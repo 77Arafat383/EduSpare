@@ -12,7 +12,7 @@ interface RemainingTasksWidgetProps {
 export const RemainingTasksWidget: React.FC<RemainingTasksWidgetProps> = ({
   onOpenCreateModal,
 }) => {
-  const { tasks, setSelectedTaskId, setActiveTab, updateTask } = useEduSpare();
+  const { tasks, setSelectedTaskId, setActiveTab } = useEduSpare();
 
   const remainingTasks = tasks.filter((t) => t.status !== 'Completed');
 
@@ -58,17 +58,6 @@ export const RemainingTasksWidget: React.FC<RemainingTasksWidgetProps> = ({
                 className="group p-4 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/40 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateTask(task.id, { status: 'Completed' });
-                    }}
-                    className="mt-0.5 w-5 h-5 rounded-md border-2 border-outline hover:border-primary flex items-center justify-center transition-colors shrink-0"
-                    title="Mark as completed"
-                  >
-                    <span className="w-2.5 h-2.5 rounded-sm bg-primary opacity-0 hover:opacity-100 transition-opacity" />
-                  </button>
-
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-primary uppercase tracking-wider">

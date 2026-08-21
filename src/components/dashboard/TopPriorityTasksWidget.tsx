@@ -3,10 +3,10 @@
 import React from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { formatTimeRemaining } from '@/lib/priorityAlgorithm';
-import { Flame, Clock, ChevronRight, Check } from 'lucide-react';
+import { Flame, Clock, ChevronRight } from 'lucide-react';
 
 export const TopPriorityTasksWidget: React.FC = () => {
-  const { tasks, setSelectedTaskId, setActiveTab, updateTask } = useEduSpare();
+  const { tasks, setSelectedTaskId, setActiveTab } = useEduSpare();
 
   // Top 5 tasks by priority algorithm
   const topFive = tasks.filter((t) => t.status !== 'Completed').slice(0, 5);
@@ -78,16 +78,7 @@ export const TopPriorityTasksWidget: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateTask(task.id, { status: 'Completed' });
-                    }}
-                    className="p-1 rounded-lg border border-outline-variant/60 hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-colors"
-                    title="Quick Complete"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
+                  <ChevronRight className="w-4 h-4 text-outline group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
             );
