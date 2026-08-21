@@ -18,6 +18,7 @@ import {
   Edit2,
   Trash2,
   X,
+  BookOpen,
 } from 'lucide-react';
 
 function formatRelativeTime(dateStr?: string): string {
@@ -54,6 +55,8 @@ export const ChatView: React.FC = () => {
     toggleBlockUser,
     setSelectedUsername,
     setActiveTab,
+    setSelectedBlogId,
+    blogs,
   } = useEduSpare();
 
   const [inputMessage, setInputMessage] = useState('');
@@ -467,9 +470,46 @@ export const ChatView: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          <p className="leading-relaxed whitespace-pre-line font-medium">
-                            {msg.content}
-                          </p>
+                          <div className="space-y-2">
+                            <p className="leading-relaxed whitespace-pre-line font-medium">
+                              {msg.content}
+                            </p>
+                            {(() => {
+                              const blogMatch = msg.content.match(/(?:https?:\/\/[^\s]+)?\/blog\?post=([a-zA-Z0-9_-]+)/);
+                              if (!blogMatch) return null;
+                              const postId = blogMatch[1];
+                              const sharedBlog = blogs.find((b) => b.id === postId);
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBlogId(postId);
+                                    setActiveTab('blog');
+                                  }}
+                                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
+                                    isMe
+                                      ? 'bg-white/10 hover:bg-white/20 border-white/30 text-white'
+                                      : 'bg-surface-lowest hover:bg-surface-container-low border-outline-variant/60 text-on-surface'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <BookOpen className={`w-4 h-4 shrink-0 ${isMe ? 'text-white' : 'text-primary'}`} />
+                                    <div className="min-w-0">
+                                      <span className="text-xs font-bold block truncate">
+                                        {sharedBlog ? sharedBlog.title : 'Shared Article'}
+                                      </span>
+                                      <span className={`text-[10px] block truncate ${isMe ? 'text-white/80' : 'text-outline'}`}>
+                                        Click to view full article
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[11px] font-bold underline shrink-0">Open Article →</span>
+                                </button>
+                              );
+                            })()}
+                          </div>
                         )}
 
                         <div

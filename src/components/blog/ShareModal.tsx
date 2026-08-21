@@ -17,8 +17,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post })
   const [shareType, setShareType] = useState<'message' | 'blog'>('message');
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [userSearch, setUserSearch] = useState('');
+  const defaultBlogLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/blog?post=${post.id}`;
   const [messageText, setMessageText] = useState(
-    `Check out this article: "${post.title}" - ${typeof window !== 'undefined' ? window.location.origin : ''}/blog?post=${post.id}`
+    `Check out this article: "${post.title}"\n${defaultBlogLink}`
   );
   const [thoughtsText, setThoughtsText] = useState('');
   const [submitting, setSubmitting] = useState(false);
