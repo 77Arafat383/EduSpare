@@ -169,7 +169,7 @@ export const ChatView: React.FC = () => {
       const senderName =
         replyingToMsg.sender?.name ||
         (replyingToMsg.senderId === currentUser?.id ? 'Yourself' : activeChatUser.name);
-      finalContent = `> 💬 **Replying to ${senderName}**: "${replyingToMsg.content}"\n\n${finalContent}`;
+      finalContent = `Replying to "${replyingToMsg.content}"\n\n${finalContent}`;
     }
 
     await sendMessage(activeChatUser.id, finalContent);
@@ -207,7 +207,7 @@ export const ChatView: React.FC = () => {
     if (!forwardingMsg || forwardSelectedUsers.length === 0) return;
     setForwardSubmitting(true);
     for (const targetUser of forwardSelectedUsers) {
-      await sendMessage(targetUser.id, `↪️ **Forwarded message**:\n${forwardingMsg.content}`);
+      await sendMessage(targetUser.id, `↪️ Forwarded:\n${forwardingMsg.content}`);
     }
     setForwardSubmitting(false);
     setForwardingMsg(null);
@@ -227,6 +227,10 @@ export const ChatView: React.FC = () => {
     setActiveTab('profile');
   };
 
+  const unreadUsersCount = Object.values(recentConversations).filter(
+    (c) => c && c.unseenCount > 0
+  ).length;
+
   return (
     <div className="h-[calc(100vh-8rem)] flex rounded-3xl border border-outline-variant/60 bg-surface-lowest shadow-sm overflow-hidden">
       {/* Left Sidebar - Chat List */}
@@ -236,6 +240,11 @@ export const ChatView: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-primary" /> Messages
+              {unreadUsersCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-primary text-white shadow-xs">
+                  {unreadUsersCount} {unreadUsersCount === 1 ? 'Unread User' : 'Unread Users'}
+                </span>
+              )}
             </h2>
           </div>
 
@@ -266,11 +275,10 @@ export const ChatView: React.FC = () => {
                 <div
                   key={user.id}
                   onClick={() => setActiveChatUser(user)}
-                  className={`p-3.5 flex items-center gap-3 cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'bg-primary/10 border-l-4 border-primary'
-                      : 'hover:bg-surface-container-low'
-                  }`}
+                  className={`p-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isSelected
+                    ? 'bg-primary/10 border-l-4 border-primary'
+                    : 'hover:bg-surface-container-low'
+                    }`}
                 >
                   {/* User Avatar + Active Online Badge */}
                   <div className="relative shrink-0">
@@ -280,9 +288,8 @@ export const ChatView: React.FC = () => {
                       className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10"
                     />
                     <span
-                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-lowest ${
-                        isActive ? 'bg-emerald-500' : 'bg-slate-400'
-                      }`}
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-lowest ${isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                        }`}
                       title={isActive ? 'Active Now' : 'Offline'}
                     />
                   </div>
@@ -333,9 +340,8 @@ export const ChatView: React.FC = () => {
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"
                 />
                 <span
-                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-lowest ${
-                    isUserActive(activeChatUser.lastActiveAt) ? 'bg-emerald-500' : 'bg-slate-400'
-                  }`}
+                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-lowest ${isUserActive(activeChatUser.lastActiveAt) ? 'bg-emerald-500' : 'bg-slate-400'
+                    }`}
                 />
               </div>
 
@@ -384,11 +390,10 @@ export const ChatView: React.FC = () => {
                       setIsMenuOpen(false);
                       await toggleBlockUser(activeChatUser.id);
                     }}
-                    className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2 transition-colors ${
-                      isChatBlocked
-                        ? 'text-emerald-600 hover:bg-emerald-500/10'
-                        : 'text-rose-600 hover:bg-rose-500/10'
-                    }`}
+                    className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2 transition-colors ${isChatBlocked
+                      ? 'text-emerald-600 hover:bg-emerald-500/10'
+                      : 'text-rose-600 hover:bg-rose-500/10'
+                      }`}
                   >
                     {isChatBlocked ? (
                       <>
@@ -440,11 +445,10 @@ export const ChatView: React.FC = () => {
                     <div className={`relative flex items-start gap-1 max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                       {/* Message Bubble Card */}
                       <div
-                        className={`p-3.5 rounded-2xl text-xs space-y-1 ${
-                          isMe
-                            ? 'bg-primary text-white rounded-tr-none shadow-sm'
-                            : 'bg-surface-container-high text-on-surface rounded-tl-none border border-outline-variant/40'
-                        }`}
+                        className={`p-3.5 rounded-2xl text-xs space-y-1.5 ${isMe
+                          ? 'bg-primary/10 text-on-surface border border-primary/25 rounded-tr-none shadow-2xs'
+                          : 'bg-surface-container-high text-on-surface rounded-tl-none border border-outline-variant/40'
+                          }`}
                       >
                         {isEditing ? (
                           <div className="space-y-2 pt-0.5">
@@ -452,7 +456,7 @@ export const ChatView: React.FC = () => {
                               rows={2}
                               value={editMsgText}
                               onChange={(e) => setEditMsgText(e.target.value)}
-                              className="w-full p-2 text-xs bg-surface-container text-on-surface rounded-xl border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
+                              className="w-full p-2 text-xs bg-surface-container text-on-surface font-normal rounded-xl border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                             <div className="flex justify-end gap-1.5">
                               <button
@@ -471,52 +475,82 @@ export const ChatView: React.FC = () => {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <p className="leading-relaxed whitespace-pre-line font-medium">
-                              {msg.content}
-                            </p>
                             {(() => {
+                              // Regex for Reply parsing
+                              const replyMatch = msg.content.match(/^(?:Replying to|💬 Replying to[^:]*:)\s*"([\s\S]*?)"\n\n([\s\S]*)$/);
+                              const forwardMatch = !replyMatch ? msg.content.match(/^(?:↪️ Forwarded:)\n([\s\S]*)$/) : null;
+
+                              const quotedText = replyMatch ? replyMatch[1] : forwardMatch ? forwardMatch[1] : null;
+                              const userText = replyMatch ? replyMatch[2] : forwardMatch ? '' : msg.content;
                               const blogMatch = msg.content.match(/(?:https?:\/\/[^\s]+)?\/blog\?post=([a-zA-Z0-9_-]+)/);
-                              if (!blogMatch) return null;
-                              const postId = blogMatch[1];
-                              const sharedBlog = blogs.find((b) => b.id === postId);
 
                               return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedBlogId(postId);
-                                    setActiveTab('blog');
-                                  }}
-                                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
-                                    isMe
-                                      ? 'bg-white/10 hover:bg-white/20 border-white/30 text-white'
-                                      : 'bg-surface-lowest hover:bg-surface-container-low border-outline-variant/60 text-on-surface'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <BookOpen className={`w-4 h-4 shrink-0 ${isMe ? 'text-white' : 'text-primary'}`} />
-                                    <div className="min-w-0">
-                                      <span className="text-xs font-bold block truncate">
-                                        {sharedBlog ? sharedBlog.title : 'Shared Article'}
-                                      </span>
-                                      <span className={`text-[10px] block truncate ${isMe ? 'text-white/80' : 'text-outline'}`}>
-                                        Click to view full article
-                                      </span>
+                                <>
+                                  {/* Quoted Message in Opposite Color Contrast */}
+                                  {quotedText && (
+                                    <div
+                                      className={`p-2.5 rounded-xl text-xs border-l-4 border-primary space-y-0.5 ${isMe
+                                        ? 'bg-surface-lowest text-on-surface border border-outline-variant/50 shadow-2xs'
+                                        : 'bg-primary/15 text-on-surface border border-primary/20 shadow-2xs'
+                                        }`}
+                                    >
+                                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
+                                        <Reply className="w-3 h-3 text-primary" />
+                                        <span>{forwardMatch ? 'Forwarded' : 'Replying to'}</span>
+                                      </div>
+                                      <p className="text-[11px] text-outline font-medium italic line-clamp-3">
+                                        "{quotedText}"
+                                      </p>
                                     </div>
-                                  </div>
-                                  <span className="text-[11px] font-bold underline shrink-0">Open Article →</span>
-                                </button>
+                                  )}
+
+                                  {/* User Reply / Main Message Content */}
+                                  {userText && (
+                                    <p className="leading-relaxed whitespace-pre-line font-normal text-xs sm:text-[13px] text-on-surface font-sans">
+                                      {userText}
+                                    </p>
+                                  )}
+
+                                  {/* Interactive Shared Blog Link Card */}
+                                  {blogMatch && (() => {
+                                    const postId = blogMatch[1];
+                                    const sharedBlog = blogs.find((b) => b.id === postId);
+
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedBlogId(postId);
+                                          setActiveTab('blog');
+                                        }}
+                                        className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-xs ${isMe
+                                          ? 'bg-surface-lowest hover:bg-surface-container-low border-outline-variant/60 text-on-surface'
+                                          : 'bg-primary/10 hover:bg-primary/20 border-primary/20 text-on-surface'
+                                          }`}
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <BookOpen className="w-4 h-4 text-primary shrink-0" />
+                                          <div className="min-w-0">
+                                            <span className="text-xs font-bold block truncate">
+                                              {sharedBlog ? sharedBlog.title : 'Shared Article'}
+                                            </span>
+                                            <span className="text-[10px] text-outline block truncate">
+                                              Click to view full article
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-primary underline shrink-0">Open Article →</span>
+                                      </button>
+                                    );
+                                  })()}
+                                </>
                               );
                             })()}
                           </div>
                         )}
 
-                        <div
-                          className={`text-[10px] text-right flex items-center justify-end gap-1 ${
-                            isMe ? 'text-white/70' : 'text-outline'
-                          }`}
-                        >
+                        <div className="text-[10px] text-right flex items-center justify-end gap-1 text-outline">
                           <span>
                             {new Date(msg.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
@@ -526,11 +560,11 @@ export const ChatView: React.FC = () => {
                           {isMe &&
                             (msg.isSeen ? (
                               <span title="Delivered & Seen">
-                                <CheckCheck className="w-3.5 h-3.5 text-sky-200" />
+                                <CheckCheck className="w-3.5 h-3.5 text-primary" />
                               </span>
                             ) : (
                               <span title="Delivered / Unseen">
-                                <Check className="w-3 h-3 text-white/70" />
+                                <Check className="w-3 h-3 text-outline" />
                               </span>
                             ))}
                         </div>
@@ -549,9 +583,8 @@ export const ChatView: React.FC = () => {
                         {/* Dropdown Menu (Solid Opaque White Background) */}
                         {openMsgMenuId === msg.id && (
                           <div
-                            className={`absolute top-full mt-1 w-32 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-2xl py-1 z-50 space-y-0.5 opacity-100 ${
-                              isMe ? 'right-0' : 'left-0'
-                            }`}
+                            className={`absolute top-full mt-1 w-32 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-2xl py-1 z-50 space-y-0.5 opacity-100 ${isMe ? 'right-0' : 'left-0'
+                              }`}
                           >
                             <button
                               onClick={() => {
@@ -641,7 +674,7 @@ export const ChatView: React.FC = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder={`Message ${activeChatUser.name}...`}
-                className="flex-1 px-4 py-2.5 text-xs bg-surface-container-low text-on-surface rounded-full border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-4 py-2.5 text-xs sm:text-sm font-normal bg-surface-container-low text-on-surface rounded-full border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/60 font-sans"
               />
               <button
                 type="submit"
@@ -716,12 +749,11 @@ export const ChatView: React.FC = () => {
                       <div
                         key={u.id}
                         onClick={() => toggleForwardUserSelect(u)}
-                        className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
-                          isSel ? 'bg-primary/10 border border-primary/40 font-bold text-primary' : 'hover:bg-surface-container'
-                        }`}
+                        className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${isSel ? 'bg-primary/10 border border-primary/40 font-bold text-primary' : 'hover:bg-surface-container'
+                          }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <input type="checkbox" checked={isSel} onChange={() => {}} className="w-3.5 h-3.5 accent-primary" />
+                          <input type="checkbox" checked={isSel} onChange={() => { }} className="w-3.5 h-3.5 accent-primary" />
                           <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full shrink-0 object-cover" />
                           <span className="text-xs truncate">{u.name}</span>
                         </div>

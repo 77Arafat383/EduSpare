@@ -15,7 +15,11 @@ import { useEduSpare } from '@/context/EduSpareContext';
 import { ActiveTab } from '@/types/eduspare';
 
 export const Sidebar: React.FC = () => {
-  const { activeTab, setActiveTab, currentUser, setSelectedUsername } = useEduSpare();
+  const { activeTab, setActiveTab, currentUser, setSelectedUsername, recentConversations } = useEduSpare();
+
+  const unreadUsersCount = Object.values(recentConversations).filter(
+    (c) => c && c.unseenCount > 0
+  ).length;
 
   const menuItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     {
@@ -37,6 +41,7 @@ export const Sidebar: React.FC = () => {
       id: 'chat',
       label: 'Messages',
       icon: <MessageSquare className="w-5 h-5" />,
+      badge: unreadUsersCount > 0 ? `${unreadUsersCount}` : undefined,
     },
     {
       id: 'communities',
