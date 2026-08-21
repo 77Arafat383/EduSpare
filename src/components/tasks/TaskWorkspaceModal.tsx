@@ -224,9 +224,9 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
             </div>
           </div>
 
-          {/* Main Workspace Split Screen Layout: 70% Left (Notion Notes, Multi-Tab Edge PDF Reader & Resources) / 30% Right (Floating AI Tutor) */}
-          <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 items-start">
-            {/* Left 70% Column (lg:col-span-7) */}
+          {/* Main Workspace Split Screen Layout: Left Column (Notion Notes, Multi-Tab Edge PDF Reader & Resources) / Right Column (EduSpare AI Tutor) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column (lg:col-span-7) */}
             <div className="lg:col-span-7 space-y-6">
               {/* MS Edge-Style Multi-Tab PDF & Document Reader */}
               {openTabs.length > 0 && (
@@ -331,8 +331,8 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
               />
             </div>
 
-            {/* Right 30% Column (lg:col-span-3): Floating Sticky AI Tutor Panel */}
-            <div className="lg:col-span-3 sticky top-4 self-start">
+            {/* Right Column (lg:col-span-5): Floating Sticky AI Tutor Panel */}
+            <div className="lg:col-span-5 sticky top-4 self-start">
               <AITutorPanel
                 taskTitle={task.title}
                 category={task.category}

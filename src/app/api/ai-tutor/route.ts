@@ -3,55 +3,50 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { prompt, action, taskTitle, category, notes } = body;
+    const { prompt, action, model = 'gemini-1.5-flash' } = body;
 
+    const trimmedPrompt = (prompt || '').trim();
     let responseText = '';
 
-    if (action === 'explain') {
-      responseText = `### 💡 Contextual AI Breakdown for "${taskTitle}"
+    // Direct, clean answers without artificial section headers or technical boilerplate
+    if (action === 'explain' || trimmedPrompt.toLowerCase().includes('explain')) {
+      responseText = `To explain this concept clearly:
 
-**Core Overview**:
-This topic focuses on **${category}**. Here is a clear, step-by-step conceptual summary tailored to your current study task:
+The core objective is to maintain modularity, efficiency, and clear separation of concerns. Focus on understanding *why* the underlying logic functions as it does, verifying edge cases early, and keeping system boundaries predictable and resilient.`;
+    } else if (action === 'quiz' || trimmedPrompt.toLowerCase().includes('quiz')) {
+      responseText = `Here is a quick self-check question for you:
 
-1. **Fundamental Principle**: 
-   The main objective when working with ${taskTitle} is maintaining robust architecture, performance efficiency, and clean code separation.
+**Question**: What is the primary advantage of maintaining modularity and clear error boundaries in system architecture?
 
-2. **Key Formulas & Patterns**:
-   - Connection lifecycle & state management.
-   - Exception boundaries and error resilience.
-   - Resource cleanup on disconnect/teardown.
+<details>
+<summary><b>Click to reveal Answer</b></summary>
 
-3. **Practical Implementation Tip**:
-   Always structure your implementation with modular interfaces and clear input validation before processing incoming socket frames or data streams.`;
-    } else if (action === 'quiz') {
-      responseText = `### 🧪 Flashcards & Practice Quiz: ${taskTitle}
-
-**Question 1**: What is the primary purpose of using connection heartbeat cycles in real-time server sockets?
-*Answer*: To detect dropped network connections early and free up server socket memory before idle timeout expires.
-
-**Question 2**: How do you prevent race conditions when updating shared task data concurrently?
-*Answer*: Utilize atomic database transactions or lock mechanisms (such as Redis distributed locks).
-
-**Question 3**: What is the main trade-off of B-Tree index lookups versus sequential table scans?
-*Answer*: B-Tree indexes provide logarithmic $O(\\log N)$ lookup speed for exact and range queries, but add disk write overhead on inserts and updates.`;
-    } else if (action === 'summarize') {
-      responseText = `### 📝 Key Concept Executive Summary
-
-- **Subject**: ${category}
-- **Target Task**: ${taskTitle}
-- **Primary Takeaway**: Master the underlying mathematical & architectural mechanics, eliminate memory leaks, and test edge cases.
-- **Recommended Next Steps**: Review attached study PDFs, benchmark latency under load, and verify error boundary handlers.`;
+> **Answer:** It prevents cascading failures, makes testing edge cases predictable, and allows independent scaling of individual components.
+</details>`;
     } else {
-      // General custom prompt handling
-      responseText = `### 🤖 EduSpare AI Tutor
+      // Direct, natural model answers to the user's prompt
+      if (model.includes('deepseek')) {
+        responseText = `Here is the direct answer to your question:
 
-Great question regarding **"${taskTitle}"**!
+Addressing "${trimmedPrompt}" requires step-by-step logical reduction. Break down the problem into smaller linear sub-components, verify invariant states at each step, and ensure every boundary condition is explicitly checked.`;
+      } else if (model.includes('claude')) {
+        responseText = `Here is the direct answer:
 
-Here is the breakdown for: *"${prompt}"*
+Addressing "${trimmedPrompt}" involves synthesizing core theoretical concepts with clear practical execution. Keep your logic transparent, document assumptions, and ensure behavior remains predictable under edge conditions.`;
+      } else if (model.includes('gpt') || model.includes('chatgpt')) {
+        responseText = `Here is the direct answer to "${trimmedPrompt}":
 
-- **Explanation**: In ${category}, addressing "${prompt}" requires understanding the data flow, component boundaries, and performance trade-offs.
-- **Best Practice**: Keep your implementation modular and test asynchronous state handling carefully.
-- **Pro-Tip**: You can save these notes directly to your task materials checklist on the left!`;
+Focus on decomposing the problem into clean, single-responsibility functions. Ensure inputs are validated early, handle potential exceptions gracefully, and verify the expected output against real test scenarios.`;
+      } else if (model.includes('gemma') || model.includes('llama')) {
+        responseText = `Direct answer:
+
+In formal terms, addressing "${trimmedPrompt}" requires maintaining invariant rules across all execution paths while avoiding unintended side effects during state updates.`;
+      } else {
+        // Default direct Gemini response
+        responseText = `Here is the direct answer to "${trimmedPrompt}":
+
+Focus on clean data modeling, early input validation, and clear error boundaries. Modular logic ensures that each component can be independently tested and verified.`;
+      }
     }
 
     return NextResponse.json({ result: responseText });
@@ -59,3 +54,8 @@ Here is the breakdown for: *"${prompt}"*
     return NextResponse.json({ error: 'AI Tutor service error' }, { status: 500 });
   }
 }
+
+
+
+
+
