@@ -36,7 +36,7 @@ export async function POST(
         userId: comment.blog.authorId,
         actorId: authorId,
         type: 'comment',
-        title: `@${comment.author.username} commented on your post`,
+        title: `@${comment.author.username} commented on "${comment.blog.title}"`,
         content: content.slice(0, 100),
         linkId: params.id,
       });

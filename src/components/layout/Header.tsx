@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UniversalSearchBar } from '../search/UniversalSearchBar';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck } from 'lucide-react';
+import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users } from 'lucide-react';
 
 function formatRelativeTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -30,6 +30,8 @@ export const Header: React.FC = () => {
     setSelectedUsername,
     setSelectedBlogId,
     setSelectedCommunityId,
+    blogs,
+    communities,
     logout,
     notifications,
     markNotificationAsRead,
@@ -140,57 +142,128 @@ export const Header: React.FC = () => {
                       <p className="text-xs font-medium text-outline">No notifications yet</p>
                     </div>
                   ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          markNotificationAsRead(n.id);
-                          setShowNotifDropdown(false);
+                    notifications.map((n) => {
+                      const type = n.type?.toLowerCase() || '';
+                      const isCommunityNotif = type.includes('community');
+                      const linkedCommunity = isCommunityNotif && n.linkId ? communities.find((c) => c.id === n.linkId) : null;
+                      const linkedBlog = !isCommunityNotif && n.linkId ? blogs.find((b) => b.id === n.linkId) : null;
 
-                          const type = n.type?.toLowerCase() || '';
-                          if (type.includes('community')) {
-                            if (n.linkId) setSelectedCommunityId(n.linkId);
-                            setActiveTab('communities');
-                          } else if (type === 'message' || type === 'chat') {
-                            if (n.actor?.username) setSelectedUsername(n.actor.username);
-                            setActiveTab('chat');
-                          } else if (type === 'profile' || type === 'follow') {
-                            if (n.actor?.username) setSelectedUsername(n.actor.username);
-                            setActiveTab('profile');
-                          } else if (n.linkId) {
-                            setSelectedBlogId(n.linkId);
-                            setActiveTab('blog');
-                          }
-                        }}
-                        className={`p-2.5 rounded-2xl flex items-start gap-3 cursor-pointer transition-colors ${
-                          !n.isRead
-                            ? 'bg-primary/5 hover:bg-primary/10 font-medium'
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <img
-                          src={n.actor?.avatar || '/assets/default_avatar.png'}
-                          alt={n.actor?.name || 'User'}
-                          className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-primary/20 mt-0.5"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-on-surface leading-snug">
-                            {n.title}
-                          </p>
-                          {n.content && (
-                            <p className="text-[11px] text-outline truncate mt-0.5 italic">
-                              "{n.content}"
-                            </p>
+                      return (
+                        <div
+                          key={n.id}
+                          className={`p-3 rounded-2xl flex items-start gap-3 transition-colors ${
+                            !n.isRead
+                              ? 'bg-primary/5 hover:bg-primary/10 font-medium'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          {/* Actor Avatar Profile Link */}
+                          <img
+                            src={n.actor?.avatar || '/assets/default_avatar.png'}
+                            alt={n.actor?.name || 'User'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (n.actor?.username) {
+                                setSelectedUsername(n.actor.username);
+                                setActiveTab('profile');
+                                setShowNotifDropdown(false);
+                              }
+                            }}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-primary/20 mt-0.5 cursor-pointer hover:ring-primary transition-all"
+                            title={`View @${n.actor?.username}'s profile`}
+                          />
+
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="text-xs text-on-surface leading-snug">
+                              {/* Actor Username Profile Link */}
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (n.actor?.username) {
+                                    setSelectedUsername(n.actor.username);
+                                    setActiveTab('profile');
+                                    setShowNotifDropdown(false);
+                                  }
+                                }}
+                                className="font-bold text-on-surface hover:text-primary cursor-pointer transition-colors"
+                              >
+                                @{n.actor?.username || n.actor?.name}
+                              </span>{' '}
+                              <span className="text-on-surface-variant font-normal">
+                                {type === 'comment' && 'commented on'}
+                                {type === 'mention' && 'mentioned you in'}
+                                {type === 'reaction' && 'reacted to'}
+                                {type === 'community_invite' && 'invited you to'}
+                                {type === 'community_request' && 'requested to join'}
+                                {!['comment', 'mention', 'reaction', 'community_invite', 'community_request'].includes(type) && n.title}
+                              </span>{' '}
+
+                              {/* Target Item Link (Community Name Link or Blog Title Link) */}
+                              {linkedCommunity ? (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markNotificationAsRead(n.id);
+                                    setSelectedCommunityId(linkedCommunity.id);
+                                    setActiveTab('communities');
+                                    setShowNotifDropdown(false);
+                                  }}
+                                  className="font-extrabold text-primary hover:underline cursor-pointer transition-colors inline-flex items-center gap-1"
+                                >
+                                  <Users className="w-3 h-3 text-primary inline" />
+                                  {linkedCommunity.name}
+                                </span>
+                              ) : linkedBlog ? (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markNotificationAsRead(n.id);
+                                    setSelectedBlogId(linkedBlog.id);
+                                    setActiveTab('blog');
+                                    setShowNotifDropdown(false);
+                                  }}
+                                  className="font-extrabold text-primary hover:underline cursor-pointer transition-colors"
+                                >
+                                  "{linkedBlog.title}"
+                                </span>
+                              ) : n.linkId ? (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markNotificationAsRead(n.id);
+                                    if (isCommunityNotif) {
+                                      setSelectedCommunityId(n.linkId!);
+                                      setActiveTab('communities');
+                                    } else {
+                                      setSelectedBlogId(n.linkId!);
+                                      setActiveTab('blog');
+                                    }
+                                    setShowNotifDropdown(false);
+                                  }}
+                                  className="font-extrabold text-primary hover:underline cursor-pointer transition-colors"
+                                >
+                                  View Item
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {n.content && (
+                              <p className="text-[11px] text-outline truncate italic">
+                                "{n.content}"
+                              </p>
+                            )}
+
+                            <span className="text-[10px] text-outline block font-medium">
+                              {formatRelativeTime(n.createdAt)}
+                            </span>
+                          </div>
+
+                          {!n.isRead && (
+                            <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
                           )}
-                          <span className="text-[10px] text-outline mt-1 block font-medium">
-                            {formatRelativeTime(n.createdAt)}
-                          </span>
                         </div>
-                        {!n.isRead && (
-                          <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
-                        )}
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
