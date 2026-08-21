@@ -30,5 +30,8 @@ desktop.ini
 *.swp
 *.swo
 
-# SQLite temp & journal files
+# Prisma SQLite databases & journal files
+prisma/*.db
 prisma/*.db-journal
+prisma/*.sqlite
+prisma/*.sqlite-journal
