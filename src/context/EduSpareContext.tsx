@@ -46,6 +46,7 @@ interface EduSpareContextType {
   
   fetchBlogs: () => Promise<void>;
   createBlog: (data: Partial<BlogPost>) => Promise<void>;
+  updateBlog: (id: string, data: Partial<BlogPost>) => Promise<void>;
   deleteBlog: (id: string) => Promise<void>;
   toggleLikeBlog: (blogId: string) => Promise<void>;
   addComment: (blogId: string, content: string, parentId?: string) => Promise<void>;
@@ -317,6 +318,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       );
     } catch (err) {
       console.error('Create blog error:', err);
+    }
+  };
+
+  const updateBlog = async (id: string, data: Partial<BlogPost>) => {
+    try {
+      await fetch(`/api/blogs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      await fetchBlogs();
+    } catch (err) {
+      console.error('Update blog error:', err);
     }
   };
 
@@ -637,6 +651,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteTask,
         fetchBlogs,
         createBlog,
+        updateBlog,
         deleteBlog,
         toggleLikeBlog,
         addComment,

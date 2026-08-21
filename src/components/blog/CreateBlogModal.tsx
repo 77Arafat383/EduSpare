@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { X, Image as ImageIcon, FileText, Tag, Upload, Eye, Edit3, Sparkles, Sigma } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { BlogAttachment } from '@/types/eduspare';
+import { BlogAttachment, BlogPost } from '@/types/eduspare';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
 
 interface CreateBlogModalProps {
   isOpen: boolean;
   onClose: () => void;
+  postToEdit?: BlogPost | null;
 }
 
 function convertHtmlToMarkdownAndLatex(html: string, fallbackText: string): string {
@@ -114,14 +115,30 @@ function convertHtmlToMarkdownAndLatex(html: string, fallbackText: string): stri
   return fallbackText;
 }
 
-export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClose }) => {
-  const { createBlog } = useEduSpare();
+export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClose, postToEdit }) => {
+  const { createBlog, updateBlog } = useEduSpare();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [tagInput, setTagInput] = useState('WebSockets, System Architecture');
   const [attachments, setAttachments] = useState<BlogAttachment[]>([]);
   const [activeContentTab, setActiveContentTab] = useState<'write' | 'preview'>('write');
+
+  React.useEffect(() => {
+    if (postToEdit) {
+      setTitle(postToEdit.title || '');
+      setContent(postToEdit.content || '');
+      setCoverImage(postToEdit.coverImage || '');
+      setTagInput(postToEdit.tags ? postToEdit.tags.join(', ') : '');
+      setAttachments(postToEdit.attachments || []);
+    } else {
+      setTitle('');
+      setContent('');
+      setCoverImage('');
+      setTagInput('WebSockets, System Architecture');
+      setAttachments([]);
+    }
+  }, [postToEdit, isOpen]);
 
   if (!isOpen) return null;
 
@@ -215,13 +232,23 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
 
     const tags = tagInput.split(',').map((t) => t.trim()).filter(Boolean);
 
-    await createBlog({
-      title,
-      content,
-      coverImage: coverImage || null,
-      tags,
-      attachments,
-    });
+    if (postToEdit) {
+      await updateBlog(postToEdit.id, {
+        title,
+        content,
+        coverImage: coverImage || null,
+        tags,
+        attachments,
+      });
+    } else {
+      await createBlog({
+        title,
+        content,
+        coverImage: coverImage || null,
+        tags,
+        attachments,
+      });
+    }
 
     setTitle('');
     setContent('');
@@ -234,7 +261,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="w-full max-w-2xl bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 p-6 space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-outline-variant/40 pb-4">
-          <h3 className="text-lg font-bold text-on-surface">Publish New Article</h3>
+          <h3 className="text-lg font-bold text-on-surface">{postToEdit ? 'Edit Article' : 'Publish New Article'}</h3>
           <button
             onClick={onClose}
             className="p-1 rounded-full text-outline hover:bg-surface-container-low hover:text-on-surface"
@@ -423,7 +450,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({ isOpen, onClos
               type="submit"
               className="px-6 py-2.5 text-sm font-bold text-white bg-primary hover:bg-primary-container rounded-xl shadow-md transition-all"
             >
-              Publish Post
+              {postToEdit ? 'Save Changes' : 'Publish Post'}
             </button>
           </div>
         </form>

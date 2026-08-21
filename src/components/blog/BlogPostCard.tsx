@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BlogPost } from '@/types/eduspare';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { CommentSection } from './CommentSection';
+import { CreateBlogModal } from './CreateBlogModal';
+import { ShareModal } from './ShareModal';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
 import {
   Heart,
@@ -13,7 +15,8 @@ import {
   FileText,
   Download,
   Trash2,
-  MoreHorizontal,
+  Edit2,
+  MoreVertical,
   Check,
 } from 'lucide-react';
 
@@ -33,8 +36,21 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
 
   const [showComments, setShowComments] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const isAuthor = currentUser?.id === post.authorId;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMenuOpen && !(event.target as HTMLElement).closest('.post-menu-container')) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
 
   const handleProfileClick = () => {
     setSelectedUsername(post.author.username);
@@ -42,9 +58,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.origin + `/blog?post=${post.id}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setIsShareModalOpen(true);
   };
 
   const handleSave = () => {
@@ -87,14 +101,44 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
           </div>
         </div>
 
+        {/* 3-Dot Vertically Menu (Top Right Corner of Post Card) */}
         {isAuthor && (
-          <button
-            onClick={() => deleteBlog(post.id)}
-            className="p-2 text-outline hover:text-rose-600 hover:bg-rose-500/10 rounded-xl transition-colors"
-            title="Delete Post"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <div className="relative post-menu-container">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 text-outline hover:text-on-surface hover:bg-surface-container rounded-xl transition-colors"
+              title="More options"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {isMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-32 bg-surface-container-high border border-outline-variant/50 rounded-xl shadow-lg py-1 z-20 space-y-0.5">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsEditModalOpen(true);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-outline" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    if (confirm('Are you sure you want to delete this blog post?')) {
+                      deleteBlog(post.id);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -200,7 +244,9 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
           >
             {post.comments?.length || 0} Comments
           </span>
-          <span>Share</span>
+          <span onClick={handleShare} className="hover:text-on-surface cursor-pointer">
+            Share
+          </span>
         </div>
       </div>
 
@@ -242,8 +288,8 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
           onClick={handleShare}
           className="py-2 rounded-xl hover:bg-surface-container-low hover:text-on-surface flex items-center justify-center gap-1.5 transition-colors"
         >
-          {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4 text-purple-600" />}
-          <span>{copied ? 'Copied' : 'Share'}</span>
+          <Share2 className="w-4 h-4 text-purple-600" />
+          <span>Share</span>
         </button>
       </div>
 
@@ -253,6 +299,24 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
           blogId={post.id}
           blogAuthorId={post.authorId || post.author?.id}
           comments={post.comments || []}
+        />
+      )}
+
+      {/* Edit Post Modal */}
+      {isEditModalOpen && (
+        <CreateBlogModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          postToEdit={post}
+        />
+      )}
+
+      {/* Share Post Modal (Direct Message or Reshare to Feed with Credit) */}
+      {isShareModalOpen && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          post={post}
         />
       )}
     </div>
