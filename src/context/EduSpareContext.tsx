@@ -187,6 +187,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`/api/auth?t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.allUsers) {
+        setAllUsers(data.allUsers);
+      }
+    } catch (err) {
+      console.error('Fetch users error:', err);
+    }
+  };
+
   useEffect(() => {
     if (currentUser) {
       fetchTasks();
@@ -194,12 +206,36 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       fetchCommunities();
       fetchSavedItems();
 
+      // Initial heartbeat
+      fetch('/api/auth/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id }),
+      }).catch(() => {});
+
+      // Poll heartbeat every 20s and users presence list every 10s
+      const heartbeatInterval = setInterval(() => {
+        fetch('/api/auth/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id }),
+        }).catch(() => {});
+      }, 20000);
+
+      const usersInterval = setInterval(() => {
+        fetchUsers();
+      }, 10000);
+
       // Poll tasks every 5 seconds for real-time database updates on task completions & heatmap
-      const interval = setInterval(() => {
+      const taskInterval = setInterval(() => {
         fetchTasks();
       }, 5000);
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(heartbeatInterval);
+        clearInterval(usersInterval);
+        clearInterval(taskInterval);
+      };
     }
   }, [currentUser]);
 

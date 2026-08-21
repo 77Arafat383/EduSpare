@@ -17,7 +17,16 @@ export interface User {
   activeStreak: number;
   totalPoints: number;
   rank: string;
+  lastActiveAt?: string | null;
   createdAt: string;
+}
+
+export function isUserActive(lastActiveAt?: string | null): boolean {
+  if (!lastActiveAt) return false;
+  const activeDate = new Date(lastActiveAt);
+  const now = new Date();
+  const diffSeconds = (now.getTime() - activeDate.getTime()) / 1000;
+  return diffSeconds >= 0 && diffSeconds <= 120; // Considered active if heartbeat within last 2 minutes
 }
 
 export interface MaterialItem {

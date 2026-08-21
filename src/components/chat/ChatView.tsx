@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { User } from '@/types/eduspare';
+import { User, isUserActive } from '@/types/eduspare';
 import {
   MessageSquare,
   Send,
@@ -189,7 +189,12 @@ export const ChatView: React.FC = () => {
                       alt={contact.name}
                       className="w-10 h-10 rounded-full object-cover ring-2 ring-white/20"
                     />
-                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                    <span
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-white ${
+                        isUserActive(contact.lastActiveAt) ? 'bg-emerald-500' : 'bg-slate-400/80'
+                      }`}
+                      title={isUserActive(contact.lastActiveAt) ? 'Active Now' : 'Offline'}
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
@@ -249,9 +254,15 @@ export const ChatView: React.FC = () => {
                 >
                   {activeChatUser.name}
                 </h3>
-                <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active Now
-                </p>
+                {isUserActive(activeChatUser.lastActiveAt) ? (
+                  <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Now
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-outline font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Offline
+                  </p>
+                )}
               </div>
             </div>
 

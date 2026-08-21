@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
@@ -43,6 +46,7 @@ export async function POST(request: Request) {
           activeStreak: 1,
           totalPoints: 100,
           rank: 'New Scholar',
+          lastActiveAt: new Date(),
         },
       });
 
@@ -60,7 +64,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
       }
 
-      return NextResponse.json({ user });
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { lastActiveAt: new Date() },
+      });
+
+      return NextResponse.json({ user: updatedUser });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

@@ -27,6 +27,7 @@ model User {
   activeStreak Int        @default(14)
   totalPoints  Int        @default(1250)
   rank         String     @default("Top 5% Contributor")
+  lastActiveAt DateTime   @default(now())
   createdAt    DateTime   @default(now())
   
   tasks        Task[]

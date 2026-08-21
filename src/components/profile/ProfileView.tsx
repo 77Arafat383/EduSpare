@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { User, BlogPost, SavedVaultItem } from '@/types/eduspare';
+import { User, BlogPost, SavedVaultItem, isUserActive } from '@/types/eduspare';
 import { BlogPostCard } from '../blog/BlogPostCard';
 import { CreateBlogModal } from '../blog/CreateBlogModal';
 import { ActivityHeatmap } from '../dashboard/ActivityHeatmap';
@@ -208,11 +208,20 @@ export const ProfileView: React.FC = () => {
               className="w-24 h-24 rounded-3xl object-cover ring-4 ring-white shadow-xl bg-surface-lowest"
             />
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-black text-on-surface">{user.name}</h1>
                 <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary/10">
                   @{user.username}
                 </span>
+                {isUserActive(user.lastActiveAt) ? (
+                  <span className="px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 flex items-center gap-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Active Now
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 text-[11px] font-semibold bg-surface-container-high text-outline rounded-full border border-outline-variant/40 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" /> Offline
+                  </span>
+                )}
               </div>
               <p className="text-xs font-semibold text-outline flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-primary" />
