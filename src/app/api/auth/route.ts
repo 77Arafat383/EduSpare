@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { calculateUserStreak } from '@/lib/streak';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,7 +10,22 @@ export async function GET() {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'asc' },
     });
-    return NextResponse.json({ allUsers: users });
+
+    // Compute dynamic continuous activity streak for each user based on task completion and blog posting
+    const usersWithUpdatedStreak = await Promise.all(
+      users.map(async (user) => {
+        const streak = await calculateUserStreak(user.id);
+        if (streak !== user.activeStreak) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { activeStreak: streak },
+          });
+        }
+        return { ...user, activeStreak: streak };
+      })
+    );
+
+    return NextResponse.json({ allUsers: usersWithUpdatedStreak });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch user profiles' }, { status: 500 });
   }
@@ -43,7 +59,7 @@ export async function POST(request: Request) {
           avatar: '/assets/default_avatar.png',
           coverImage: '/assets/default_cover.png',
           bio: 'EduSpare member excited to learn and share knowledge.',
-          activeStreak: 1,
+          activeStreak: 0,
           totalPoints: 100,
           rank: 'New Scholar',
           lastActiveAt: new Date(),
@@ -64,9 +80,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
       }
 
+      const streak = await calculateUserStreak(user.id);
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
-        data: { lastActiveAt: new Date() },
+        data: { lastActiveAt: new Date(), activeStreak: streak },
       });
 
       return NextResponse.json({ user: updatedUser });

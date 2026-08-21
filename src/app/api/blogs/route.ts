@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { calculateUserStreak } from '@/lib/streak';
 
 export async function GET(request: Request) {
   try {
@@ -96,11 +97,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Increment user active streak and reward points
+    // Recalculate dynamic active streak and reward points
+    const newStreak = await calculateUserStreak(authorId);
     await prisma.user.update({
       where: { id: authorId },
       data: {
-        activeStreak: { increment: 1 },
+        activeStreak: newStreak,
         totalPoints: { increment: 50 },
       },
     });

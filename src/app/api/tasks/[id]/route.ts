@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { calculateUserStreak } from '@/lib/streak';
 
 export async function GET(
   request: Request,
@@ -35,7 +36,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { title, description, category, dueAt, importance, status, notes, materials } = body;
+    const { title, description, category, dueAt, importance, status, notes, materials, estimatedTime } = body;
 
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
@@ -46,12 +47,21 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (materials !== undefined) updateData.materials = typeof materials === 'string' ? materials : JSON.stringify(materials);
+    if (estimatedTime !== undefined) updateData.estimatedTime = estimatedTime;
 
     const updatedTask = await prisma.task.update({
       where: { id: params.id },
       data: updateData,
       include: { user: true },
     });
+
+    if (updatedTask.userId) {
+      const newStreak = await calculateUserStreak(updatedTask.userId);
+      await prisma.user.update({
+        where: { id: updatedTask.userId },
+        data: { activeStreak: newStreak },
+      });
+    }
 
     return NextResponse.json({
       task: {

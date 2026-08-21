@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createNotification } from '@/lib/notifications';
 
 export async function POST(
   request: Request,
@@ -13,6 +14,11 @@ export async function POST(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
+    const blog = await prisma.blog.findUnique({
+      where: { id: params.id },
+      include: { author: true },
+    });
+
     const existingReaction = await prisma.reaction.findUnique({
       where: {
         blogId_userId: {
@@ -23,7 +29,6 @@ export async function POST(
     });
 
     if (existingReaction) {
-      // Toggle off if clicking same
       await prisma.reaction.delete({
         where: { id: existingReaction.id },
       });
@@ -36,9 +41,24 @@ export async function POST(
           type,
         },
       });
+
+      if (blog && blog.authorId !== userId) {
+        const actor = await prisma.user.findUnique({ where: { id: userId } });
+        if (actor) {
+          await createNotification({
+            userId: blog.authorId,
+            actorId: userId,
+            type: 'reaction',
+            title: `@${actor.username} liked your post "${blog.title.slice(0, 40)}"`,
+            linkId: params.id,
+          });
+        }
+      }
+
       return NextResponse.json({ action: 'added', reaction });
     }
   } catch (error) {
+    console.error('Reaction update error:', error);
     return NextResponse.json({ error: 'Failed to update reaction' }, { status: 500 });
   }
 }

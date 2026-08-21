@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sortTasksByPriority } from '@/lib/priorityAlgorithm';
+import { createNotification } from '@/lib/notifications';
 
 export async function GET(request: Request) {
   try {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, title, description, category, dueAt, importance, status, notes } = body;
+    const { userId, title, description, category, dueAt, importance, status, notes, materials, estimatedTime, startTime } = body;
 
     if (!userId || !title || !dueAt) {
       return NextResponse.json({ error: 'Missing required task fields (title, dueAt, userId)' }, { status: 400 });
@@ -52,19 +53,36 @@ export async function POST(request: Request) {
         importance: Math.min(100, Math.max(0, parseInt(importance) || 50)),
         status: status || 'Pending',
         notes: notes || '',
-        materials: JSON.stringify([]),
+        materials: typeof materials === 'string' ? materials : JSON.stringify(materials || []),
+        estimatedTime: estimatedTime || null,
+        startTime: startTime ? new Date(startTime) : null,
       },
       include: {
         user: true,
       },
     });
 
+    // Create system notification for calculated task start time
+    if (startTime) {
+      const startDate = new Date(startTime);
+      const formattedStart = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      await createNotification({
+        userId,
+        actorId: userId,
+        type: 'task_reminder',
+        title: `🔔 Task Start Notification: Time to start "${title}"!`,
+        content: `Estimated duration: ${estimatedTime || 'N/A'}. Target start time: ${formattedStart} to meet deadline.`,
+        linkId: newTask.id,
+      });
+    }
+
     const formattedTask = {
       ...newTask,
       dueAt: newTask.dueAt.toISOString(),
+      startTime: newTask.startTime ? newTask.startTime.toISOString() : null,
       createdAt: newTask.createdAt.toISOString(),
       updatedAt: newTask.updatedAt.toISOString(),
-      materials: [],
+      materials: JSON.parse(newTask.materials || '[]'),
     };
 
     return NextResponse.json({ task: formattedTask });

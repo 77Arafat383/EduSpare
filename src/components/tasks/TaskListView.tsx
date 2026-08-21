@@ -5,11 +5,26 @@ import { useEduSpare } from '@/context/EduSpareContext';
 import { formatTimeRemaining } from '@/lib/priorityAlgorithm';
 import { TaskWorkspaceModal } from './TaskWorkspaceModal';
 import { CreateTaskModal } from './CreateTaskModal';
-import { CheckSquare, Plus, Search, Filter, Clock, Flame, ArrowRight, Trash2 } from 'lucide-react';
+import {
+  CheckSquare,
+  Plus,
+  Search,
+  Filter,
+  Clock,
+  Flame,
+  ArrowRight,
+  Trash2,
+  MoreVertical,
+  Edit3,
+} from 'lucide-react';
+import { TaskItem } from '@/types/eduspare';
 
 export const TaskListView: React.FC = () => {
-  const { tasks, selectedTaskId, setSelectedTaskId, deleteTask, updateTask } = useEduSpare();
+  const { tasks, selectedTaskId, setSelectedTaskId, deleteTask } = useEduSpare();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<TaskItem | null>(null);
+  const [menuOpenTaskId, setMenuOpenTaskId] = useState<string | null>(null);
+
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,7 +59,10 @@ export const TaskListView: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setIsCreateOpen(true)}
+          onClick={() => {
+            setTaskToEdit(null);
+            setIsCreateOpen(true);
+          }}
           className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-container text-white font-bold text-sm rounded-2xl shadow-md transition-all self-start sm:self-auto"
         >
           <Plus className="w-5 h-5" />
@@ -110,7 +128,7 @@ export const TaskListView: React.FC = () => {
               <div
                 key={task.id}
                 onClick={() => setSelectedTaskId(task.id)}
-                className="group p-5 rounded-3xl bg-surface-lowest hover:bg-surface-container-low border border-outline-variant/60 shadow-sm hover:shadow-md transition-all cursor-pointer space-y-3 relative overflow-hidden flex flex-col justify-between"
+                className="group p-5 rounded-3xl bg-surface-lowest hover:bg-surface-container-low shadow-sm hover:shadow-md transition-all cursor-pointer space-y-3 relative overflow-hidden flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -123,17 +141,68 @@ export const TaskListView: React.FC = () => {
                       </span>
                     </div>
 
-                    <span
-                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                        task.status === 'Completed'
-                          ? 'bg-emerald-500/10 text-emerald-600'
-                          : task.status === 'In Progress'
-                          ? 'bg-amber-500/10 text-amber-600'
-                          : 'bg-surface-variant text-on-surface-variant'
-                      }`}
-                    >
-                      {task.status}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                          task.status === 'Completed'
+                            ? 'bg-emerald-500/10 text-emerald-600'
+                            : task.status === 'In Progress'
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-surface-variant text-on-surface-variant'
+                        }`}
+                      >
+                        {task.status}
+                      </span>
+
+                      {/* Top Right 3-Dot Options Button */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpenTaskId(menuOpenTaskId === task.id ? null : task.id);
+                          }}
+                          className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                          title="Task options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {/* Top Right 3-Dot Dropdown Menu */}
+                        {menuOpenTaskId === task.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-7 z-50 w-36 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl p-1.5 space-y-1 opacity-100 animate-in fade-in zoom-in-95 duration-100"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuOpenTaskId(null);
+                                setTaskToEdit(task);
+                                setIsCreateOpen(true);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-low rounded-xl transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-primary" />
+                              <span>Edit Task</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setMenuOpenTaskId(null);
+                                if (confirm(`Are you sure you want to delete "${task.title}"?`)) {
+                                  await deleteTask(task.id);
+                                }
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-500/10 rounded-xl transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Delete Task</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <h3 className="text-base font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-1">
@@ -183,10 +252,14 @@ export const TaskListView: React.FC = () => {
         />
       )}
 
-      {/* Create Task Modal */}
+      {/* Create / Edit Task Modal */}
       <CreateTaskModal
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
+        taskToEdit={taskToEdit}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setTaskToEdit(null);
+        }}
       />
     </div>
   );

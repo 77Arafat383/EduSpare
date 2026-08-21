@@ -59,7 +59,7 @@ export const ChatView: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
+
   // Message Menu & Action States
   const [openMsgMenuId, setOpenMsgMenuId] = useState<string | null>(null);
   const [replyingToMsg, setReplyingToMsg] = useState<MessageItem | null>(null);
@@ -72,7 +72,10 @@ export const ChatView: React.FC = () => {
   const [forwardSearch, setForwardSearch] = useState('');
   const [forwardSubmitting, setForwardSubmitting] = useState(false);
 
+  // Refs for Chat Auto-Scroll Stability
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatFeedRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close header 3-dots menu & message 3-dots menu on click outside
@@ -127,7 +130,10 @@ export const ChatView: React.FC = () => {
   // Periodically poll messages for active chat
   useEffect(() => {
     if (activeChatUser) {
+      // Reset scrolled up state when switching contacts
+      userScrolledUpRef.current = false;
       fetchMessages(activeChatUser.id);
+
       const interval = setInterval(() => {
         fetchMessages(activeChatUser.id);
       }, 3000);
@@ -135,9 +141,20 @@ export const ChatView: React.FC = () => {
     }
   }, [activeChatUser]);
 
-  // Auto scroll to bottom of messages feed on new messages
+  // Scroll listener to detect if user manually scrolled up
+  const handleScroll = () => {
+    if (!chatFeedRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatFeedRef.current;
+    // Consider at bottom if within 80px of bottom
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
+    userScrolledUpRef.current = !isAtBottom;
+  };
+
+  // Auto scroll to bottom only when user has NOT manually scrolled up
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!userScrolledUpRef.current && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
@@ -146,13 +163,21 @@ export const ChatView: React.FC = () => {
 
     let finalContent = inputMessage.trim();
     if (replyingToMsg) {
-      const senderName = replyingToMsg.sender?.name || (replyingToMsg.senderId === currentUser?.id ? 'Yourself' : activeChatUser.name);
+      const senderName =
+        replyingToMsg.sender?.name ||
+        (replyingToMsg.senderId === currentUser?.id ? 'Yourself' : activeChatUser.name);
       finalContent = `> 💬 **Replying to ${senderName}**: "${replyingToMsg.content}"\n\n${finalContent}`;
     }
 
     await sendMessage(activeChatUser.id, finalContent);
     setInputMessage('');
     setReplyingToMsg(null);
+
+    // Force scroll to bottom when user sends a message
+    userScrolledUpRef.current = false;
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
   };
 
   const handleStartEditMsg = (msg: MessageItem) => {
@@ -328,7 +353,7 @@ export const ChatView: React.FC = () => {
               </div>
             </div>
 
-            {/* 3-Dots Dropdown Options (Block User / View Profile) */}
+            {/* Header 3-Dots Dropdown Options (Solid Opaque White Background) */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -339,13 +364,13 @@ export const ChatView: React.FC = () => {
               </button>
 
               {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-surface-container-high border border-outline-variant/50 rounded-2xl shadow-xl py-1 z-30 space-y-0.5 animate-in fade-in duration-100">
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl py-1 z-50 space-y-0.5 animate-in fade-in duration-100 opacity-100">
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
                       handleVisitProfile(activeChatUser);
                     }}
-                    className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                    className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
                   >
                     <UserIcon className="w-4 h-4 text-outline" />
                     View Profile
@@ -379,8 +404,12 @@ export const ChatView: React.FC = () => {
             </div>
           </div>
 
-          {/* Messages Feed */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-4">
+          {/* Messages Feed with Scroll Listener */}
+          <div
+            ref={chatFeedRef}
+            onScroll={handleScroll}
+            className="flex-1 p-6 overflow-y-auto space-y-4"
+          >
             {messages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-outline font-medium">
                 No messages yet. Say hello to {activeChatUser.name}!
@@ -477,10 +506,10 @@ export const ChatView: React.FC = () => {
                           <MoreVertical className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* Dropdown Menu */}
+                        {/* Dropdown Menu (Solid Opaque White Background) */}
                         {openMsgMenuId === msg.id && (
                           <div
-                            className={`absolute top-full mt-1 w-32 bg-surface-container-high border border-outline-variant/50 rounded-xl shadow-xl py-1 z-30 space-y-0.5 ${
+                            className={`absolute top-full mt-1 w-32 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-2xl py-1 z-50 space-y-0.5 opacity-100 ${
                               isMe ? 'right-0' : 'left-0'
                             }`}
                           >
@@ -489,7 +518,7 @@ export const ChatView: React.FC = () => {
                                 setReplyingToMsg(msg);
                                 setOpenMsgMenuId(null);
                               }}
-                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
                             >
                               <Reply className="w-3.5 h-3.5 text-primary" />
                               <span>Reply</span>
@@ -500,7 +529,7 @@ export const ChatView: React.FC = () => {
                                 setForwardingMsg(msg);
                                 setOpenMsgMenuId(null);
                               }}
-                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
                             >
                               <Forward className="w-3.5 h-3.5 text-purple-600" />
                               <span>Forward</span>
@@ -509,7 +538,7 @@ export const ChatView: React.FC = () => {
                             {isMe && (
                               <button
                                 onClick={() => handleStartEditMsg(msg)}
-                                className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                                className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-outline" />
                                 <span>Edit</span>
@@ -541,9 +570,13 @@ export const ChatView: React.FC = () => {
                 <Reply className="w-4 h-4 text-primary shrink-0" />
                 <div className="min-w-0">
                   <span className="font-bold text-primary block">
-                    Replying to {replyingToMsg.sender?.name || (replyingToMsg.senderId === currentUser?.id ? 'Yourself' : activeChatUser.name)}
+                    Replying to{' '}
+                    {replyingToMsg.sender?.name ||
+                      (replyingToMsg.senderId === currentUser?.id ? 'Yourself' : activeChatUser.name)}
                   </span>
-                  <span className="text-[11px] text-outline truncate block">{replyingToMsg.content}</span>
+                  <span className="text-[11px] text-outline truncate block">
+                    {replyingToMsg.content}
+                  </span>
                 </div>
               </div>
               <button

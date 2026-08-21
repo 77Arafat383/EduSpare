@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createNotification, notifyMentions } from '@/lib/notifications';
 
 export async function POST(
   request: Request,
@@ -22,8 +23,24 @@ export async function POST(
       },
       include: {
         author: true,
+        blog: true,
       },
     });
+
+    // Notify @mentions in comment text
+    await notifyMentions({ content, actorId: authorId, linkId: params.id });
+
+    // Notify blog post author if comment is from another user
+    if (comment.blog && comment.blog.authorId !== authorId) {
+      await createNotification({
+        userId: comment.blog.authorId,
+        actorId: authorId,
+        type: 'comment',
+        title: `@${comment.author.username} commented on your post`,
+        content: content.slice(0, 100),
+        linkId: params.id,
+      });
+    }
 
     return NextResponse.json({
       comment: {

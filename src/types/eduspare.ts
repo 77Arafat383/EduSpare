@@ -32,9 +32,10 @@ export function isUserActive(lastActiveAt?: string | null): boolean {
 export interface MaterialItem {
   id: string;
   title: string;
-  type: 'link' | 'pdf' | 'document' | 'video' | 'code';
+  type: 'link' | 'pdf' | 'document' | 'video' | 'code' | 'image';
   url: string;
   notes?: string;
+  size?: string;
   createdAt: string;
 }
 
@@ -49,6 +50,8 @@ export interface TaskItem {
   status: 'Pending' | 'In Progress' | 'Completed';
   notes?: string | null;
   materials: MaterialItem[];
+  estimatedTime?: string | null;
+  startTime?: string | null;
   createdAt: string;
   updatedAt?: string;
   user?: User;
@@ -143,7 +146,20 @@ export interface CommunityItem {
   createdAt: string;
 }
 
-export type ActiveTab = 
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  actorId: string;
+  type: string;
+  title: string;
+  content?: string | null;
+  linkId?: string | null;
+  isRead: boolean;
+  createdAt: string;
+  actor: User;
+}
+
+export type ActiveTab =
   | 'dashboard'
   | 'tasks'
   | 'task-detail'

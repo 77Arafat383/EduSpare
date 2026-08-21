@@ -2,22 +2,80 @@
 
 import React, { useState } from 'react';
 import { MaterialItem } from '@/types/eduspare';
-import { Link as LinkIcon, FileText, Download, Trash2, Plus, ExternalLink } from 'lucide-react';
+import {
+  Link as LinkIcon,
+  FileText,
+  Download,
+  Trash2,
+  Upload,
+  FileCode,
+  Film,
+  Paperclip,
+  Eye,
+  MoreVertical,
+} from 'lucide-react';
 
 interface TaskMaterialsListProps {
   materials: MaterialItem[];
   onUpdateMaterials: (materials: MaterialItem[]) => void;
+  onReadMaterial?: (item: MaterialItem) => void;
 }
 
 export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
   materials,
   onUpdateMaterials,
+  onReadMaterial,
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'link' | 'pdf' | 'document' | 'video' | 'code'>('pdf');
   const [url, setUrl] = useState('');
   const [notes, setNotes] = useState('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+
+        let fileType: 'pdf' | 'document' | 'video' | 'code' | 'link' = 'document';
+        if (file.type.includes('pdf') || file.name.endsWith('.pdf')) fileType = 'pdf';
+        else if (file.type.includes('video')) fileType = 'video';
+        else if (
+          file.name.endsWith('.js') ||
+          file.name.endsWith('.ts') ||
+          file.name.endsWith('.py') ||
+          file.name.endsWith('.json') ||
+          file.name.endsWith('.html') ||
+          file.name.endsWith('.css')
+        )
+          fileType = 'code';
+
+        let sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
+        if (file.size >= 1024 * 1024) {
+          sizeStr = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        const newMaterial: MaterialItem = {
+          id: `mat-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          title: file.name,
+          type: fileType,
+          url: dataUrl || '',
+          size: sizeStr,
+          createdAt: new Date().toISOString(),
+        };
+
+        onUpdateMaterials([...materials, newMaterial]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = '';
+  };
 
   const handleAddMaterial = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,21 +101,34 @@ export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
     onUpdateMaterials(materials.filter((m) => m.id !== id));
   };
 
+  const renderFileIcon = (type: string) => {
+    if (type === 'pdf') return <FileText className="w-4 h-4 text-rose-500 shrink-0" />;
+    if (type === 'code') return <FileCode className="w-4 h-4 text-amber-500 shrink-0" />;
+    if (type === 'video') return <Film className="w-4 h-4 text-purple-500 shrink-0" />;
+    return <Paperclip className="w-4 h-4 text-primary shrink-0" />;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-sm font-bold text-on-surface">Study Materials & Attachments</h4>
-          <p className="text-xs text-outline">Reference PDFs, documentation, links, and code snippets</p>
+          <h4 className="text-sm font-bold text-on-surface">Study Materials</h4>
+          <p className="text-xs text-outline">Click any file to read in-line or manage options</p>
         </div>
 
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          Add Resource
-        </button>
+        <div className="flex gap-2">
+          {/* Direct File Upload Button */}
+          <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary text-white hover:bg-primary-container rounded-xl cursor-pointer shadow-sm transition-all">
+            <Upload className="w-4 h-4" />
+            <span>Upload File</span>
+            <input
+              type="file"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+        </div>
       </div>
 
       {showAddForm && (
@@ -114,15 +185,17 @@ export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
               type="submit"
               className="px-4 py-1 text-xs font-bold text-white bg-primary rounded-lg shadow-sm"
             >
-              Save Material
+              Save Link
             </button>
           </div>
         </form>
       )}
 
       {materials.length === 0 ? (
-        <div className="p-4 text-center text-xs text-outline bg-surface-container-low rounded-xl">
-          No resources added yet. Click "+ Add Resource" to attach study files or documentation links.
+        <div className="p-6 text-center text-xs text-outline bg-surface-container-low border border-dashed border-outline-variant/60 rounded-2xl space-y-2">
+          <Upload className="w-6 h-6 text-outline mx-auto" />
+          <p className="font-semibold text-on-surface">No resources added yet</p>
+          <p>Click "Upload File" to attach study PDFs/materials or documentation links.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -132,45 +205,84 @@ export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
               className="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 flex items-center justify-between gap-3 group transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold">
-                  {item.type === 'pdf' ? (
-                    <FileText className="w-4 h-4 text-rose-600" />
-                  ) : (
-                    <LinkIcon className="w-4 h-4 text-primary" />
-                  )}
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 font-bold">
+                  {renderFileIcon(item.type)}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold text-on-surface hover:text-primary transition-colors flex items-center gap-1 truncate"
+                  <button
+                    type="button"
+                    onClick={() => onReadMaterial && onReadMaterial(item)}
+                    className="text-xs font-bold text-on-surface hover:text-primary transition-colors flex items-center gap-1.5 truncate text-left"
                   >
                     <span>{item.title}</span>
-                    <ExternalLink className="w-3 h-3 text-outline shrink-0" />
-                  </a>
-                  {item.notes && <p className="text-[11px] text-outline truncate">{item.notes}</p>}
+                    <Eye className="w-3.5 h-3.5 text-primary shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <div className="flex items-center gap-2 text-[10px] text-outline">
+                    {item.size && <span className="font-mono">{item.size}</span>}
+                    {item.notes && <span className="truncate">{item.notes}</span>}
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 text-outline hover:text-primary hover:bg-surface-lowest rounded-lg transition-colors"
-                  title="Open / Download"
-                >
-                  <Download className="w-4 h-4" />
-                </a>
+                {/* Read Button */}
                 <button
-                  onClick={() => handleDeleteMaterial(item.id)}
-                  className="p-1.5 text-outline hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors"
-                  title="Delete Resource"
+                  type="button"
+                  onClick={() => onReadMaterial && onReadMaterial(item)}
+                  className="p-1.5 text-xs text-primary font-bold hover:bg-primary/10 rounded-lg flex items-center gap-1 transition-colors"
+                  title="Read in-line"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Eye className="w-4 h-4" />
+                  <span className="hidden sm:inline">Read</span>
                 </button>
+
+                {/* 3-Dot Options Button */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId(openMenuId === item.id ? null : item.id);
+                    }}
+                    className="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                    title="Resource options"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+
+                  {/* 3-Dot Dropdown Menu */}
+                  {openMenuId === item.id && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-8 z-50 w-36 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl p-1.5 space-y-1 opacity-100 animate-in fade-in zoom-in-95 duration-100"
+                    >
+                      <a
+                        href={item.url || '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={item.title}
+                        onClick={() => setOpenMenuId(null)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-low rounded-xl transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5 text-primary" />
+                        <span>Download</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          handleDeleteMaterial(item.id);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-500/10 rounded-xl transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

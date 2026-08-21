@@ -8,6 +8,7 @@ import {
   MessageItem,
   CommunityItem,
   SavedVaultItem,
+  NotificationItem,
   ActiveTab,
 } from '@/types/eduspare';
 
@@ -67,6 +68,11 @@ interface EduSpareContextType {
   createCommunity: (data: any) => Promise<void>;
   toggleJoinCommunity: (communityId: string, action: 'join' | 'leave') => Promise<void>;
   
+  notifications: NotificationItem[];
+  fetchNotifications: () => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  
   updateUserProfile: (data: Partial<User>) => Promise<User | null>;
   loginOrRegister: (action: 'login' | 'register', data: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -94,6 +100,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }>
   >({});
   const [isChatBlocked, setIsChatBlocked] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const handleSetCurrentUser = (user: User | null) => {
@@ -611,6 +618,60 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const fetchNotifications = async () => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`/api/notifications?userId=${currentUser.id}&t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.notifications) {
+        setNotifications(data.notifications);
+      }
+    } catch (err) {
+      console.error('Fetch notifications error:', err);
+    }
+  };
+
+  const markNotificationAsRead = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId: id }),
+      });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    } catch (err) {
+      console.error('Mark notification error:', err);
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id, markAllAsRead: true }),
+      });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error('Mark all notifications error:', err);
+    }
+  };
+
+  // Poll notifications periodically when currentUser is active
+  useEffect(() => {
+    if (currentUser) {
+      fetchNotifications();
+      const interval = setInterval(() => {
+        fetchNotifications();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
   const updateUserProfile = async (updateData: Partial<User>): Promise<User | null> => {
     if (!currentUser) return null;
     try {
@@ -708,6 +769,10 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchCommunities,
         createCommunity,
         toggleJoinCommunity,
+        notifications,
+        fetchNotifications,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
         updateUserProfile,
         loginOrRegister,
         logout,

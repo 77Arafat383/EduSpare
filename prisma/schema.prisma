@@ -42,6 +42,9 @@ model User {
   
   blockedUsers  UserBlock[] @relation("BlockerRelation")
   blockedBy     UserBlock[] @relation("BlockedRelation")
+
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsSent     Notification[] @relation("NotificationActor")
 }
 
 model Task {
@@ -54,10 +57,12 @@ model Task {
   dueAt       DateTime
   importance  Int      @default(50) // 0 to 100
   status      String   @default("Pending") // Pending, In Progress, Completed
-  notes       String?  @default("")
-  materials   String   @default("[]") // JSON array of materials
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  notes         String?  @default("")
+  materials     String   @default("[]") // JSON array of materials
+  estimatedTime String?  // e.g. "2 Hours"
+  startTime     DateTime? // Calculated Start Time = dueAt - estimatedDuration
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Blog {
@@ -162,4 +167,19 @@ model Community {
   memberIds   String   @default("[]") // JSON array of user IDs
   createdById String
   createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   // Recipient user ID
+  actorId   String   // User who performed the action
+  type      String   // 'mention', 'comment', 'reaction'
+  title     String
+  content   String?
+  linkId    String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
 }
