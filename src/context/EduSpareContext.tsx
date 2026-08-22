@@ -27,7 +27,7 @@ interface EduSpareContextType {
   setSelectedUsername: (username: string | null) => void;
   selectedCommunityId: string | null;
   setSelectedCommunityId: (id: string | null) => void;
-  
+
   // Data State
   tasks: TaskItem[];
   blogs: BlogPost[];
@@ -38,14 +38,14 @@ interface EduSpareContextType {
   activeChatUser: User | null;
   setActiveChatUser: (user: User | null) => void;
   isChatBlocked: boolean;
-  
+
   // Actions
   fetchConversations: () => Promise<void>;
   fetchTasks: () => Promise<void>;
   createTask: (data: Partial<TaskItem>) => Promise<TaskItem | null>;
   updateTask: (id: string, data: Partial<TaskItem>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  
+
   fetchBlogs: () => Promise<void>;
   createBlog: (data: Partial<BlogPost>) => Promise<void>;
   updateBlog: (id: string, data: Partial<BlogPost>) => Promise<void>;
@@ -58,13 +58,13 @@ interface EduSpareContextType {
   deleteComment: (blogId: string, commentId: string) => Promise<void>;
   toggleSaveBlogOrItem: (item: { title: string; itemType: string; url?: string; itemId?: string }) => Promise<void>;
   deleteSavedItem: (id: string) => Promise<void>;
-  
+
   fetchMessages: (targetUserId: string) => Promise<void>;
   sendMessage: (receiverId: string, content: string) => Promise<void>;
   editMessage: (messageId: string, content: string, targetUserId: string) => Promise<void>;
   deleteMessage: (messageId: string, targetUserId: string) => Promise<void>;
   toggleBlockUser: (targetUserId: string) => Promise<void>;
-  
+
   fetchCommunities: () => Promise<void>;
   createCommunity: (data: any) => Promise<void>;
   toggleJoinCommunity: (communityId: string, action: 'join' | 'leave') => Promise<void>;
@@ -78,12 +78,12 @@ interface EduSpareContextType {
   acceptCommunityInvite: (communityId: string) => Promise<void>;
   declineCommunityInvite: (communityId: string) => Promise<void>;
   deleteCommunity: (communityId: string) => Promise<void>;
-  
+
   notifications: NotificationItem[];
   fetchNotifications: () => Promise<void>;
   markNotificationAsRead: (id: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
-  
+
   updateUserProfile: (data: Partial<User>) => Promise<User | null>;
   loginOrRegister: (action: 'login' | 'register', data: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -101,7 +101,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
   const [activeChatUser, setActiveChatUser] = useState<User | null>(null);
-  
+
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [communities, setCommunities] = useState<CommunityItem[]>([]);
@@ -234,7 +234,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser.id }),
-      }).catch(() => {});
+      }).catch(() => { });
 
       // Poll heartbeat every 20s and users presence list every 10s
       const heartbeatInterval = setInterval(() => {
@@ -242,7 +242,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser.id }),
-        }).catch(() => {});
+        }).catch(() => { });
       }, 20000);
 
       const usersInterval = setInterval(() => {
@@ -289,10 +289,10 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       prev.map((t) =>
         t.id === id
           ? {
-              ...t,
-              ...updateData,
-              updatedAt: updateData.status === 'Completed' ? new Date().toISOString() : t.updatedAt,
-            }
+            ...t,
+            ...updateData,
+            updatedAt: updateData.status === 'Completed' ? new Date().toISOString() : t.updatedAt,
+          }
           : t
       )
     );

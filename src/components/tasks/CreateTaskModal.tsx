@@ -102,8 +102,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
     }
   }, [taskToEdit, isOpen]);
 
-  if (!isOpen) return null;
-
   // User created categories ONLY (NO DEMO CATEGORIES)
   const userCategories = useMemo(() => {
     return Array.from(
@@ -132,6 +130,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
       .sort((a: { cat: string; score: number }, b: { cat: string; score: number }) => b.score - a.score)
       .map((item: { cat: string; score: number }) => item.cat);
   }, [userCategories, category]);
+
+  if (!isOpen) return null;
 
   // Calculate total duration in milliseconds
   const totalMs = (estDays * 24 * 60 + estHours * 60 + estMins) * 60 * 1000;
