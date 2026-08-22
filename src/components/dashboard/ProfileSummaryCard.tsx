@@ -28,7 +28,7 @@ export const ProfileSummaryCard: React.FC = () => {
             <img
               src={currentUser.avatar}
               alt={currentUser.name}
-              className="w-16 h-16 rounded-full object-cover ring-4 ring-primary/20 group-hover:scale-105 transition-transform"
+              className="w-16 h-16 rounded-2xl object-cover ring-4 ring-primary/20 group-hover:scale-105 transition-transform"
             />
             <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">
               ✓

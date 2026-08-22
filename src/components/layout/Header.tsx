@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UniversalSearchBar } from '../search/UniversalSearchBar';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users, Menu } from 'lucide-react';
+import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users, Menu, Search, X } from 'lucide-react';
 
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
@@ -44,9 +44,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -58,6 +60,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserDropdown(false);
+      }
+      if (mobileSearchRef.current && !mobileSearchRef.current.contains(event.target as Node)) {
+        setIsMobileSearchOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -89,12 +94,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="font-bold text-lg sm:text-xl text-on-surface tracking-tight hidden sm:inline">
+          <span className="font-bold text-lg sm:text-xl text-on-surface tracking-tight inline">
             Edu<span className="text-primary">Spare</span>
           </span>
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="hidden sm:block flex-1 min-w-0">
           <UniversalSearchBar />
         </div>
       </div>
@@ -102,6 +107,15 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
       {/* Right User Bar & Streak */}
       {currentUser && (
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          {/* Mobile Search Icon Button Trigger */}
+          <button
+            onClick={() => setIsMobileSearchOpen(true)}
+            className="sm:hidden p-2 rounded-full hover:bg-surface-container-low border border-outline-variant/40 text-outline hover:text-on-surface transition-colors shrink-0"
+            title="Search"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+
           {/* Active Streak Badge */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 font-semibold text-xs shadow-sm">
             <Flame className="w-4 h-4 fill-amber-500 text-amber-500 animate-pulse" />
@@ -128,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
             {/* Notifications Dropdown Menu (Solid Opaque White Background) */}
             {showNotifDropdown && (
-              <div className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-outline-variant/60 p-3.5 sm:p-4 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
+              <div className="fixed top-16 left-1/2 -translate-x-1/2 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:translate-x-0 mt-0 sm:mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-outline-variant/60 p-3.5 sm:p-4 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
                 <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3 mb-2">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-on-surface">Notifications</h3>
@@ -291,7 +305,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 setShowUserDropdown(!showUserDropdown);
                 setShowNotifDropdown(false);
               }}
-              className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-surface-container-low border border-outline-variant/40 transition-colors"
+              className="flex items-center gap-2 sm:p-1 sm:pl-2 sm:pr-3 rounded-full hover:bg-surface-container-low sm:border sm:border-outline-variant/40 transition-colors shrink-0"
+              title="User Profile Menu"
             >
               <img
                 src={currentUser.avatar}
@@ -301,7 +316,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               <span className="text-sm font-semibold text-on-surface hidden md:inline truncate max-w-[120px]">
                 {currentUser.name}
               </span>
-              <ChevronDown className="w-4 h-4 text-outline" />
+              <ChevronDown className="w-4 h-4 text-outline hidden sm:inline" />
             </button>
 
             {/* User Dropdown Menu */}
@@ -339,6 +354,25 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Mobile Full-Width Expandable Search Bar Overlay */}
+      {isMobileSearchOpen && (
+        <div
+          ref={mobileSearchRef}
+          className="sm:hidden absolute inset-0 bg-surface-lowest z-50 px-3 flex items-center gap-2 border-b border-outline-variant/50 animate-in fade-in slide-in-from-top-1"
+        >
+          <div className="flex-1 min-w-0">
+            <UniversalSearchBar onSelectResult={() => setIsMobileSearchOpen(false)} />
+          </div>
+          <button
+            onClick={() => setIsMobileSearchOpen(false)}
+            className="p-2 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low border border-outline-variant/40 shrink-0"
+            title="Close Search"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
     </header>

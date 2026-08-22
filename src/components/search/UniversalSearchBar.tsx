@@ -4,7 +4,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, User as UserIcon, BookOpen, CheckSquare, Users, Sparkles, X } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
 
-export const UniversalSearchBar: React.FC = () => {
+interface UniversalSearchBarProps {
+  onSelectResult?: () => void;
+}
+
+export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({ onSelectResult }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -55,6 +59,7 @@ export const UniversalSearchBar: React.FC = () => {
   const handleSelectResult = (item: any) => {
     setIsOpen(false);
     setQuery('');
+    if (onSelectResult) onSelectResult();
 
     if (item.type === 'user') {
       setSelectedUsername(item.raw.username);
