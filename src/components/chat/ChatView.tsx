@@ -2,25 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { User, MessageItem, isUserActive } from '@/types/eduspare';
-import {
-  MessageSquare,
-  Send,
-  User as UserIcon,
-  ShieldAlert,
-  ShieldCheck,
-  Search,
-  Check,
-  CheckCheck,
-  MoreVertical,
-  Reply,
-  Forward,
-  Edit2,
-  Trash2,
-  X,
-  BookOpen,
-  ArrowLeft,
-} from 'lucide-react';
+import { User, MessageItem } from '@/types/eduspare';
+import { Send, ShieldAlert, Reply, X } from 'lucide-react';
+import { ChatSidebar } from './ChatSidebar';
+import { ChatHeader } from './ChatHeader';
+import { ChatMessageItem } from './ChatMessageItem';
+import { ForwardMessageModal } from './ForwardMessageModal';
 
 function formatRelativeTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -136,7 +123,6 @@ export const ChatView: React.FC = () => {
   // Periodically poll messages for active chat
   useEffect(() => {
     if (activeChatUser) {
-      // Reset scrolled up state when switching contacts
       userScrolledUpRef.current = false;
       fetchMessages(activeChatUser.id);
 
@@ -151,7 +137,6 @@ export const ChatView: React.FC = () => {
   const handleScroll = () => {
     if (!chatFeedRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatFeedRef.current;
-    // Consider at bottom if within 80px of bottom
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
     userScrolledUpRef.current = !isAtBottom;
   };
@@ -179,7 +164,6 @@ export const ChatView: React.FC = () => {
     setInputMessage('');
     setReplyingToMsg(null);
 
-    // Force scroll to bottom when user sends a message
     userScrolledUpRef.current = false;
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -236,414 +220,66 @@ export const ChatView: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-9.5rem)] md:h-[calc(100vh-8rem)] flex rounded-3xl border border-outline-variant/60 bg-surface-lowest shadow-sm overflow-hidden">
-      {/* Left Sidebar - Chat List (Full width on mobile when no chat open, hidden on mobile when active chat open) */}
-      <div className={`w-full md:w-80 border-r border-outline-variant/40 flex flex-col bg-surface-container-lowest shrink-0 ${activeChatUser ? 'hidden md:flex' : 'flex'}`}>
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-outline-variant/40 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" /> Messages
-              {unreadUsersCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-primary text-white shadow-xs">
-                  {unreadUsersCount} {unreadUsersCount === 1 ? 'Unread User' : 'Unread Users'}
-                </span>
-              )}
-            </h2>
-          </div>
-
-          {/* Search Contacts */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search contacts..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface-container-low text-on-surface rounded-xl border border-outline-variant/50 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-
-        {/* Contacts List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-outline-variant/20">
-          {filteredContacts.length === 0 ? (
-            <div className="p-4 text-center text-xs text-outline italic">No contacts found.</div>
-          ) : (
-            filteredContacts.map((user) => {
-              const isSelected = activeChatUser?.id === user.id;
-              const isActive = isUserActive(user.lastActiveAt);
-              const convInfo = recentConversations[user.id];
-
-              return (
-                <div
-                  key={user.id}
-                  onClick={() => setActiveChatUser(user)}
-                  className={`p-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isSelected
-                    ? 'bg-primary/10 border-l-4 border-primary'
-                    : 'hover:bg-surface-container-low'
-                    }`}
-                >
-                  {/* User Avatar + Active Online Badge */}
-                  <div className="relative shrink-0">
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10"
-                    />
-                    <span
-                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-lowest ${isActive ? 'bg-emerald-500' : 'bg-slate-400'
-                        }`}
-                      title={isActive ? 'Active Now' : 'Offline'}
-                    />
-                  </div>
-
-                  {/* Contact Info & Unseen Badge */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-on-surface truncate">{user.name}</span>
-                      {convInfo?.lastMessageAt && (
-                        <span className="text-[10px] text-outline">
-                          {formatRelativeTime(convInfo.lastMessageAt)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <p className="text-[11px] text-outline truncate max-w-[140px]">
-                        {convInfo?.lastMessageSnippet
-                          ? (convInfo.isMeSender ? 'You: ' : '') + convInfo.lastMessageSnippet
-                          : `@${user.username}`}
-                      </p>
-                      {convInfo && convInfo.unseenCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white shrink-0">
-                          {convInfo.unseenCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
+      {/* Left Sidebar Contact List */}
+      <ChatSidebar
+        filteredContacts={filteredContacts}
+        activeChatUser={activeChatUser}
+        recentConversations={recentConversations}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        setActiveChatUser={setActiveChatUser}
+        unreadUsersCount={unreadUsersCount}
+        formatRelativeTime={formatRelativeTime}
+      />
 
       {/* Right Main Chat Container */}
       {activeChatUser ? (
-        <div className={`flex-1 flex flex-col bg-surface-lowest ${activeChatUser ? 'flex' : 'hidden md:flex'}`}>
+        <div className="fixed inset-0 z-50 md:static md:inset-auto md:z-auto flex-1 flex flex-col bg-surface-lowest w-full h-full md:h-auto animate-in fade-in duration-150">
           {/* Active Contact Header */}
-          <div className="p-3 sm:p-4 border-b border-outline-variant/40 flex items-center justify-between bg-surface-container-lowest">
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Back Button on Mobile */}
-              <button
-                onClick={() => setActiveChatUser(null)}
-                className="md:hidden p-1.5 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors shrink-0"
-                title="Back to messages list"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-
-              <div
-                onClick={() => handleVisitProfile(activeChatUser)}
-                className="relative cursor-pointer group shrink-0"
-              >
-                <img
-                  src={activeChatUser.avatar}
-                  alt={activeChatUser.name}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"
-                />
-                <span
-                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-surface-lowest ${isUserActive(activeChatUser.lastActiveAt) ? 'bg-emerald-500' : 'bg-slate-400'
-                    }`}
-                />
-              </div>
-
-              <div className="min-w-0">
-                <h3
-                  onClick={() => handleVisitProfile(activeChatUser)}
-                  className="font-bold text-xs sm:text-sm text-on-surface hover:text-primary cursor-pointer transition-colors truncate max-w-[150px] sm:max-w-none"
-                >
-                  {activeChatUser.name}
-                </h3>
-                <p className="text-[10px] sm:text-[11px] text-outline font-medium truncate">
-                  {isUserActive(activeChatUser.lastActiveAt) ? (
-                    <span className="text-emerald-600 font-bold">● Active Now</span>
-                  ) : (
-                    `@${activeChatUser.username}`
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {/* Header 3-Dots Dropdown Options (Solid Opaque White Background) */}
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 text-outline hover:text-on-surface rounded-xl hover:bg-surface-container transition-colors"
-                title="Options"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </button>
-
-              {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl py-1 z-50 space-y-0.5 animate-in fade-in duration-100 opacity-100">
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleVisitProfile(activeChatUser);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
-                  >
-                    <UserIcon className="w-4 h-4 text-outline" />
-                    View Profile
-                  </button>
-
-                  <button
-                    onClick={async () => {
-                      setIsMenuOpen(false);
-                      await toggleBlockUser(activeChatUser.id);
-                    }}
-                    className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2 transition-colors ${isChatBlocked
-                      ? 'text-emerald-600 hover:bg-emerald-500/10'
-                      : 'text-rose-600 hover:bg-rose-500/10'
-                      }`}
-                  >
-                    {isChatBlocked ? (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                        Unblock User
-                      </>
-                    ) : (
-                      <>
-                        <ShieldAlert className="w-4 h-4 text-rose-600" />
-                        Block User
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <ChatHeader
+            activeChatUser={activeChatUser}
+            setActiveChatUser={setActiveChatUser}
+            handleVisitProfile={handleVisitProfile}
+            isChatBlocked={isChatBlocked}
+            toggleBlockUser={toggleBlockUser}
+            isMenuOpen={isMenuOpen}
+            setIsMenuOpen={setIsMenuOpen}
+            menuRef={menuRef}
+          />
 
           {/* Messages Feed with Scroll Listener */}
           <div
             ref={chatFeedRef}
             onScroll={handleScroll}
-            className="flex-1 p-6 overflow-y-auto space-y-4"
+            className="flex-1 p-3 sm:p-6 overflow-y-auto space-y-3 sm:space-y-4"
           >
             {messages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-outline font-medium">
                 No messages yet. Say hello to {activeChatUser.name}!
               </div>
             ) : (
-              messages.map((msg) => {
-                const isMe = msg.senderId === currentUser?.id;
-                const isEditing = editingMsgId === msg.id;
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex items-start gap-2 group ${isMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {!isMe && (
-                      <img
-                        src={msg.sender?.avatar || activeChatUser.avatar}
-                        alt="Avatar"
-                        onClick={() => handleVisitProfile(activeChatUser)}
-                        className="w-7 h-7 rounded-full object-cover shrink-0 cursor-pointer mt-1"
-                      />
-                    )}
-
-                    {/* Container wrapping Message Card & 3-Dot Button Outside Top Right */}
-                    <div className={`relative flex items-start gap-1 max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                      {/* Message Bubble Card */}
-                      <div
-                        className={`p-3.5 rounded-2xl text-xs space-y-1.5 ${isMe
-                          ? 'bg-primary/10 text-on-surface border border-primary/25 rounded-tr-none shadow-2xs'
-                          : 'bg-surface-container-high text-on-surface rounded-tl-none border border-outline-variant/40'
-                          }`}
-                      >
-                        {isEditing ? (
-                          <div className="space-y-2 pt-0.5">
-                            <textarea
-                              rows={2}
-                              value={editMsgText}
-                              onChange={(e) => setEditMsgText(e.target.value)}
-                              className="w-full p-2 text-xs bg-surface-container text-on-surface font-normal rounded-xl border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
-                            />
-                            <div className="flex justify-end gap-1.5">
-                              <button
-                                onClick={() => setEditingMsgId(null)}
-                                className="px-2 py-1 text-[11px] font-semibold text-outline hover:bg-surface-container rounded-lg"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => handleSaveEditMsg(msg.id)}
-                                className="px-2.5 py-1 text-[11px] font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-                              >
-                                Save
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {(() => {
-                              // Regex for Reply parsing
-                              const replyMatch = msg.content.match(/^(?:Replying to|💬 Replying to[^:]*:)\s*"([\s\S]*?)"\n\n([\s\S]*)$/);
-                              const forwardMatch = !replyMatch ? msg.content.match(/^(?:↪️ Forwarded:)\n([\s\S]*)$/) : null;
-
-                              const quotedText = replyMatch ? replyMatch[1] : forwardMatch ? forwardMatch[1] : null;
-                              const userText = replyMatch ? replyMatch[2] : forwardMatch ? '' : msg.content;
-                              const blogMatch = msg.content.match(/(?:https?:\/\/[^\s]+)?\/blog\?post=([a-zA-Z0-9_-]+)/);
-
-                              return (
-                                <>
-                                  {/* Quoted Message in Opposite Color Contrast */}
-                                  {quotedText && (
-                                    <div
-                                      className={`p-2.5 rounded-xl text-xs border-l-4 border-primary space-y-0.5 ${isMe
-                                        ? 'bg-surface-lowest text-on-surface border border-outline-variant/50 shadow-2xs'
-                                        : 'bg-primary/15 text-on-surface border border-primary/20 shadow-2xs'
-                                        }`}
-                                    >
-                                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
-                                        <Reply className="w-3 h-3 text-primary" />
-                                        <span>{forwardMatch ? 'Forwarded' : 'Replying to'}</span>
-                                      </div>
-                                      <p className="text-[11px] text-outline font-medium italic line-clamp-3">
-                                        "{quotedText}"
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {/* User Reply / Main Message Content */}
-                                  {userText && (
-                                    <p className="leading-relaxed whitespace-pre-line font-normal text-xs sm:text-[13px] text-on-surface font-sans">
-                                      {userText}
-                                    </p>
-                                  )}
-
-                                  {/* Interactive Shared Blog Link Card */}
-                                  {blogMatch && (() => {
-                                    const postId = blogMatch[1];
-                                    const sharedBlog = blogs.find((b) => b.id === postId);
-
-                                    return (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedBlogId(postId);
-                                          setActiveTab('blog');
-                                        }}
-                                        className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-xs ${isMe
-                                          ? 'bg-surface-lowest hover:bg-surface-container-low border-outline-variant/60 text-on-surface'
-                                          : 'bg-primary/10 hover:bg-primary/20 border-primary/20 text-on-surface'
-                                          }`}
-                                      >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                          <BookOpen className="w-4 h-4 text-primary shrink-0" />
-                                          <div className="min-w-0">
-                                            <span className="text-xs font-bold block truncate">
-                                              {sharedBlog ? sharedBlog.title : 'Shared Article'}
-                                            </span>
-                                            <span className="text-[10px] text-outline block truncate">
-                                              Click to view full article
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <span className="text-[11px] font-bold text-primary underline shrink-0">Open Article →</span>
-                                      </button>
-                                    );
-                                  })()}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-
-                        <div className="text-[10px] text-right flex items-center justify-end gap-1 text-outline">
-                          <span>
-                            {new Date(msg.createdAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          {isMe &&
-                            (msg.isSeen ? (
-                              <span title="Delivered & Seen">
-                                <CheckCheck className="w-3.5 h-3.5 text-primary" />
-                              </span>
-                            ) : (
-                              <span title="Delivered / Unseen">
-                                <Check className="w-3 h-3 text-outline" />
-                              </span>
-                            ))}
-                        </div>
-                      </div>
-
-                      {/* 3-Dot Options Button Outside Top Right Corner of Message Card */}
-                      <div className="relative chat-msg-menu-container shrink-0 mt-0.5">
-                        <button
-                          onClick={() => setOpenMsgMenuId(openMsgMenuId === msg.id ? null : msg.id)}
-                          className="p-1 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
-                          title="Message options"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* Dropdown Menu (Solid Opaque White Background) */}
-                        {openMsgMenuId === msg.id && (
-                          <div
-                            className={`absolute top-full mt-1 w-32 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-2xl py-1 z-50 space-y-0.5 opacity-100 ${isMe ? 'right-0' : 'left-0'
-                              }`}
-                          >
-                            <button
-                              onClick={() => {
-                                setReplyingToMsg(msg);
-                                setOpenMsgMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
-                            >
-                              <Reply className="w-3.5 h-3.5 text-primary" />
-                              <span>Reply</span>
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setForwardingMsg(msg);
-                                setOpenMsgMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
-                            >
-                              <Forward className="w-3.5 h-3.5 text-purple-600" />
-                              <span>Forward</span>
-                            </button>
-
-                            {isMe && (
-                              <button
-                                onClick={() => handleStartEditMsg(msg)}
-                                className="w-full px-3 py-1.5 text-left text-xs font-medium text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
-                              >
-                                <Edit2 className="w-3.5 h-3.5 text-outline" />
-                                <span>Edit</span>
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => handleDeleteMsg(msg.id)}
-                              className="w-full px-3 py-1.5 text-left text-xs font-medium text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              messages.map((msg) => (
+                <ChatMessageItem
+                  key={msg.id}
+                  msg={msg}
+                  currentUser={currentUser}
+                  activeChatUser={activeChatUser}
+                  blogs={blogs}
+                  openMsgMenuId={openMsgMenuId}
+                  setOpenMsgMenuId={setOpenMsgMenuId}
+                  editingMsgId={editingMsgId}
+                  editMsgText={editMsgText}
+                  setEditMsgText={setEditMsgText}
+                  handleStartEditMsg={handleStartEditMsg}
+                  handleSaveEditMsg={handleSaveEditMsg}
+                  handleDeleteMsg={handleDeleteMsg}
+                  setReplyingToMsg={setReplyingToMsg}
+                  setForwardingMsg={setForwardingMsg}
+                  handleVisitProfile={handleVisitProfile}
+                  setSelectedBlogId={setSelectedBlogId}
+                  setActiveTab={setActiveTab}
+                />
+              ))
             )}
             <div ref={messagesEndRef} />
           </div>
@@ -705,99 +341,19 @@ export const ChatView: React.FC = () => {
       )}
 
       {/* Forward Message Modal */}
-      {forwardingMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3">
-              <h3 className="text-sm font-bold text-on-surface flex items-center gap-2">
-                <Forward className="w-4 h-4 text-purple-600" /> Forward Message
-              </h3>
-              <button
-                onClick={() => {
-                  setForwardingMsg(null);
-                  setForwardSelectedUsers([]);
-                }}
-                className="p-1 rounded-full text-outline hover:bg-surface-container-low hover:text-on-surface"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Message Preview */}
-            <div className="p-3 bg-surface-container-low rounded-2xl border border-outline-variant/40 text-xs space-y-1">
-              <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Message snippet</p>
-              <p className="text-on-surface font-medium truncate">{forwardingMsg.content}</p>
-            </div>
-
-            {/* User Search & Multi-Select */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-on-surface uppercase tracking-wider">
-                  Select Recipients ({forwardSelectedUsers.length})
-                </span>
-              </div>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
-                <input
-                  type="text"
-                  value={forwardSearch}
-                  onChange={(e) => setForwardSearch(e.target.value)}
-                  placeholder="Search user..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface-container text-on-surface rounded-xl border border-outline-variant/60"
-                />
-              </div>
-
-              <div className="max-h-36 overflow-y-auto space-y-1 border border-outline-variant/40 rounded-xl p-1.5 bg-surface-container-low">
-                {allUsers
-                  .filter(
-                    (u) =>
-                      u.id !== currentUser?.id &&
-                      (u.name.toLowerCase().includes(forwardSearch.toLowerCase()) ||
-                        u.username.toLowerCase().includes(forwardSearch.toLowerCase()))
-                  )
-                  .map((u) => {
-                    const isSel = forwardSelectedUsers.some((sel) => sel.id === u.id);
-                    return (
-                      <div
-                        key={u.id}
-                        onClick={() => toggleForwardUserSelect(u)}
-                        className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${isSel ? 'bg-primary/10 border border-primary/40 font-bold text-primary' : 'hover:bg-surface-container'
-                          }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <input type="checkbox" checked={isSel} onChange={() => { }} className="w-3.5 h-3.5 accent-primary" />
-                          <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full shrink-0 object-cover" />
-                          <span className="text-xs truncate">{u.name}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setForwardingMsg(null);
-                  setForwardSelectedUsers([]);
-                }}
-                className="px-4 py-2 text-xs font-bold text-outline hover:text-on-surface rounded-xl"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleForwardMsgSubmit}
-                disabled={forwardSubmitting || forwardSelectedUsers.length === 0}
-                className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-container disabled:opacity-40"
-              >
-                Forward Message
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ForwardMessageModal
+        forwardingMsg={forwardingMsg}
+        setForwardingMsg={setForwardingMsg}
+        allUsers={allUsers}
+        currentUser={currentUser}
+        forwardSelectedUsers={forwardSelectedUsers}
+        setForwardSelectedUsers={setForwardSelectedUsers}
+        forwardSearch={forwardSearch}
+        setForwardSearch={setForwardSearch}
+        forwardSubmitting={forwardSubmitting}
+        handleForwardMsgSubmit={handleForwardMsgSubmit}
+        toggleForwardUserSelect={toggleForwardUserSelect}
+      />
     </div>
   );
 };
