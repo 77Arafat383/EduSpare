@@ -152,14 +152,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ blogId, blogAuth
                   </button>
 
                   {openMenuId === comment.id && (
-                    <div className="absolute right-0 top-full mt-1 w-28 bg-surface-container-high border border-outline-variant/50 rounded-xl shadow-lg py-1 z-20 space-y-0.5">
+                    <div className="absolute right-0 top-full mt-1 w-28 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-2xl py-1 z-50 space-y-0.5 opacity-100">
                       {canEdit && (
                         <button
                           onClick={() => {
                             handleStartEdit(comment);
                             setOpenMenuId(null);
                           }}
-                          className="w-full px-3 py-1.5 text-left text-xs text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-high flex items-center gap-2 transition-colors"
                         >
                           <Edit2 className="w-3.5 h-3.5 text-outline" />
                           <span>Edit</span>
@@ -171,7 +171,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ blogId, blogAuth
                             handleDelete(comment.id);
                             setOpenMenuId(null);
                           }}
-                          className="w-full px-3 py-1.5 text-left text-xs text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-xs font-semibold text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                           <span>Delete</span>

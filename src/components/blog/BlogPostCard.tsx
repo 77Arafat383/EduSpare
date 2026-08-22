@@ -89,7 +89,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
         isSelectedFromNotification
           ? 'border-primary ring-2 ring-primary/30 shadow-lg'
           : 'border-outline-variant/60 shadow-sm'
-      } p-6 space-y-4 hover:shadow-md transition-all`}
+      } p-4 sm:p-5 space-y-3 hover:shadow-md transition-all`}
     >
       {/* Post Author Header */}
       <div className="flex items-center justify-between">
@@ -148,13 +148,13 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-32 bg-surface-container-high border border-outline-variant/50 rounded-xl shadow-lg py-1 z-20 space-y-0.5">
+              <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-2xl py-1 z-50 space-y-0.5 opacity-100">
                 <button
                   onClick={() => {
                     setIsMenuOpen(false);
                     setIsEditModalOpen(true);
                   }}
-                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors"
+                  className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-high flex items-center gap-2 transition-colors"
                 >
                   <Edit2 className="w-3.5 h-3.5 text-outline" />
                   <span>Edit</span>
@@ -166,7 +166,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
                       deleteBlog(post.id);
                     }
                   }}
-                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
+                  className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                   <span>Delete</span>
