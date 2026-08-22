@@ -104,3 +104,23 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return NextResponse.json({ success: true, message: 'Profile deleted successfully' });
+  } catch (error) {
+    console.error('Delete profile error details:', error);
+    return NextResponse.json({ error: 'Failed to delete profile' }, { status: 500 });
+  }
+}

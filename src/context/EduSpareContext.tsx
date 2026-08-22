@@ -85,6 +85,7 @@ interface EduSpareContextType {
   markAllNotificationsAsRead: () => Promise<void>;
 
   updateUserProfile: (data: Partial<User>) => Promise<User | null>;
+  deleteUserProfile: () => Promise<boolean>;
   loginOrRegister: (action: 'login' | 'register', data: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   loading: boolean;
@@ -903,6 +904,23 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const deleteUserProfile = async (): Promise<boolean> => {
+    if (!currentUser) return false;
+    try {
+      const res = await fetch(`/api/profile?userId=${currentUser.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        logout();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Delete profile error:', err);
+      return false;
+    }
+  };
+
   const loginOrRegister = async (action: 'login' | 'register', data: any) => {
     try {
       const res = await fetch('/api/auth', {
@@ -995,6 +1013,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         markNotificationAsRead,
         markAllNotificationsAsRead,
         updateUserProfile,
+        deleteUserProfile,
         loginOrRegister,
         logout,
         loading,
