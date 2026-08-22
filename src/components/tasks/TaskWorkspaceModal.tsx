@@ -116,13 +116,15 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150 ${isFullScreen ? 'p-0' : 'p-2 sm:p-4 overflow-y-auto'}`}>
-      <div className={`w-full bg-surface-lowest shadow-2xl border border-outline-variant/80 overflow-hidden flex flex-col transition-all duration-200 ${isFullScreen ? 'w-screen h-screen max-w-none rounded-none' : 'max-w-6xl rounded-2xl sm:rounded-3xl my-2 sm:my-6 max-h-[95vh]'}`}>
-        {/* Header Bar */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-surface-container-low border-b border-outline-variant/40 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+      <div className={`w-full bg-surface-lowest shadow-2xl border border-outline-variant/80 overflow-y-auto flex flex-col transition-all duration-200 ${isFullScreen ? 'w-screen h-screen max-w-none rounded-none' : 'max-w-6xl rounded-2xl sm:rounded-3xl my-2 sm:my-6 max-h-[95vh]'}`}>
+        {/* Header Bar (Scrolls with page content) */}
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-surface-container-low border-b border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          {/* Top Row on Mobile / Left Section on Desktop */}
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 min-w-0 w-full sm:w-auto">
+            {/* Status Button (Desktop position) */}
             <button
               onClick={handleToggleStatus}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`hidden sm:flex px-3 py-1.5 rounded-xl font-bold text-xs items-center gap-1.5 transition-all shrink-0 ${
                 task.status === 'Completed'
                   ? 'bg-emerald-500 text-white shadow-sm'
                   : task.status === 'In Progress'
@@ -134,49 +136,89 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
               <span>{task.status}</span>
             </button>
 
-            <div className="min-w-0">
+            {/* Task Title */}
+            <div className="min-w-0 flex-1">
               <h2 className="text-base sm:text-xl font-black text-on-surface truncate">{task.title}</h2>
+            </div>
+
+            {/* Controls (Minimize, Full Display, Exit) - Mobile Top Right Position */}
+            <div className="flex sm:hidden items-center gap-1 shrink-0">
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+                title="Minimize Workspace"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+                title={isFullScreen ? 'Exit Full Display' : 'Full Display'}
+              >
+                {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+                title="Exit Workspace"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          {/* Controls: Due Badge, Minimize, Maximize/Full Display, Exit */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Bottom Row on Mobile / Right Section on Desktop */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+            {/* Task Status Button (Mobile position: below title) */}
+            <button
+              onClick={handleToggleStatus}
+              className={`flex sm:hidden px-2.5 py-1 rounded-xl font-bold text-[11px] items-center gap-1 transition-all ${
+                task.status === 'Completed'
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : task.status === 'In Progress'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-surface-variant text-on-surface-variant hover:bg-primary hover:text-white'
+              }`}
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>{task.status}</span>
+            </button>
+
+            {/* Remaining Time Badge */}
             <div className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[11px] sm:text-xs font-bold">
               <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>{timeInfo.text}</span>
             </div>
 
-            {/* Minimize Button */}
-            <button
-              onClick={() => setIsMinimized(true)}
-              className="p-1.5 sm:p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
-              title="Minimize Workspace"
-            >
-              <Minus className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-
-            {/* Full Display / Maximize Toggle Button */}
-            <button
-              onClick={() => setIsFullScreen(!isFullScreen)}
-              className="p-1.5 sm:p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
-              title={isFullScreen ? 'Exit Full Display' : 'Full Display'}
-            >
-              {isFullScreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </button>
-
-            {/* Exit / Cross Button */}
-            <button
-              onClick={onClose}
-              className="p-1.5 sm:p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
-              title="Exit Workspace"
-            >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+            {/* Controls for Desktop View */}
+            <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+                title="Minimize Workspace"
+              >
+                <Minus className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+                title={isFullScreen ? 'Exit Full Display' : 'Full Display'}
+              >
+                {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+                title="Exit Workspace"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Content Body Layout */}
-        <div className="p-3 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1">
+        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 flex-1">
           {/* Top Section: Task Parameters Banner */}
           <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 space-y-2">
             <h4 className="text-[11px] font-bold text-outline uppercase tracking-wider">
@@ -224,106 +266,10 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
             </div>
           </div>
 
-          {/* Main Workspace Split Screen Layout: Left Column (Notion Notes, Multi-Tab Edge PDF Reader & Resources) / Right Column (EduSpare AI Tutor) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column (lg:col-span-7) */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* MS Edge-Style Multi-Tab PDF & Document Reader */}
-              {openTabs.length > 0 && (
-                <div className="bg-surface-container-low rounded-3xl border border-primary/40 shadow-xl overflow-hidden animate-in fade-in space-y-0">
-                  {/* MS Edge Style Tab Bar */}
-                  <div className="bg-surface-container-high/80 px-3 pt-2.5 flex items-center gap-1.5 overflow-x-auto border-b border-outline-variant/50 select-none">
-                    {openTabs.map((tab) => {
-                      const isActive = tab.id === activeTabId;
-                      return (
-                        <div
-                          key={tab.id}
-                          onClick={() => setActiveTabId(tab.id)}
-                          className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer border-t border-x ${
-                            isActive
-                              ? 'bg-surface-lowest text-primary border-outline-variant/60 shadow-sm'
-                              : 'bg-surface-container-low/60 text-outline hover:text-on-surface hover:bg-surface-lowest/50 border-transparent'
-                          }`}
-                        >
-                          <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-outline'}`} />
-                          <span className="max-w-[140px] truncate">{tab.title}</span>
-                          <button
-                            onClick={(e) => handleCloseTab(tab.id, e)}
-                            className="p-0.5 rounded-full text-outline hover:text-rose-600 hover:bg-rose-500/10 transition-colors shrink-0"
-                            title="Close tab"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Current Active PDF Reader Toolbar & Frame */}
-                  {activeTab && (
-                    <div className="bg-surface-lowest flex flex-col">
-                      {/* PDF Reader Toolbar */}
-                      <div className="px-4 py-2 bg-surface-container-low/50 border-b border-outline-variant/40 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-bold text-on-surface truncate">{activeTab.title}</span>
-                          {activeTab.size && <span className="text-[10px] font-mono text-outline">({activeTab.size})</span>}
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <a
-                            href={activeTab.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            download={activeTab.title}
-                            className="px-2.5 py-1 text-xs text-primary font-bold bg-primary/10 hover:bg-primary hover:text-white rounded-xl flex items-center gap-1 transition-colors"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Download PDF</span>
-                          </a>
-                          <a
-                            href={activeTab.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-high rounded-xl transition-colors"
-                            title="Open in new window"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* PDF Document Viewer Frame */}
-                      <div className="bg-slate-900 flex items-center justify-center min-h-[500px]">
-                        {activeTab.type === 'image' || activeTab.url.startsWith('data:image/') ? (
-                          <img
-                            src={activeTab.url}
-                            alt={activeTab.title}
-                            className="max-w-full max-h-[650px] object-contain rounded-none p-2"
-                          />
-                        ) : (
-                          <iframe
-                            src={activeTab.url}
-                            className="w-full h-[650px] border-none bg-slate-900"
-                            title={activeTab.title}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Notion Keep Notes */}
-              <NotionKeepNotes
-                initialNotes={task.notes}
-                onSaveNotes={handleUpdateNotes}
-                onAddResource={(newMat) => {
-                  handleUpdateMaterials([...(task.materials || []), newMat]);
-                  handleOpenMaterialTab(newMat);
-                }}
-              />
-
-              {/* Study Materials & Attachments List */}
+          {/* Main Workspace Layout: Flex order on Mobile (< lg) / Grid on Desktop (lg:) */}
+          <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start">
+            {/* 1. Study Materials & Attachments List (Mobile Order 1 / Desktop Order 2) */}
+            <div className="order-1 lg:order-2 lg:col-span-7 w-full">
               <TaskMaterialsList
                 materials={task.materials || []}
                 onUpdateMaterials={handleUpdateMaterials}
@@ -331,12 +277,109 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
               />
             </div>
 
-            {/* Right Column (lg:col-span-5): Floating Sticky AI Tutor Panel */}
-            <div className="lg:col-span-5 sticky top-4 self-start">
+            {/* 2. MS Edge-Style Multi-Tab PDF & Document Reader (Mobile Order 2 / Desktop Order 3) */}
+            {openTabs.length > 0 && (
+              <div className="order-2 lg:order-3 lg:col-span-7 w-full bg-surface-container-low rounded-3xl border border-primary/40 shadow-xl overflow-hidden animate-in fade-in space-y-0">
+                {/* MS Edge Style Tab Bar */}
+                <div className="bg-surface-container-high/80 px-3 pt-2.5 flex items-center gap-1.5 overflow-x-auto border-b border-outline-variant/50 select-none">
+                  {openTabs.map((tab) => {
+                    const isActive = tab.id === activeTabId;
+                    return (
+                      <div
+                        key={tab.id}
+                        onClick={() => setActiveTabId(tab.id)}
+                        className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer border-t border-x ${
+                          isActive
+                            ? 'bg-surface-lowest text-primary border-outline-variant/60 shadow-sm'
+                            : 'bg-surface-container-low/60 text-outline hover:text-on-surface hover:bg-surface-lowest/50 border-transparent'
+                        }`}
+                      >
+                        <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-outline'}`} />
+                        <span className="max-w-[140px] truncate">{tab.title}</span>
+                        <button
+                          onClick={(e) => handleCloseTab(tab.id, e)}
+                          className="p-0.5 rounded-full text-outline hover:text-rose-600 hover:bg-rose-500/10 transition-colors shrink-0"
+                          title="Close tab"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Current Active PDF Reader Toolbar & Frame */}
+                {activeTab && (
+                  <div className="bg-surface-lowest flex flex-col">
+                    {/* PDF Reader Toolbar */}
+                    <div className="px-4 py-2 bg-surface-container-low/50 border-b border-outline-variant/40 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold text-on-surface truncate">{activeTab.title}</span>
+                        {activeTab.size && <span className="text-[10px] font-mono text-outline">({activeTab.size})</span>}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a
+                          href={activeTab.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          download={activeTab.title}
+                          className="px-2.5 py-1 text-xs text-primary font-bold bg-primary/10 hover:bg-primary hover:text-white rounded-xl flex items-center gap-1 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download PDF</span>
+                        </a>
+                        <a
+                          href={activeTab.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-high rounded-xl transition-colors"
+                          title="Open in new window"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* PDF Document Viewer Frame */}
+                    <div className="bg-slate-900 flex items-center justify-center min-h-[500px]">
+                      {activeTab.type === 'image' || activeTab.url.startsWith('data:image/') ? (
+                        <img
+                          src={activeTab.url}
+                          alt={activeTab.title}
+                          className="max-w-full max-h-[650px] object-contain rounded-none p-2"
+                        />
+                      ) : (
+                        <iframe
+                          src={activeTab.url}
+                          className="w-full h-[650px] border-none bg-slate-900"
+                          title={activeTab.title}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. EduSpare AI Tutor Panel (Mobile Order 3 / Desktop Right Column) */}
+            <div className="order-3 lg:order-4 lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-4 w-full">
               <AITutorPanel
                 taskTitle={task.title}
                 category={task.category}
                 notes={task.notes || undefined}
+              />
+            </div>
+
+            {/* 4. Notion Keep Notes - Study Workspace (Mobile Order 4 / Desktop Order 1) */}
+            <div className="order-4 lg:order-1 lg:col-span-7 w-full">
+              <NotionKeepNotes
+                initialNotes={task.notes}
+                onSaveNotes={handleUpdateNotes}
+                onAddResource={(newMat) => {
+                  handleUpdateMaterials([...(task.materials || []), newMat]);
+                  handleOpenMaterialTab(newMat);
+                }}
               />
             </div>
           </div>

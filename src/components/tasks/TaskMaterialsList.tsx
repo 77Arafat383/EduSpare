@@ -113,7 +113,6 @@ export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h4 className="text-sm font-bold text-on-surface">Study Materials</h4>
-          <p className="text-xs text-outline">Click any file to read in-line or manage options</p>
         </div>
 
         <div className="flex gap-2">
@@ -216,7 +215,6 @@ export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
                     className="text-xs font-bold text-on-surface hover:text-primary transition-colors flex items-center gap-1.5 truncate text-left"
                   >
                     <span>{item.title}</span>
-                    <Eye className="w-3.5 h-3.5 text-primary shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <div className="flex items-center gap-2 text-[10px] text-outline">
                     {item.size && <span className="font-mono">{item.size}</span>}
@@ -226,16 +224,6 @@ export const TaskMaterialsList: React.FC<TaskMaterialsListProps> = ({
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {/* Read Button */}
-                <button
-                  type="button"
-                  onClick={() => onReadMaterial && onReadMaterial(item)}
-                  className="p-1.5 text-xs text-primary font-bold hover:bg-primary/10 rounded-lg flex items-center gap-1 transition-colors"
-                  title="Read in-line"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span className="hidden sm:inline">Read</span>
-                </button>
 
                 {/* 3-Dot Options Button */}
                 <div className="relative">

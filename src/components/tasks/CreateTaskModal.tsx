@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Flame,
@@ -104,17 +104,34 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
-  // Aggregate default categories + user's previously generated categories
-  const defaultCategories = [
-    'Backend Engineering',
-    'AI & Mathematics',
-    'Physics & Quantum',
-    'Database Systems',
-    'Frontend Engineering',
-    'General Study',
-  ];
-  const userCategories = Array.from(new Set(tasks.map((t) => t.category).filter(Boolean)));
-  const recommendedCategories = Array.from(new Set([...userCategories, ...defaultCategories]));
+  // User created categories ONLY (NO DEMO CATEGORIES)
+  const userCategories = useMemo(() => {
+    return Array.from(
+      new Set(
+        tasks
+          .map((t) => t.category)
+          .filter((c): c is string => Boolean(c && c.trim()))
+      )
+    );
+  }, [tasks]);
+
+  // Recommended categories sorted by similarity to current input
+  const recommendedCategories = useMemo(() => {
+    if (!category.trim()) return userCategories;
+    const query = category.toLowerCase().trim();
+    return userCategories
+      .map((cat: string) => {
+        const text = cat.toLowerCase();
+        let score = 0;
+        if (text === query) score = 100;
+        else if (text.startsWith(query)) score = 80;
+        else if (text.includes(query)) score = 50;
+        return { cat, score };
+      })
+      .filter((item: { cat: string; score: number }) => item.score > 0)
+      .sort((a: { cat: string; score: number }, b: { cat: string; score: number }) => b.score - a.score)
+      .map((item: { cat: string; score: number }) => item.cat);
+  }, [userCategories, category]);
 
   // Calculate total duration in milliseconds
   const totalMs = (estDays * 24 * 60 + estHours * 60 + estMins) * 60 * 1000;
@@ -279,7 +296,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
               className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface text-sm border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <datalist id="category-suggestions">
-              {recommendedCategories.map((cat) => (
+              {recommendedCategories.map((cat: string) => (
                 <option key={cat} value={cat} />
               ))}
             </datalist>

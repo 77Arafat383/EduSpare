@@ -203,32 +203,26 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-bold text-on-surface">Study Workspace</h4>
-            <p className="text-[11px] text-outline font-medium">
-              Multiple pages with Markdown & KaTeX LaTeX Math support
-            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Save Status */}
+          {/* Stateful Save Button / Saved Badge in fixed position */}
           {isSaved ? (
-            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Saved
-            </span>
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/30 rounded-xl select-none">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Saved</span>
+            </div>
           ) : (
-            <span className="text-[11px] font-semibold text-amber-600">Unsaved</span>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-primary rounded-xl shadow-sm transition-all hover:bg-primary-container cursor-pointer"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Save</span>
+            </button>
           )}
-
-          {/* Save Button */}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaved}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-primary disabled:opacity-40 rounded-xl shadow-sm transition-all hover:bg-primary-container"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>Save</span>
-          </button>
 
           {/* 3-Dot Options Dropdown */}
           <div className="relative">

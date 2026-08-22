@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { formatTimeRemaining } from '@/lib/priorityAlgorithm';
 import { TaskWorkspaceModal } from './TaskWorkspaceModal';
@@ -16,6 +16,8 @@ import {
   Trash2,
   MoreVertical,
   Edit3,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import { TaskItem } from '@/types/eduspare';
 
@@ -28,6 +30,47 @@ export const TaskListView: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Extract categories strictly from user's active tasks (NO DEMO CATEGORIES)
+  const allUserCategories = useMemo(() => {
+    const cats = tasks
+      .map((t) => t.category)
+      .filter((c): c is string => Boolean(c && c.trim()));
+    return Array.from(new Set(cats));
+  }, [tasks]);
+
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Filter & rank user categories according to similarity with categorySearchQuery
+  const filteredCategorySuggestions = useMemo(() => {
+    if (!categorySearchQuery.trim()) return allUserCategories;
+    const q = categorySearchQuery.toLowerCase().trim();
+
+    return allUserCategories
+      .map((cat) => {
+        const text = cat.toLowerCase();
+        let score = 0;
+        if (text === q) score = 100;
+        else if (text.startsWith(q)) score = 80;
+        else if (text.includes(q)) score = 50;
+        return { cat, score };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.cat);
+  }, [allUserCategories, categorySearchQuery]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const activeSelectedTask = tasks.find((t) => t.id === selectedTaskId);
 
@@ -50,12 +93,10 @@ export const TaskListView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-lowest p-6 rounded-3xl border border-outline-variant/60 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <CheckSquare className="w-6 h-6 text-primary" />
-            <h2 className="text-2xl font-black text-on-surface">Task Workspaces</h2>
+            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            <h2 className="text-[1.2rem] sm:text-2xl font-black text-on-surface">Task Workspaces</h2>
           </div>
-          <p className="text-xs text-outline font-medium">
-            Strict algorithm ranking: Less remaining time first, tie-broken by importance score (0-100)
-          </p>
+
         </div>
 
         <button
@@ -83,28 +124,87 @@ export const TaskListView: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-outline">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-outline shrink-0">
             <Filter className="w-3.5 h-3.5" /> Filter:
           </div>
 
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-surface-container-low border border-outline-variant/50 rounded-xl text-on-surface font-semibold"
-          >
-            <option value="All">All Categories</option>
-            <option value="Backend Engineering">Backend Engineering</option>
-            <option value="AI & Mathematics">AI & Mathematics</option>
-            <option value="Physics & Quantum">Physics & Quantum</option>
-            <option value="Database Systems">Database Systems</option>
-            <option value="Frontend Engineering">Frontend Engineering</option>
-          </select>
+          {/* Searchable Dynamic Category Filter Combobox (Similarity Matching & No Demo Categories) */}
+          <div className="relative w-full sm:w-auto" ref={categoryDropdownRef}>
+            <div className="flex items-center bg-surface-container-low border border-outline-variant/50 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary text-xs w-full sm:w-auto">
+              <input
+                type="text"
+                value={categorySearchQuery}
+                onFocus={() => setIsCategoryDropdownOpen(true)}
+                onChange={(e) => {
+                  setCategorySearchQuery(e.target.value);
+                  setIsCategoryDropdownOpen(true);
+                }}
+                placeholder={filterCategory === 'All' ? 'Search category...' : filterCategory}
+                className="w-full sm:w-40 bg-transparent text-on-surface font-semibold focus:outline-none placeholder:text-outline text-xs"
+              />
+              {filterCategory !== 'All' ? (
+                <button
+                  onClick={() => {
+                    setFilterCategory('All');
+                    setCategorySearchQuery('');
+                  }}
+                  className="ml-1 text-outline hover:text-on-surface"
+                  title="Clear Category Filter"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-outline pointer-events-none ml-1" />
+              )}
+            </div>
+
+            {isCategoryDropdownOpen && (
+              <div className="absolute left-0 mt-1.5 w-full sm:w-56 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 max-h-48 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setFilterCategory('All');
+                    setCategorySearchQuery('');
+                    setIsCategoryDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors flex items-center justify-between ${filterCategory === 'All'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-on-surface hover:bg-surface-container-high'
+                    }`}
+                >
+                  <span>All Categories</span>
+                  {filterCategory === 'All' && <CheckSquare className="w-3.5 h-3.5 text-primary" />}
+                </button>
+
+                {filteredCategorySuggestions.length === 0 ? (
+                  <div className="px-3 py-2 text-[11px] text-outline italic">No matching category</div>
+                ) : (
+                  filteredCategorySuggestions.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setFilterCategory(cat);
+                        setCategorySearchQuery(cat);
+                        setIsCategoryDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors flex items-center justify-between ${filterCategory === cat
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-on-surface hover:bg-surface-container-high'
+                        }`}
+                    >
+                      <span className="truncate">{cat}</span>
+                      {filterCategory === cat && <CheckSquare className="w-3.5 h-3.5 text-primary" />}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-surface-container-low border border-outline-variant/50 rounded-xl text-on-surface font-semibold"
+            className="w-full sm:w-auto px-3 py-1.5 text-xs bg-surface-container-low border border-outline-variant/50 rounded-xl text-on-surface font-semibold"
           >
             <option value="All">All Statuses</option>
             <option value="Pending">Pending</option>
@@ -134,7 +234,7 @@ export const TaskListView: React.FC = () => {
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black text-white px-2.5 py-0.5 rounded-full bg-primary">
-                        #{idx + 1} Rank
+                        {idx + 1}
                       </span>
                       <span className="text-xs font-bold text-outline uppercase tracking-wider">
                         {task.category}
@@ -143,13 +243,12 @@ export const TaskListView: React.FC = () => {
 
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                          task.status === 'Completed'
-                            ? 'bg-emerald-500/10 text-emerald-600'
-                            : task.status === 'In Progress'
+                        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${task.status === 'Completed'
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : task.status === 'In Progress'
                             ? 'bg-amber-500/10 text-amber-600'
                             : 'bg-surface-variant text-on-surface-variant'
-                        }`}
+                          }`}
                       >
                         {task.status}
                       </span>
@@ -217,11 +316,10 @@ export const TaskListView: React.FC = () => {
                 <div className="pt-3 border-t border-outline-variant/40 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-bold ${
-                        timeInfo.urgent
-                          ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
-                          : 'bg-primary/10 text-primary'
-                      }`}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-bold ${timeInfo.urgent
+                        ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+                        : 'bg-primary/10 text-primary'
+                        }`}
                     >
                       <Clock className="w-3.5 h-3.5" />
                       <span>{timeInfo.text}</span>
@@ -233,9 +331,9 @@ export const TaskListView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 text-xs font-bold text-primary group-hover:translate-x-1 transition-transform">
-                    <span>Open Workspace</span>
-                    <ArrowRight className="w-4 h-4" />
+                  <div className="px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary group-hover:bg-primary group-hover:text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0">
+                    <span>Open</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </div>
               </div>
