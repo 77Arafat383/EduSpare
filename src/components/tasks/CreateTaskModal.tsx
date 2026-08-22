@@ -232,10 +232,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-surface-lowest rounded-2xl sm:rounded-3xl shadow-2xl border border-outline-variant/80 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Modal Header */}
-        <div className="bg-surface-container-low border-b border-outline-variant/40 px-6 py-5 flex items-center justify-between shrink-0">
+        <div className="bg-surface-container-low border-b border-outline-variant/40 px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-lg font-bold text-on-surface">
               {taskToEdit ? 'Edit Task' : 'Create New Task'}
@@ -249,7 +249,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
           {/* Task Title */}
           <div>
             <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">

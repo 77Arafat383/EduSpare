@@ -191,7 +191,7 @@ export const ProfileView: React.FC = () => {
       {/* Profile Header Banner */}
       <div className="bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm overflow-hidden">
         {/* Cover Backdrop */}
-        <div className="h-44 relative bg-gradient-to-r from-primary via-primary-container to-purple-600 overflow-hidden">
+        <div className="h-32 sm:h-44 relative bg-gradient-to-r from-primary via-primary-container to-purple-600 overflow-hidden">
           <img
             src={user.coverImage || '/assets/default_cover.png'}
             alt="Cover Backdrop"
@@ -200,16 +200,16 @@ export const ProfileView: React.FC = () => {
         </div>
 
         {/* User Info Row */}
-        <div className="p-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+        <div className="p-4 sm:p-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 -mt-10 sm:-mt-12">
             <img
               src={user.avatar || '/assets/default_avatar.png'}
               alt={user.name}
-              className="w-24 h-24 rounded-3xl object-cover ring-4 ring-white shadow-xl bg-surface-lowest"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl object-cover ring-4 ring-white shadow-xl bg-surface-lowest shrink-0"
             />
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-black text-on-surface">{user.name}</h1>
+                <h1 className="text-xl sm:text-2xl font-black text-on-surface">{user.name}</h1>
                 <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary/10">
                   @{user.username}
                 </span>
@@ -252,7 +252,7 @@ export const ProfileView: React.FC = () => {
 
         {/* Bio & Photos Edit Form if open */}
         {isEditingBio && (
-          <form onSubmit={handleSaveProfile} className="p-6 border-t border-outline-variant/40 bg-surface-container-low space-y-4">
+          <form onSubmit={handleSaveProfile} className="p-4 sm:p-6 border-t border-outline-variant/40 bg-surface-container-low space-y-4">
             <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider">
               Edit Academic Biodata & Profile Pictures
             </h4>
@@ -281,32 +281,25 @@ export const ProfileView: React.FC = () => {
               </div>
             </div>
 
-            {/* Profile Avatar Picture Field & File Upload */}
-            <div className="space-y-1.5 p-3 rounded-2xl bg-surface-lowest border border-outline-variant/50">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="block text-[11px] font-bold text-on-surface uppercase">
-                  Profile Avatar Picture
-                </label>
+                <label className="block text-[11px] font-bold text-outline uppercase">Profile Picture (Avatar)</label>
                 <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="avatar-file-input"
-                    className="px-3 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-container rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 transition-all"
-                  >
-                    <span>Upload Image</span>
+                  <label className="px-2.5 py-1 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl cursor-pointer transition-colors">
+                    Upload New Avatar
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileChange}
+                      className="hidden"
+                    />
                   </label>
-                  <input
-                    id="avatar-file-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarFileChange}
-                    className="hidden"
-                  />
                   <button
                     type="button"
                     onClick={() => setEditAvatar('/assets/default_avatar.png')}
-                    className="px-2.5 py-1.5 text-xs font-bold bg-surface-variant hover:bg-primary/10 rounded-xl text-on-surface-variant"
+                    className="px-2.5 py-1 text-xs font-bold bg-surface-variant hover:bg-primary/10 rounded-xl text-on-surface-variant"
                   >
-                    Reset Default Icon
+                    Reset Default Avatar
                   </button>
                 </div>
               </div>
@@ -315,7 +308,7 @@ export const ProfileView: React.FC = () => {
                 <img
                   src={editAvatar || '/assets/default_avatar.png'}
                   alt="Avatar Preview"
-                  className="w-12 h-12 rounded-2xl object-cover ring-2 ring-primary/20 bg-surface-container-low shrink-0"
+                  className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-primary/20"
                 />
                 <input
                   type="text"
@@ -327,26 +320,19 @@ export const ProfileView: React.FC = () => {
               </div>
             </div>
 
-            {/* Cover Banner Photo Field & File Upload */}
-            <div className="space-y-1.5 p-3 rounded-2xl bg-surface-lowest border border-outline-variant/50">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="block text-[11px] font-bold text-on-surface uppercase">
-                  Cover Banner Photo
-                </label>
+                <label className="block text-[11px] font-bold text-outline uppercase">Cover Photo Background</label>
                 <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="cover-file-input"
-                    className="px-3 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-container rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 transition-all"
-                  >
-                    <span>Upload Cover</span>
+                  <label className="px-2.5 py-1 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl cursor-pointer transition-colors">
+                    Upload New Cover
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverFileChange}
+                      className="hidden"
+                    />
                   </label>
-                  <input
-                    id="cover-file-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleCoverFileChange}
-                    className="hidden"
-                  />
                   <button
                     type="button"
                     onClick={() => setEditCoverImage('/assets/default_cover.png')}
@@ -358,7 +344,7 @@ export const ProfileView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3 pt-1">
-                <div className="w-20 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 border border-outline-variant/40">
+                <div className="w-16 h-8 rounded-lg overflow-hidden bg-surface-container-low shrink-0 border border-outline-variant/40">
                   <img
                     src={editCoverImage || '/assets/default_cover.png'}
                     alt="Cover Preview"
@@ -418,27 +404,22 @@ export const ProfileView: React.FC = () => {
                   onChange={(e) => setEditGender(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl bg-surface-lowest border border-outline-variant/60 text-on-surface"
                 >
-                  <option value="">Select Gender</option>
+                  <option value="">Not Specified</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-outline uppercase mb-1">Relationship Status</label>
-                <select
+                <input
+                  type="text"
                   value={editRelationshipStatus}
                   onChange={(e) => setEditRelationshipStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-surface-lowest border border-outline-variant/60 text-on-surface"
-                >
-                  <option value="">Select Status</option>
-                  <option value="Single">Single</option>
-                  <option value="In a relationship">In a relationship</option>
-                  <option value="Married">Married</option>
-                  <option value="Engaged">Engaged</option>
-                </select>
+                  placeholder="e.g. Single, Married, Scholar"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-surface-lowest border border-outline-variant/60"
+                />
               </div>
             </div>
 
@@ -449,30 +430,30 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
-                  placeholder="e.g. +8801712345678"
+                  placeholder="Contact Number"
                   className="w-full px-3 py-2 text-xs rounded-xl bg-surface-lowest border border-outline-variant/60"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-outline uppercase mb-1">Present Address</label>
+                <label className="block text-[11px] font-bold text-outline uppercase mb-1">Address / Location</label>
                 <input
                   type="text"
                   value={editAddress}
                   onChange={(e) => setEditAddress(e.target.value)}
-                  placeholder="e.g. Dhaka, Bangladesh"
+                  placeholder="Location / City"
                   className="w-full px-3 py-2 text-xs rounded-xl bg-surface-lowest border border-outline-variant/60"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-outline uppercase mb-1">Academic & Personal Interests</label>
+              <label className="block text-[11px] font-bold text-outline uppercase mb-1">Interests / Focus Tags</label>
               <input
                 type="text"
                 value={editInterests}
                 onChange={(e) => setEditInterests(e.target.value)}
-                placeholder="e.g. WebSockets, Quantum Computing, System Architecture"
+                placeholder="Comma separated e.g. Algorithms, Data Science, AI, Web Development"
                 className="w-full px-3 py-2 text-xs rounded-xl bg-surface-lowest border border-outline-variant/60"
               />
             </div>
@@ -496,10 +477,10 @@ export const ProfileView: React.FC = () => {
         )}
 
         {/* Navigation Sub-Tabs */}
-        <div className="flex border-t border-outline-variant/40 px-6 font-bold text-xs text-outline">
+        <div className="flex border-t border-outline-variant/40 px-3 sm:px-6 font-bold text-xs text-outline overflow-x-auto select-none">
           <button
             onClick={() => setActiveSubTab('biodata')}
-            className={`py-3 px-4 border-b-2 transition-colors ${activeSubTab === 'biodata'
+            className={`py-3 px-3 sm:px-4 border-b-2 whitespace-nowrap shrink-0 transition-colors ${activeSubTab === 'biodata'
               ? 'border-primary text-primary'
               : 'border-transparent hover:text-on-surface'
               }`}
@@ -509,7 +490,7 @@ export const ProfileView: React.FC = () => {
 
           <button
             onClick={() => setActiveSubTab('blogs')}
-            className={`py-3 px-4 border-b-2 transition-colors ${activeSubTab === 'blogs'
+            className={`py-3 px-3 sm:px-4 border-b-2 whitespace-nowrap shrink-0 transition-colors ${activeSubTab === 'blogs'
               ? 'border-primary text-primary'
               : 'border-transparent hover:text-on-surface'
               }`}
@@ -520,7 +501,7 @@ export const ProfileView: React.FC = () => {
           {isOwnProfile && (
             <button
               onClick={() => setActiveSubTab('saved')}
-              className={`py-3 px-4 border-b-2 transition-colors ${activeSubTab === 'saved'
+              className={`py-3 px-3 sm:px-4 border-b-2 whitespace-nowrap shrink-0 transition-colors ${activeSubTab === 'saved'
                 ? 'border-primary text-primary'
                 : 'border-transparent hover:text-on-surface'
                 }`}
@@ -531,7 +512,7 @@ export const ProfileView: React.FC = () => {
 
           <button
             onClick={() => setActiveSubTab('activity')}
-            className={`py-3 px-4 border-b-2 transition-colors ${activeSubTab === 'activity'
+            className={`py-3 px-3 sm:px-4 border-b-2 whitespace-nowrap shrink-0 transition-colors ${activeSubTab === 'activity'
               ? 'border-primary text-primary'
               : 'border-transparent hover:text-on-surface'
               }`}

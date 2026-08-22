@@ -87,7 +87,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
   return (
     <div className="bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm space-y-4 relative z-10">
       {/* 1. Cover Photo Banner Backdrop */}
-      <div className="h-44 relative bg-gradient-to-r from-primary via-primary-container to-purple-600 rounded-t-3xl overflow-hidden">
+      <div className="h-32 sm:h-44 relative bg-gradient-to-r from-primary via-primary-container to-purple-600 rounded-t-3xl overflow-hidden">
         <img
           src={community.image}
           alt={community.name}
@@ -96,8 +96,8 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
       </div>
 
       {/* 2. Community Info Row */}
-      <div className="p-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-10">
+      <div className="p-4 sm:p-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 -mt-8 sm:-mt-10">
           <img
             src={community.avatarImage || community.image}
             alt={community.name}

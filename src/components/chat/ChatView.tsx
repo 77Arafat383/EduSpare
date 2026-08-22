@@ -19,6 +19,7 @@ import {
   Trash2,
   X,
   BookOpen,
+  ArrowLeft,
 } from 'lucide-react';
 
 function formatRelativeTime(dateStr?: string): string {
@@ -123,10 +124,12 @@ export const ChatView: React.FC = () => {
     return u.name.toLowerCase().includes(term) || u.username.toLowerCase().includes(term);
   });
 
-  // Default select first contact at top of list if none selected
+  // Default select first contact at top of list if none selected ONLY on desktop screens (window width >= 768)
   useEffect(() => {
-    if (!activeChatUser && filteredContacts.length > 0) {
-      setActiveChatUser(filteredContacts[0]);
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      if (!activeChatUser && filteredContacts.length > 0) {
+        setActiveChatUser(filteredContacts[0]);
+      }
     }
   }, [filteredContacts, activeChatUser, setActiveChatUser]);
 
@@ -232,9 +235,9 @@ export const ChatView: React.FC = () => {
   ).length;
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex rounded-3xl border border-outline-variant/60 bg-surface-lowest shadow-sm overflow-hidden">
-      {/* Left Sidebar - Chat List */}
-      <div className="w-80 border-r border-outline-variant/40 flex flex-col bg-surface-container-lowest">
+    <div className="h-[calc(100vh-9.5rem)] md:h-[calc(100vh-8rem)] flex rounded-3xl border border-outline-variant/60 bg-surface-lowest shadow-sm overflow-hidden">
+      {/* Left Sidebar - Chat List (Full width on mobile when no chat open, hidden on mobile when active chat open) */}
+      <div className={`w-full md:w-80 border-r border-outline-variant/40 flex flex-col bg-surface-container-lowest shrink-0 ${activeChatUser ? 'hidden md:flex' : 'flex'}`}>
         {/* Sidebar Header */}
         <div className="p-4 border-b border-outline-variant/40 space-y-3">
           <div className="flex items-center justify-between">
@@ -326,10 +329,19 @@ export const ChatView: React.FC = () => {
 
       {/* Right Main Chat Container */}
       {activeChatUser ? (
-        <div className="flex-1 flex flex-col bg-surface-lowest">
+        <div className={`flex-1 flex flex-col bg-surface-lowest ${activeChatUser ? 'flex' : 'hidden md:flex'}`}>
           {/* Active Contact Header */}
-          <div className="p-4 border-b border-outline-variant/40 flex items-center justify-between bg-surface-container-lowest">
-            <div className="flex items-center gap-3">
+          <div className="p-3 sm:p-4 border-b border-outline-variant/40 flex items-center justify-between bg-surface-container-lowest">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Back Button on Mobile */}
+              <button
+                onClick={() => setActiveChatUser(null)}
+                className="md:hidden p-1.5 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors shrink-0"
+                title="Back to messages list"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
               <div
                 onClick={() => handleVisitProfile(activeChatUser)}
                 className="relative cursor-pointer group shrink-0"
@@ -337,22 +349,22 @@ export const ChatView: React.FC = () => {
                 <img
                   src={activeChatUser.avatar}
                   alt={activeChatUser.name}
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"
                 />
                 <span
-                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-lowest ${isUserActive(activeChatUser.lastActiveAt) ? 'bg-emerald-500' : 'bg-slate-400'
+                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-surface-lowest ${isUserActive(activeChatUser.lastActiveAt) ? 'bg-emerald-500' : 'bg-slate-400'
                     }`}
                 />
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <h3
                   onClick={() => handleVisitProfile(activeChatUser)}
-                  className="font-bold text-sm text-on-surface hover:text-primary cursor-pointer transition-colors"
+                  className="font-bold text-xs sm:text-sm text-on-surface hover:text-primary cursor-pointer transition-colors truncate max-w-[150px] sm:max-w-none"
                 >
                   {activeChatUser.name}
                 </h3>
-                <p className="text-[11px] text-outline font-medium">
+                <p className="text-[10px] sm:text-[11px] text-outline font-medium truncate">
                   {isUserActive(activeChatUser.lastActiveAt) ? (
                     <span className="text-emerald-600 font-bold">● Active Now</span>
                   ) : (

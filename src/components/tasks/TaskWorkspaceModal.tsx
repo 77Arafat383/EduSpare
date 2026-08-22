@@ -115,11 +115,11 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
   }
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150 ${isFullScreen ? 'p-0' : 'p-4 overflow-y-auto'}`}>
-      <div className={`w-full bg-surface-lowest shadow-2xl border border-outline-variant/80 overflow-hidden flex flex-col transition-all duration-200 ${isFullScreen ? 'w-screen h-screen max-w-none rounded-none' : 'max-w-6xl rounded-3xl my-6 max-h-[92vh]'}`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150 ${isFullScreen ? 'p-0' : 'p-2 sm:p-4 overflow-y-auto'}`}>
+      <div className={`w-full bg-surface-lowest shadow-2xl border border-outline-variant/80 overflow-hidden flex flex-col transition-all duration-200 ${isFullScreen ? 'w-screen h-screen max-w-none rounded-none' : 'max-w-6xl rounded-2xl sm:rounded-3xl my-2 sm:my-6 max-h-[95vh]'}`}>
         {/* Header Bar */}
-        <div className="px-6 py-4 bg-surface-container-low border-b border-outline-variant/40 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-20">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-surface-container-low border-b border-outline-variant/40 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={handleToggleStatus}
               className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
@@ -135,48 +135,48 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
             </button>
 
             <div className="min-w-0">
-              <h2 className="text-xl font-black text-on-surface truncate">{task.title}</h2>
+              <h2 className="text-base sm:text-xl font-black text-on-surface truncate">{task.title}</h2>
             </div>
           </div>
 
           {/* Controls: Due Badge, Minimize, Maximize/Full Display, Exit */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-bold mr-2">
-              <Clock className="w-4 h-4" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[11px] sm:text-xs font-bold">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>{timeInfo.text}</span>
             </div>
 
             {/* Minimize Button */}
             <button
               onClick={() => setIsMinimized(true)}
-              className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+              className="p-1.5 sm:p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
               title="Minimize Workspace"
             >
-              <Minus className="w-5 h-5" />
+              <Minus className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Full Display / Maximize Toggle Button */}
             <button
               onClick={() => setIsFullScreen(!isFullScreen)}
-              className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+              className="p-1.5 sm:p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
               title={isFullScreen ? 'Exit Full Display' : 'Full Display'}
             >
-              {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              {isFullScreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
 
             {/* Exit / Cross Button */}
             <button
               onClick={onClose}
-              className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
+              className="p-1.5 sm:p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-xl transition-colors"
               title="Exit Workspace"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
         {/* Content Body Layout */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-3 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1">
           {/* Top Section: Task Parameters Banner */}
           <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 space-y-2">
             <h4 className="text-[11px] font-bold text-outline uppercase tracking-wider">

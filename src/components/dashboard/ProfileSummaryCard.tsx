@@ -58,7 +58,7 @@ export const ProfileSummaryCard: React.FC = () => {
       </p>
 
       {/* Quick Stat Pills */}
-      <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-outline-variant/40">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4 pt-4 border-t border-outline-variant/40">
         <div className="flex items-center gap-2 p-2 rounded-xl bg-surface-lowest border border-outline-variant/30">
           <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
           <div>

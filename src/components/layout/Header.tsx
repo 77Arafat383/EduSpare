@@ -3,7 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UniversalSearchBar } from '../search/UniversalSearchBar';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users } from 'lucide-react';
+import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users, Menu } from 'lucide-react';
+
+interface HeaderProps {
+  onToggleMobileMenu?: () => void;
+}
 
 function formatRelativeTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -22,7 +26,7 @@ function formatRelativeTime(dateStr?: string): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export const Header: React.FC = () => {
+export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   const {
     currentUser,
     setCurrentUser,
@@ -61,12 +65,22 @@ export const Header: React.FC = () => {
   }, []);
 
   return (
-    <header className="h-16 bg-surface-lowest border-b border-outline-variant/50 sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between gap-4">
+    <header className="h-16 bg-surface-lowest border-b border-outline-variant/50 sticky top-0 z-40 px-3 md:px-8 flex items-center justify-between gap-2 sm:gap-4">
       {/* Brand & Search */}
-      <div className="flex items-center gap-6 flex-1 max-w-2xl">
+      <div className="flex items-center gap-2 sm:gap-6 flex-1 max-w-2xl min-w-0">
+        {onToggleMobileMenu && (
+          <button
+            onClick={onToggleMobileMenu}
+            className="lg:hidden p-2 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low border border-outline-variant/40 transition-colors shrink-0"
+            title="Toggle Navigation Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
         <div
           onClick={() => setActiveTab('dashboard')}
-          className="flex items-center gap-2 cursor-pointer group"
+          className="flex items-center gap-2 cursor-pointer group shrink-0"
         >
           <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md group-hover:scale-105 transition-transform shrink-0 border border-outline-variant/40 bg-surface-container-low">
             <img
@@ -75,19 +89,19 @@ export const Header: React.FC = () => {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="font-bold text-xl text-on-surface tracking-tight hidden sm:inline">
+          <span className="font-bold text-lg sm:text-xl text-on-surface tracking-tight hidden sm:inline">
             Edu<span className="text-primary">Spare</span>
           </span>
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <UniversalSearchBar />
         </div>
       </div>
 
       {/* Right User Bar & Streak */}
       {currentUser && (
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           {/* Active Streak Badge */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 font-semibold text-xs shadow-sm">
             <Flame className="w-4 h-4 fill-amber-500 text-amber-500 animate-pulse" />
@@ -114,7 +128,7 @@ export const Header: React.FC = () => {
 
             {/* Notifications Dropdown Menu (Solid Opaque White Background) */}
             {showNotifDropdown && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-outline-variant/60 p-4 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-outline-variant/60 p-4 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
                 <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3 mb-2">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-on-surface">Notifications</h3>
