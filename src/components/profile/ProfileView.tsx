@@ -205,7 +205,7 @@ export const ProfileView: React.FC = () => {
             <img
               src={user.avatar || '/assets/default_avatar.png'}
               alt={user.name}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl object-cover ring-4 ring-white shadow-xl bg-surface-lowest shrink-0"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-4 ring-white shadow-xl bg-surface-lowest shrink-0"
             />
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">

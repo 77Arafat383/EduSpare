@@ -167,7 +167,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                 className="hidden"
               />
             </div>
-            <img src={avatarImage} alt="Profile Photo Preview" className="w-10 h-10 rounded-xl object-cover" />
+            <img src={avatarImage} alt="Profile Photo Preview" className="w-10 h-10 rounded-full object-cover" />
           </div>
 
           {/* Community Rules Input */}

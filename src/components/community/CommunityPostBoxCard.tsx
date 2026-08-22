@@ -30,12 +30,7 @@ export const CommunityPostBoxCard: React.FC<CommunityPostBoxCardProps> = ({
       <div className="flex-1 min-w-0 text-xs font-semibold text-outline group-hover:text-on-surface transition-colors truncate">
         Write a community article or research note in {community.name}...
       </div>
-      <button
-        type="button"
-        className="px-4 py-2 bg-primary group-hover:bg-primary-container text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 shrink-0 transition-all"
-      >
-        <PenSquare className="w-4 h-4" /> Write Article
-      </button>
+
     </div>
   );
 };

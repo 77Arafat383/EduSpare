@@ -98,11 +98,130 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
       {/* 2. Community Info Row */}
       <div className="p-4 sm:p-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 -mt-8 sm:-mt-10">
-          <img
-            src={community.avatarImage || community.image}
-            alt={community.name}
-            className="w-20 h-20 rounded-3xl object-cover ring-4 ring-white shadow-xl bg-surface-lowest shrink-0"
-          />
+          <div className="flex items-end justify-between w-full sm:w-auto">
+            <img
+              src={community.avatarImage || community.image}
+              alt={community.name}
+              className="w-20 h-20 rounded-full object-cover ring-4 ring-white shadow-xl bg-surface-lowest shrink-0"
+            />
+            {/* Mobile View CTAs & 3-Dots Menu (Below cover image, middle right side) */}
+            <div className="sm:hidden flex items-center gap-2">
+              {!isMember && currentUser && (
+                isInvited ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={onAcceptInvite}
+                      className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-[11px] rounded-xl shadow-xs"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={onDeclineInvite}
+                      className="px-2.5 py-1.5 bg-surface-container-high text-outline text-[11px] font-bold rounded-xl border border-outline-variant/50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                ) : isPending ? (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Cancel your pending join request for ${community.name}?`)) {
+                        onCancelRequest?.();
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-amber-500/10 text-amber-600 font-bold text-[11px] rounded-xl border border-amber-500/30 flex items-center gap-1"
+                  >
+                    <Clock className="w-3.5 h-3.5" /> Sent (Undo)
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsRulesModalOpen(true)}
+                    className="px-3.5 py-1.5 bg-primary text-white font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Join
+                  </button>
+                )
+              )}
+
+              {/* 3-Dots Dropdown Options Menu */}
+              {isMember && (
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-2 text-outline hover:text-on-surface rounded-xl hover:bg-surface-container-high transition-colors"
+                    title="Community Options"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+
+                  {isMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl py-1.5 z-[100] animate-in fade-in duration-100 opacity-100 space-y-0.5">
+                      <button
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          setIsViewMembersModalOpen(true);
+                        }}
+                        className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
+                      >
+                        <Users className="w-4 h-4 text-outline" /> Members ({community.memberIds?.length || 0})
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          setIsViewRulesModalOpen(true);
+                        }}
+                        className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
+                      >
+                        <ScrollText className="w-4 h-4 text-outline" /> Rules & Guidelines
+                      </button>
+
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              onOpenEditCover();
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low flex items-center gap-2 transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4 text-outline" /> Edit Group
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              if (confirm(`Are you sure you want to permanently delete "${community.name}"? This action cannot be undone.`)) {
+                                onDeleteCommunity();
+                              }
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-600 flex items-center gap-2 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 text-rose-600" /> Delete Group
+                          </button>
+                        </>
+                      )}
+
+                      {isMember && (
+                        <button
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            if (confirm(`Are you sure you want to leave ${community.name}?`)) {
+                              onLeave();
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-600 flex items-center gap-2 transition-colors border-t border-outline-variant/30"
+                        >
+                          <LogOut className="w-4 h-4 text-rose-600" /> Leave Group
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-2xl font-black text-on-surface tracking-tight">{community.name}</h3>
@@ -125,8 +244,8 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
           </div>
         </div>
 
-        {/* Action CTAs & 3-Dots Menu (Leave Group Option) */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Desktop View Action CTAs & 3-Dots Menu */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
           {!isMember && currentUser && (
             isInvited ? (
               <div className="flex items-center gap-1.5">
@@ -168,7 +287,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
 
           {/* 3-Dots Dropdown Options Menu */}
           {isMember && (
-            <div className="relative" ref={menuRef}>
+            <div className="relative">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="p-2 text-outline hover:text-on-surface rounded-xl hover:bg-surface-container-high transition-colors"

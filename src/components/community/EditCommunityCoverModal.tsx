@@ -176,7 +176,7 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
                 className="hidden"
               />
             </div>
-            <img src={avatarImage} alt="Profile Photo Preview" className="w-12 h-12 rounded-2xl object-cover" />
+            <img src={avatarImage} alt="Profile Photo Preview" className="w-12 h-12 rounded-full object-cover" />
           </div>
 
           {/* Community Guidelines & Rules */}
