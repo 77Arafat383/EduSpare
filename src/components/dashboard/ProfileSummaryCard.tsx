@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { User, Award, BookOpen, CheckSquare, ChevronRight, ExternalLink } from 'lucide-react';
+import { Award, BookOpen, CheckSquare, ExternalLink } from 'lucide-react';
 
 export const ProfileSummaryCard: React.FC = () => {
   const { currentUser, tasks, blogs, setActiveTab, setSelectedUsername } = useEduSpare();
@@ -28,7 +28,7 @@ export const ProfileSummaryCard: React.FC = () => {
             <img
               src={currentUser.avatar}
               alt={currentUser.name}
-              className="w-16 h-16 rounded-2xl object-cover ring-4 ring-primary/20 group-hover:scale-105 transition-transform"
+              className="w-16 h-16 rounded-full object-cover ring-4 ring-primary/20 group-hover:scale-105 transition-transform"
             />
             <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">
               ✓
@@ -42,12 +42,20 @@ export const ProfileSummaryCard: React.FC = () => {
               </h2>
               <ExternalLink className="w-4 h-4 text-outline opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <p className="text-xs text-outline font-medium">@{currentUser.username}</p>
-            <p className="text-xs font-semibold text-primary mt-1">{currentUser.university}</p>
+
+            {/* Rank Badge for Mobile View (under profile name) */}
+            <div className="flex sm:hidden items-center gap-1 mt-1 px-2.5 py-0.5 w-fit rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+              <Award className="w-3.5 h-3.5" />
+              <span>{currentUser.rank}</span>
+            </div>
+
+            <p className="text-xs text-outline font-medium mt-1">@{currentUser.username}</p>
+            <p className="text-xs font-semibold text-primary mt-0.5">{currentUser.university}</p>
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+        {/* Rank Badge for Desktop View */}
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
           <Award className="w-4 h-4" />
           <span>{currentUser.rank}</span>
         </div>

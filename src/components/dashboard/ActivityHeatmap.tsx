@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { CheckCircle2, Flame, Calendar } from 'lucide-react';
 
@@ -19,6 +19,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
   const { tasks, blogs, currentUser } = useEduSpare();
   const currentYearNum = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYearNum.toString());
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const userBlogs = useMemo(() => {
     if (!currentUser) return [];
@@ -135,6 +136,9 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
           }
         }
 
+        const todayStr = toLocalDateString(new Date());
+        const isToday = isoKey === todayStr;
+
         days.push({
           dateKey: isoKey,
           date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
@@ -142,6 +146,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
           dayOfWeekName: currentDate.toLocaleDateString('en-US', { weekday: 'short' }),
           count,
           isFuture,
+          isToday,
         });
       }
       weeks.push(days);
@@ -149,6 +154,13 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
 
     return { weeks, totalCount, activeDaysCount, maxPeak, maxStreak };
   }, [selectedYear, completionMap, currentYearNum]);
+
+  // Auto-scroll grid container to current day (most right side) when rendered or year changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    }
+  }, [selectedYear, gridData]);
 
   // White for 0 tasks (empty days), with distinct background contrast
   const getColorClass = (count: number) => {
@@ -178,9 +190,6 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
             <CheckCircle2 className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-bold text-on-surface">Activity Map</h3>
           </div>
-          <p className="text-xs text-outline font-medium">
-            Daily task performance history starting from Sunday up until today.
-          </p>
         </div>
 
         {/* Dynamic Year Dropdown Selector */}
@@ -202,36 +211,13 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
         </div>
       </div>
 
-      {/* Heatmap Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
-          <div className="text-xs text-outline font-semibold">Total Completed</div>
-          <div className="text-xl font-black text-primary mt-0.5">{gridData.totalCount} Tasks</div>
-        </div>
-        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
-          <div className="text-xs text-outline font-semibold">Continuous Streak</div>
-          <div className="text-xl font-black text-amber-600 mt-0.5 flex items-center gap-1">
-            <Flame className="w-5 h-5 fill-amber-500 text-amber-500" />
-            {gridData.maxStreak} Days
-          </div>
-        </div>
-        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
-          <div className="text-xs text-outline font-semibold">Active Days</div>
-          <div className="text-xl font-black text-emerald-600 mt-0.5 flex items-center gap-1">
-            <Calendar className="w-4 h-4 text-emerald-600" />
-            {gridData.activeDaysCount} Days
-          </div>
-        </div>
-        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
-          <div className="text-xs text-outline font-semibold">Max Daily Peak</div>
-          <div className="text-xl font-black text-purple-600 mt-0.5">
-            {gridData.maxPeak} Tasks/Day
-          </div>
-        </div>
-      </div>
+
 
       {/* 52-Week Sunday-Start Grid Area */}
-      <div className="relative overflow-x-auto p-4 bg-surface-container-low/50 rounded-2xl border border-outline-variant/40">
+      <div
+        ref={scrollContainerRef}
+        className="relative overflow-x-auto p-4 bg-surface-container-low/50 rounded-2xl border border-outline-variant/40"
+      >
         <div className="min-w-[720px]">
           {/* Months label bar - Exactly aligned 1-to-1 with week columns */}
           <div className="flex gap-1.5 items-center mb-2">
@@ -285,11 +271,11 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
                       title={
                         cell.isFuture
                           ? undefined
-                          : `${cell.count} task(s) completed on ${cell.dayOfWeekName}, ${cell.date}`
+                          : `${cell.count} task(s) completed on ${cell.dayOfWeekName}, ${cell.date}${cell.isToday ? ' (Today)' : ''}`
                       }
                       className={`w-3.5 h-3.5 rounded-sm transition-all ${cell.isFuture
-                          ? 'opacity-0 pointer-events-none'
-                          : `cursor-pointer shadow-xs ${getColorClass(cell.count)}`
+                        ? 'opacity-0 pointer-events-none'
+                        : `cursor-pointer shadow-xs ${getColorClass(cell.count)}`
                         }`}
                     />
                   ))}
@@ -300,9 +286,37 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
         </div>
       </div>
 
+      {/* Heatmap Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+          <div className="text-xs text-outline font-semibold">Total Completed</div>
+          <div className="text-xl font-black text-primary mt-0.5">{gridData.totalCount} Tasks</div>
+        </div>
+        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+          <div className="text-xs text-outline font-semibold">Continuous Streak</div>
+          <div className="text-xl font-black text-amber-600 mt-0.5 flex items-center gap-1">
+            <Flame className="w-5 h-5 fill-amber-500 text-amber-500" />
+            {gridData.maxStreak} Days
+          </div>
+        </div>
+        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+          <div className="text-xs text-outline font-semibold">Active Days</div>
+          <div className="text-xl font-black text-emerald-600 mt-0.5 flex items-center gap-1">
+            <Calendar className="w-4 h-4 text-emerald-600" />
+            {gridData.activeDaysCount} Days
+          </div>
+        </div>
+        <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+          <div className="text-xs text-outline font-semibold">Max Daily Peak</div>
+          <div className="text-xl font-black text-purple-600 mt-0.5">
+            {gridData.maxPeak} Tasks
+          </div>
+        </div>
+      </div>
+
       {/* Color Scale Legend */}
       <div className="flex items-center justify-end gap-2 text-xs text-outline font-semibold">
-        <span>No activity (White)</span>
+        <span>No activity</span>
         <div className="flex gap-1">
           <div className="w-3.5 h-3.5 rounded-sm bg-white border border-outline-variant/50" />
           <div className="w-3.5 h-3.5 rounded-sm bg-blue-300" />
@@ -312,6 +326,10 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
         </div>
         <span>High completion</span>
       </div>
+
+
+
     </div>
+
   );
 };

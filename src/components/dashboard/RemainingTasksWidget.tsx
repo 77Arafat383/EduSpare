@@ -29,9 +29,6 @@ export const RemainingTasksWidget: React.FC<RemainingTasksWidgetProps> = ({
             <CheckSquare className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-bold text-on-surface">Remaining Tasks</h3>
           </div>
-          <p className="text-xs text-outline font-medium">
-            Prioritized by remaining time & importance rating
-          </p>
         </div>
 
         <button
@@ -77,11 +74,10 @@ export const RemainingTasksWidget: React.FC<RemainingTasksWidgetProps> = ({
                 {/* Priority & Deadline Badges */}
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                   <div
-                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-bold border ${
-                      timeInfo.urgent
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-bold border ${timeInfo.urgent
                         ? 'bg-rose-500/10 text-rose-600 border-rose-500/30 animate-pulse'
                         : 'bg-primary/10 text-primary border-primary/20'
-                    }`}
+                      }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
                     <span>{timeInfo.text}</span>

@@ -22,13 +22,13 @@ export const DashboardView: React.FC = () => {
       {/* Codeforces Activity Heatmap Grid */}
       <ActivityHeatmap username={currentUser.username} />
 
-      {/* Bottom Grid Layout: Remaining Tasks on Left/Center, Top 5 Priority Tasks on Right */}
+      {/* Bottom Grid Layout: Remaining Tasks on Left/Center (desktop), Top 5 Priority Tasks on Right (desktop) & First (mobile) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <RemainingTasksWidget onOpenCreateModal={() => setIsCreateModalOpen(true)} />
-        </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 lg:order-2">
           <TopPriorityTasksWidget />
+        </div>
+        <div className="lg:col-span-2 lg:order-1">
+          <RemainingTasksWidget onOpenCreateModal={() => setIsCreateModalOpen(true)} />
         </div>
       </div>
 

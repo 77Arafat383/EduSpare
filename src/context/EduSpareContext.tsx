@@ -11,6 +11,7 @@ import {
   NotificationItem,
   ActiveTab,
 } from '@/types/eduspare';
+import { getRankFromPoints, POINT_REWARDS } from '@/lib/rankSystem';
 
 interface EduSpareContextType {
   activeTab: ActiveTab;
@@ -297,12 +298,25 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 
     try {
+      const existingTask = tasks.find((t) => t.id === id);
       await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
       await fetchTasks();
+
+      if (updateData.status === 'Completed' && existingTask?.status !== 'Completed') {
+        setCurrentUser((prev) => {
+          if (!prev) return prev;
+          const newPoints = prev.totalPoints + POINT_REWARDS.TASK_COMPLETED;
+          return {
+            ...prev,
+            totalPoints: newPoints,
+            rank: getRankFromPoints(newPoints),
+          };
+        });
+      }
     } catch (err) {
       console.error('Task update error:', err);
     }
@@ -327,15 +341,16 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         body: JSON.stringify({ ...blogData, authorId: currentUser.id }),
       });
       await Promise.all([fetchBlogs(), fetchTasks()]);
-      setCurrentUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              activeStreak: prev.activeStreak + 1,
-              totalPoints: prev.totalPoints + 50,
-            }
-          : prev
-      );
+      setCurrentUser((prev) => {
+        if (!prev) return prev;
+        const newPoints = prev.totalPoints + POINT_REWARDS.BLOG_CREATED;
+        return {
+          ...prev,
+          activeStreak: prev.activeStreak + 1,
+          totalPoints: newPoints,
+          rank: getRankFromPoints(newPoints),
+        };
+      });
     } catch (err) {
       console.error('Create blog error:', err);
     }

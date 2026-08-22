@@ -21,10 +21,10 @@ export const TopPriorityTasksWidget: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Flame className="w-5 h-5 text-amber-500" />
-          <h3 className="text-lg font-bold text-on-surface">Top 5 Urgent Tasks</h3>
+          <h3 className="text-lg font-bold text-on-surface">Urgent Tasks</h3>
         </div>
         <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600">
-          Ranked #1-#5
+          Ranked
         </span>
       </div>
 
@@ -44,13 +44,12 @@ export const TopPriorityTasksWidget: React.FC = () => {
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                      index === 0
-                        ? 'bg-rose-500 text-white shadow-sm'
-                        : index === 1
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${index === 0
+                      ? 'bg-rose-500 text-white shadow-sm'
+                      : index === 1
                         ? 'bg-amber-500 text-white'
                         : 'bg-surface-variant text-on-surface-variant'
-                    }`}
+                      }`}
                   >
                     #{index + 1}
                   </div>

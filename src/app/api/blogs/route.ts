@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateUserStreak } from '@/lib/streak';
+import { getRankFromPoints, POINT_REWARDS } from '@/lib/rankSystem';
 
 export async function GET(request: Request) {
   try {
@@ -97,13 +98,18 @@ export async function POST(request: Request) {
       },
     });
 
-    // Recalculate dynamic active streak and reward points
+    // Recalculate dynamic active streak, reward points, and update rank
     const newStreak = await calculateUserStreak(authorId);
+    const authorUser = await prisma.user.findUnique({ where: { id: authorId } });
+    const updatedPoints = (authorUser?.totalPoints || 0) + POINT_REWARDS.BLOG_CREATED;
+    const updatedRank = getRankFromPoints(updatedPoints);
+
     await prisma.user.update({
       where: { id: authorId },
       data: {
         activeStreak: newStreak,
-        totalPoints: { increment: 50 },
+        totalPoints: updatedPoints,
+        rank: updatedRank,
       },
     });
 
