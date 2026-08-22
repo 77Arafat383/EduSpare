@@ -8,13 +8,12 @@ import {
   MessageSquare,
   Users,
   User,
-  Bookmark,
-  Sparkles,
+  X,
+  Mail,
+  Github,
 } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { ActiveTab } from '@/types/eduspare';
-
-import { X } from 'lucide-react';
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -101,11 +100,56 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     </div>
   );
 
+  const renderCopyright = () => (
+    <div className="pt-3 border-t border-outline-variant/40 text-[11px] text-outline font-medium space-y-2 select-none shrink-0">
+      <div className="flex items-center justify-between text-on-surface font-bold text-xs">
+        <span className="flex items-center gap-0.5">
+          Edu<span className="text-primary">Spare</span>
+        </span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-extrabold">v1.0.0</span>
+      </div>
+
+      <div className="text-[10px] text-outline leading-tight space-y-1">
+        <p>© {new Date().getFullYear()} <span className="font-bold text-on-surface">EduSpare</span>. All rights reserved.</p>
+        <p className="text-outline">
+          Designed & Developed by{' '}
+          <span className="font-extrabold text-on-surface hover:text-primary transition-colors">
+            Md. Yeasin Arafat
+          </span>
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-outline-variant/30 text-[10px]">
+        <a
+          href="mailto:mdyeasinarafat383@gmail.com"
+          className="hover:text-primary transition-colors truncate flex items-center gap-1 font-semibold text-outline"
+          title="mdyeasinarafat383@gmail.com"
+        >
+          <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span className="truncate">Contact</span>
+        </a>
+        <a
+          href="https://github.com/77Arafat383"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-primary transition-colors flex items-center gap-1 font-semibold text-outline shrink-0"
+          title="GitHub: 77Arafat383"
+        >
+          <Github className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span>77Arafat383</span>
+        </a>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Desktop Fixed Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-surface border-r border-outline-variant/50 flex-col shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto z-30 p-4">
-        {renderContent()}
+      <aside className="hidden lg:flex w-64 bg-surface border-r border-outline-variant/50 flex-col shrink-0 sticky top-16 h-[calc(100vh-4rem)] z-30 p-4 justify-between">
+        <div className="flex-1 overflow-y-auto pr-0.5">
+          {renderContent()}
+        </div>
+        {renderCopyright()}
       </aside>
 
       {/* Mobile & Tablet Drawer Menu Slide-over */}
@@ -118,13 +162,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           />
 
           {/* Drawer Sidebar */}
-          <div className="relative w-72 max-w-[80vw] bg-surface-lowest border-r border-outline-variant/60 h-full p-4 flex flex-col space-y-4 shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+          <div className="relative w-72 max-w-[80vw] bg-surface-lowest border-r border-outline-variant/60 h-full p-4 flex flex-col space-y-4 shadow-2xl z-10 animate-in slide-in-from-left duration-200 justify-between">
             <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg overflow-hidden border border-outline-variant/40">
                   <img src="/assets/eduspare_brain_icon.png" alt="EduSpare" className="w-full h-full object-cover" />
                 </div>
-                <span className="font-bold text-base text-on-surface">EduSpare Menu</span>
+                <span className="font-bold text-base text-on-surface tracking-tight">
+                  Edu<span className="text-primary">Spare</span>
+                </span>
               </div>
               <button
                 onClick={onCloseMobile}
@@ -134,9 +180,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pr-0.5">
               {renderContent()}
             </div>
+
+            {renderCopyright()}
           </div>
         </div>
       )}
