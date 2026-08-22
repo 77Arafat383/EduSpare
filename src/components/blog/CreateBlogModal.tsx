@@ -269,8 +269,8 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-2xl bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-[calc(100vw-1.5rem)] sm:w-full max-w-2xl bg-surface-lowest rounded-2xl sm:rounded-3xl shadow-2xl border border-outline-variant/80 p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-outline-variant/40 pb-4">
           <h3 className="text-lg font-bold text-on-surface">{postToEdit ? 'Edit Article' : 'Create New Blog'}</h3>
           <button

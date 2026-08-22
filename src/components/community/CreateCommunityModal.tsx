@@ -81,8 +81,8 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-lg bg-surface-lowest rounded-3xl shadow-2xl border border-outline-variant/80 overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+      <div className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg bg-surface-lowest rounded-2xl sm:rounded-3xl shadow-2xl border border-outline-variant/80 overflow-hidden max-h-[92vh] flex flex-col">
         <div className="bg-surface-container-low border-b border-outline-variant/40 px-6 py-5 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-bold text-on-surface">Create New Study Community</h3>
           <button

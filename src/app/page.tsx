@@ -95,7 +95,7 @@ export default function Home() {
       </div>
 
       {/* Fixed Mobile Bottom Navigation Bar (Visible on Mobile/Tablet < lg) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-outline-variant/60 flex items-center justify-around py-1.5 px-2 shadow-xl backdrop-blur-md bg-opacity-95">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-outline-variant/60 flex items-center justify-around py-1.5 px-0.5 sm:px-2 shadow-xl backdrop-blur-md bg-opacity-95 select-none">
         {bottomNavItems.map((item) => {
           const isActive = activeTab === item.id;
           return (
@@ -107,7 +107,7 @@ export default function Home() {
                 }
                 setActiveTab(item.id);
               }}
-              className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all relative ${
+              className={`flex flex-col items-center justify-center gap-0.5 px-1 sm:px-2 py-1 rounded-xl transition-all relative flex-1 max-w-[65px] ${
                 isActive ? 'text-primary font-bold' : 'text-outline hover:text-on-surface font-medium'
               }`}
             >
@@ -119,7 +119,7 @@ export default function Home() {
                   </span>
                 )}
               </div>
-              <span className="text-[10px] tracking-tight">{item.label}</span>
+              <span className="text-[9px] sm:text-[10px] tracking-tighter truncate max-w-full">{item.label}</span>
               {isActive && <span className="w-1.5 h-1.5 bg-primary rounded-full mt-0.5" />}
             </button>
           );

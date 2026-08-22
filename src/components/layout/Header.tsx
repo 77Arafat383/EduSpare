@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
             {/* Notifications Dropdown Menu (Solid Opaque White Background) */}
             {showNotifDropdown && (
-              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-outline-variant/60 p-4 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-outline-variant/60 p-3.5 sm:p-4 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
                 <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3 mb-2">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-on-surface">Notifications</h3>
@@ -306,7 +306,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
             {/* User Dropdown Menu */}
             {showUserDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-outline-variant/60 p-2 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
+              <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-outline-variant/60 p-2 z-50 animate-in fade-in slide-in-from-top-2 opacity-100">
                 <div className="p-3 border-b border-outline-variant/40">
                   <p className="text-sm font-bold text-on-surface">{currentUser.name}</p>
                   <p className="text-xs text-outline">@{currentUser.username}</p>
