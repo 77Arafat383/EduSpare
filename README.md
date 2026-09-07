@@ -54,7 +54,7 @@
 | **Frontend Framework** | **Next.js 14 (App Router)** | Fast Server Component & Client State routing |
 | **Language** | **TypeScript** | Strict type checking & API contracts |
 | **Styling & Theme** | **Tailwind CSS** | Custom glassmorphism `#FAF8FF`, primary blue `#003EC7`/`#0052FF`, `Inter` font |
-| **Database & ORM** | **Prisma ORM + SQLite** | Relational data model with local `dev.db` storage |
+| **Database & ORM** | **Prisma ORM + PostgreSQL (Supabase)** | Relational data model hosted on Supabase PostgreSQL |
 | **Backend API** | **Next.js Server API Routes** | REST API route handlers (`/api/...`) |
 | **Icons & UI** | **Lucide React** | Sleek iconography |
 | **State Management** | **React Context (`EduSpareContext`)** | Client state sync with server API endpoints |
@@ -95,7 +95,7 @@ npm install
 ```
 
 ### 3. Database Initialization & Seeding
-Sync SQLite database schema and populate with rich test data:
+Sync PostgreSQL database schema and populate with rich test data:
 ```bash
 npx prisma@5 db push
 npx tsx scripts/seed.ts
