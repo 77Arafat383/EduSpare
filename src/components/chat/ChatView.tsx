@@ -120,16 +120,18 @@ export const ChatView: React.FC = () => {
     }
   }, [filteredContacts, activeChatUser, setActiveChatUser]);
 
-  // Periodically poll messages for active chat when tab is visible
+  // Periodically poll messages for active chat
   useEffect(() => {
     if (activeChatUser) {
       userScrolledUpRef.current = false;
       fetchMessages(activeChatUser.id);
 
+      // Poll the open thread only while the tab is visible (responses are ETag'd,
+      // so an unchanged thread costs a body-less 304).
       const interval = setInterval(() => {
-        if (typeof document !== 'undefined' && document.hidden) return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         fetchMessages(activeChatUser.id);
-      }, 6000);
+      }, 4000);
       return () => clearInterval(interval);
     }
   }, [activeChatUser]);

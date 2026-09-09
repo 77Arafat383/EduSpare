@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
 
     const blocks = await prisma.userBlock.findMany({
       where: { blockerId: userId },
-      include: { blocked: true },
+      include: { blocked: { select: authorSelect } },
     });
 
     return NextResponse.json({ blocks: blocks.map((b) => b.blocked) });

@@ -1,18 +1,51 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { calculateUserStreak } from '@/lib/streak';
-import { getRankFromPoints, POINT_REWARDS } from '@/lib/rankSystem';
+import { calculateUserStreak, calculateStreaksForUsers } from '@/lib/streak';
+import { getRankFromPoints } from '@/lib/rankSystem';
+import { jsonWithEtag, publicUserSelect } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+// Streak/rank recomputation is expensive (scans tasks + blogs); throttle it so the
+// frequently polled presence list stays a single cheap SELECT most of the time.
+const STREAK_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const globalForAuth = globalThis as unknown as { __eduspareLastStreakRefresh?: number };
+
+export async function GET(request: Request) {
   try {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'asc' },
+      select: publicUserSelect,
     });
 
-    return NextResponse.json({ allUsers: users });
+    const now = Date.now();
+    const shouldRefresh = now - (globalForAuth.__eduspareLastStreakRefresh ?? 0) > STREAK_REFRESH_INTERVAL_MS;
+
+    let result = users;
+    if (shouldRefresh) {
+      globalForAuth.__eduspareLastStreakRefresh = now;
+      const streaks = await calculateStreaksForUsers(users.map((u) => u.id));
+      const updates: Promise<unknown>[] = [];
+      result = users.map((user) => {
+        const streak = streaks.get(user.id) ?? user.activeStreak;
+        const calculatedRank = getRankFromPoints(user.totalPoints);
+        if (streak !== user.activeStreak || calculatedRank !== user.rank) {
+          updates.push(
+            prisma.user.update({
+              where: { id: user.id },
+              data: { activeStreak: streak, rank: calculatedRank },
+            })
+          );
+        }
+        return { ...user, activeStreak: streak, rank: calculatedRank };
+      });
+      if (updates.length) await prisma.$transaction(updates as any);
+    } else {
+      result = users.map((user) => ({ ...user, rank: getRankFromPoints(user.totalPoints) }));
+    }
+
+    return jsonWithEtag(request, { allUsers: result });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch user profiles' }, { status: 500 });
   }
@@ -40,6 +73,7 @@ export async function POST(request: Request) {
       const initialPoints = 100;
 
       const newUser = await prisma.user.create({
+        select: publicUserSelect,
         data: {
           username,
           name,
@@ -73,6 +107,7 @@ export async function POST(request: Request) {
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { lastActiveAt: new Date(), activeStreak: streak },
+        select: publicUserSelect,
       });
 
       return NextResponse.json({ user: updatedUser });

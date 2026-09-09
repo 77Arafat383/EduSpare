@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 
 export async function GET(request: Request) {
   try {
@@ -12,8 +13,9 @@ export async function GET(request: Request) {
 
     const lowerQuery = query.toLowerCase();
 
-    // 1. Search Users by username or name
-    const users = await prisma.user.findMany({
+    // Run all searches in parallel
+    const [users, blogs, tasks, communities] = await Promise.all([
+    prisma.user.findMany({
       where: {
         OR: [
           { username: { contains: lowerQuery } },
@@ -22,10 +24,9 @@ export async function GET(request: Request) {
         ],
       },
       take: 4,
-    });
-
-    // 2. Search Blogs by title, tags, or content
-    const blogs = await prisma.blog.findMany({
+      select: { ...authorSelect, university: true },
+    }),
+    prisma.blog.findMany({
       where: {
         OR: [
           { title: { contains: lowerQuery } },
@@ -33,12 +34,10 @@ export async function GET(request: Request) {
           { content: { contains: lowerQuery } },
         ],
       },
-      include: { author: true },
+      select: { id: true, title: true, tags: true, content: true, coverImage: true, createdAt: true, author: { select: authorSelect } },
       take: 4,
-    });
-
-    // 3. Search Tasks by title or category
-    const tasks = await prisma.task.findMany({
+    }),
+    prisma.task.findMany({
       where: {
         OR: [
           { title: { contains: lowerQuery } },
@@ -46,10 +45,8 @@ export async function GET(request: Request) {
         ],
       },
       take: 3,
-    });
-
-    // 4. Search Communities
-    const communities = await prisma.community.findMany({
+    }),
+    prisma.community.findMany({
       where: {
         OR: [
           { name: { contains: lowerQuery } },
@@ -58,7 +55,8 @@ export async function GET(request: Request) {
         ],
       },
       take: 3,
-    });
+    }),
+    ]);
 
     const recommendations = [
       ...users.map((u) => ({

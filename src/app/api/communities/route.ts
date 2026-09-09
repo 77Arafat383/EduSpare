@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseCommunityMeta, encodeCommunityMeta } from '@/lib/communityHelpers';
+import { jsonWithEtag } from '@/lib/apiResponse';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: Request) {
   try {
     const communities = await prisma.community.findMany({
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({
+    return jsonWithEtag(request, {
       communities: communities.map((c) => parseCommunityMeta(c)),
     });
   } catch (error) {

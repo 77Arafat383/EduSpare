@@ -64,8 +64,8 @@ model Task {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([userId])
   @@index([userId, status])
+  @@index([userId, dueAt])
 }
 
 model Blog {
@@ -85,8 +85,9 @@ model Blog {
   comments    Comment[]
   reactions   Reaction[]
 
-  @@index([authorId])
-  @@index([communityId])
+  @@index([authorId, createdAt])
+  @@index([communityId, createdAt])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -103,8 +104,8 @@ model Comment {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
-  @@index([blogId])
-  @@index([authorId])
+  @@index([blogId, createdAt])
+  @@index([parentId])
 }
 
 model CommentReaction {
@@ -142,7 +143,8 @@ model SavedItem {
   meta      String?  // JSON additional meta
   createdAt DateTime @default(now())
 
-  @@index([userId])
+  @@index([userId, itemType])
+  @@index([userId, createdAt])
 }
 
 model Message {
@@ -156,8 +158,9 @@ model Message {
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  @@index([senderId, receiverId])
-  @@index([receiverId])
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, senderId, isSeen])
+  @@index([receiverId, createdAt])
 }
 
 model UserBlock {
@@ -181,6 +184,8 @@ model Community {
   memberIds   String   @default("[]") // JSON array of user IDs
   createdById String
   createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Notification {
@@ -197,5 +202,6 @@ model Notification {
   user  User @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
   actor User @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
 }

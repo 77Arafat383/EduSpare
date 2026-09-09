@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 import { createNotification, notifyMentions } from '@/lib/notifications';
 
 export async function POST(
@@ -22,30 +23,33 @@ export async function POST(
         parentId: parentId || null,
       },
       include: {
-        author: true,
-        blog: true,
+        author: { select: authorSelect },
+        blog: { select: { id: true, authorId: true, title: true } },
       },
     });
 
     // Notify @mentions in comment text
-    await notifyMentions({ content, actorId: authorId, linkId: params.id });
+    const sideEffects: Promise<unknown>[] = [notifyMentions({ content, actorId: authorId, linkId: params.id })];
 
     // Notify blog post author if comment is from another user
     if (comment.blog && comment.blog.authorId !== authorId) {
-      await createNotification({
+      sideEffects.push(createNotification({
         userId: comment.blog.authorId,
         actorId: authorId,
         type: 'comment',
         title: `@${comment.author.username} commented on "${comment.blog.title}"`,
         content: content.slice(0, 100),
         linkId: params.id,
-      });
+      }));
     }
+    await Promise.all(sideEffects);
 
+    const { blog: _blog, ...commentData } = comment;
     return NextResponse.json({
       comment: {
-        ...comment,
+        ...commentData,
         createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString(),
       },
     });
   } catch (error) {

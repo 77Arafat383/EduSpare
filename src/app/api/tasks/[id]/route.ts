@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 import { calculateUserStreak } from '@/lib/streak';
 import { getRankFromPoints, POINT_REWARDS } from '@/lib/rankSystem';
 
@@ -55,14 +56,16 @@ export async function PUT(
     const updatedTask = await prisma.task.update({
       where: { id: params.id },
       data: updateData,
-      include: { user: true },
+      include: { user: { select: authorSelect } },
     });
 
     if (updatedTask.userId) {
-      const newStreak = await calculateUserStreak(updatedTask.userId);
+      const [newStreak, user] = await Promise.all([
+        calculateUserStreak(updatedTask.userId),
+        prisma.user.findUnique({ where: { id: updatedTask.userId }, select: { totalPoints: true } }),
+      ]);
       const isNewlyCompleted = status === 'Completed' && existingTask?.status !== 'Completed';
 
-      const user = await prisma.user.findUnique({ where: { id: updatedTask.userId } });
       let newPoints = user?.totalPoints || 0;
       if (isNewlyCompleted) {
         newPoints += POINT_REWARDS.TASK_COMPLETED;

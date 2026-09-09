@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateUserStreak } from '@/lib/streak';
 import { getRankFromPoints, POINT_REWARDS } from '@/lib/rankSystem';
+import { jsonWithEtag, authorSelect } from '@/lib/apiResponse';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
@@ -9,34 +12,36 @@ export async function GET(request: Request) {
     const userId = searchParams.get('userId');
     const communityId = searchParams.get('communityId');
 
-    const blogs = await prisma.blog.findMany({
-      where: communityId ? { communityId } : undefined,
-      include: {
-        author: true,
-        comments: {
-          include: {
-            author: true,
-            reactions: true,
+    const [blogs, savedItems] = await Promise.all([
+      prisma.blog.findMany({
+        where: communityId ? { communityId } : undefined,
+        include: {
+          author: { select: authorSelect },
+          comments: {
+            include: {
+              author: { select: authorSelect },
+              reactions: { select: { id: true, commentId: true, userId: true, type: true } },
+            },
+            orderBy: { createdAt: 'asc' },
           },
-          orderBy: { createdAt: 'asc' },
+          reactions: { select: { id: true, blogId: true, userId: true, type: true } },
         },
-        reactions: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      userId
+        ? prisma.savedItem.findMany({
+            where: { userId, itemType: 'blog' },
+            select: { itemId: true },
+          })
+        : Promise.resolve([] as { itemId: string | null }[]),
+    ]);
 
     // Check saved items for user if userId passed
-    let savedBlogIds: string[] = [];
-    if (userId) {
-      const savedItems = await prisma.savedItem.findMany({
-        where: { userId, itemType: 'blog' },
-      });
-      savedBlogIds = savedItems.map((s) => s.itemId).filter(Boolean) as string[];
-    }
+    const savedBlogIds = new Set(savedItems.map((s) => s.itemId).filter(Boolean) as string[]);
 
     const formattedBlogs = blogs.map((blog) => {
       const isLikedByMe = userId ? blog.reactions.some((r) => r.userId === userId) : false;
-      const isSavedByMe = savedBlogIds.includes(blog.id);
+      const isSavedByMe = savedBlogIds.has(blog.id);
 
       const allComments = (blog.comments || []).map((c) => ({
         ...c,
@@ -46,11 +51,16 @@ export async function GET(request: Request) {
         isLikedByMe: userId && c.reactions ? c.reactions.some((r) => r.userId === userId) : false,
       }));
 
-      const topLevelComments = allComments.filter((c) => !c.parentId);
-      const formattedComments = topLevelComments.map((parent) => ({
-        ...parent,
-        replies: allComments.filter((c) => c.parentId === parent.id),
-      }));
+      const repliesByParent = new Map<string, typeof allComments>();
+      allComments.forEach((c) => {
+        if (!c.parentId) return;
+        const list = repliesByParent.get(c.parentId) ?? [];
+        list.push(c);
+        repliesByParent.set(c.parentId, list);
+      });
+      const formattedComments = allComments
+        .filter((c) => !c.parentId)
+        .map((parent) => ({ ...parent, replies: repliesByParent.get(parent.id) ?? [] }));
 
       return {
         ...blog,
@@ -65,7 +75,7 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ blogs: formattedBlogs });
+    return jsonWithEtag(request, { blogs: formattedBlogs });
   } catch (error) {
     console.error('Fetch blogs error:', error);
     return NextResponse.json({ error: 'Failed to fetch blogs' }, { status: 500 });
@@ -92,28 +102,26 @@ export async function POST(request: Request) {
         communityId: communityId || null,
       },
       include: {
-        author: true,
-        comments: { include: { author: true, reactions: true } },
-        reactions: true,
+        author: { select: authorSelect },
       },
     });
 
-    // Recalculate dynamic active streak and update user points in parallel
-    Promise.all([
+    // Recalculate dynamic active streak, reward points, and update rank
+    const [newStreak, authorUser] = await Promise.all([
       calculateUserStreak(authorId),
-      prisma.user.findUnique({ where: { id: authorId } }),
-    ]).then(([newStreak, authorUser]) => {
-      const updatedPoints = (authorUser?.totalPoints || 0) + POINT_REWARDS.BLOG_CREATED;
-      const updatedRank = getRankFromPoints(updatedPoints);
-      return prisma.user.update({
-        where: { id: authorId },
-        data: {
-          activeStreak: newStreak,
-          totalPoints: updatedPoints,
-          rank: updatedRank,
-        },
-      });
-    }).catch((e) => console.error('Background blog point update error:', e));
+      prisma.user.findUnique({ where: { id: authorId }, select: { totalPoints: true } }),
+    ]);
+    const updatedPoints = (authorUser?.totalPoints || 0) + POINT_REWARDS.BLOG_CREATED;
+    const updatedRank = getRankFromPoints(updatedPoints);
+
+    await prisma.user.update({
+      where: { id: authorId },
+      data: {
+        activeStreak: newStreak,
+        totalPoints: updatedPoints,
+        rank: updatedRank,
+      },
+    });
 
     return NextResponse.json({
       blog: {

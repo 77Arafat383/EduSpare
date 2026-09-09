@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 
 export async function PUT(
   request: Request,
@@ -19,8 +20,8 @@ export async function PUT(
         tags: typeof tags === 'string' ? tags : JSON.stringify(tags || []),
       },
       include: {
-        author: true,
-        comments: { include: { author: true } },
+        author: { select: authorSelect },
+        comments: { include: { author: { select: authorSelect } } },
         reactions: true,
       },
     });

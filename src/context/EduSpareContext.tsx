@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   User,
   TaskItem,
@@ -93,6 +93,18 @@ interface EduSpareContextType {
 
 const EduSpareContext = createContext<EduSpareContextType | undefined>(undefined);
 
+/** Cheap structural check so polling doesn't trigger re-renders when nothing changed. */
+function isSameMessageList(a: MessageItem[], b: MessageItem[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id || x.content !== y.content || x.isSeen !== y.isSeen) return false;
+  }
+  return true;
+}
+
 export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -114,6 +126,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const seenTimestampsRef = useRef<Record<string, number>>({});
 
   const handleSetCurrentUser = (user: User | null) => {
     setCurrentUser(user);
@@ -213,7 +226,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`/api/auth?t=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch('/api/auth');
       const data = await res.json();
       if (data.allUsers) {
         setAllUsers(data.allUsers);
@@ -223,61 +236,85 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  useEffect(() => {
-    if (currentUser) {
-      // Execute initial data fetches concurrently in parallel
-      Promise.all([
-        fetchTasks(),
-        fetchBlogs(),
-        fetchCommunities(),
-        fetchSavedItems(),
-      ]).catch((err) => console.error('Initial parallel fetch error:', err));
-
-      // Initial heartbeat
-      fetch('/api/auth/heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id }),
-      }).catch(() => { });
-
-      // Smart polling intervals (only execute when tab is visible)
-      const heartbeatInterval = setInterval(() => {
-        if (typeof document !== 'undefined' && document.hidden) return;
-        fetch('/api/auth/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id }),
-        }).catch(() => { });
-      }, 30000);
-
-      const usersInterval = setInterval(() => {
-        if (typeof document !== 'undefined' && document.hidden) return;
-        fetchUsers();
-      }, 30000);
-
-      // Poll tasks every 15 seconds when active
-      const taskInterval = setInterval(() => {
-        if (typeof document !== 'undefined' && document.hidden) return;
-        fetchTasks();
-      }, 15000);
-
-      const handleVisibilityChange = () => {
-        if (!document.hidden && currentUser) {
-          fetchTasks();
-          fetchUsers();
+  /**
+   * Single combined poll: presence list + heartbeat + tasks + notifications +
+   * conversation list in ONE request (instead of 5 separate polling loops).
+   * The endpoint is ETag'd, so unchanged data costs a body-less 304.
+   */
+  const syncInFlightRef = useRef(false);
+  const applyConversations = useCallback(
+    (convs: Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }>) => {
+      const updatedConvs = { ...convs };
+      Object.keys(updatedConvs).forEach((contactId) => {
+        const openedTime = seenTimestampsRef.current[contactId];
+        if (openedTime) {
+          const msgTime = new Date(updatedConvs[contactId].lastMessageAt).getTime();
+          if (msgTime <= openedTime + 5000) {
+            updatedConvs[contactId] = { ...updatedConvs[contactId], unseenCount: 0 };
+          }
         }
-      };
+      });
+      setRecentConversations(updatedConvs);
+    },
+    []
+  );
 
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      return () => {
-        clearInterval(heartbeatInterval);
-        clearInterval(usersInterval);
-        clearInterval(taskInterval);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
+  const sync = useCallback(async () => {
+    if (!currentUser || syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    try {
+      const res = await fetch(`/api/sync?userId=${currentUser.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.allUsers) setAllUsers(data.allUsers);
+      if (data.tasks) setTasks(data.tasks);
+      if (data.notifications) setNotifications(data.notifications);
+      if (data.recentConversations) applyConversations(data.recentConversations);
+    } catch (err) {
+      console.error('Sync error:', err);
+    } finally {
+      syncInFlightRef.current = false;
     }
-  }, [currentUser]);
+  }, [currentUser, applyConversations]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Initial load (one-off data that is refreshed after mutations, not polled)
+    fetchBlogs();
+    fetchCommunities();
+    fetchSavedItems();
+    sync();
+
+    // Poll only while the tab is visible; back off to a slow poll when hidden.
+    const ACTIVE_INTERVAL = 8000;
+    const HIDDEN_INTERVAL = 60000;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      timer = setTimeout(async () => {
+        await sync();
+        schedule();
+      }, hidden ? HIDDEN_INTERVAL : ACTIVE_INTERVAL);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        sync();
+      }
+      schedule();
+    };
+
+    schedule();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [currentUser, sync]);
 
   // Task Actions
   const createTask = async (taskData: Partial<TaskItem>): Promise<TaskItem | null> => {
@@ -290,7 +327,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
       const data = await res.json();
       if (data.task) {
-        setTasks((prev) => [data.task, ...prev]);
+        // Insert immediately from the API response; no full refetch needed.
+        setTasks((prev) => [data.task, ...prev.filter((t) => t.id !== data.task.id)]);
         return data.task;
       }
       return null;
@@ -316,12 +354,17 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       const existingTask = tasks.find((t) => t.id === id);
-      await fetch(`/api/tasks/${id}`, {
+      const res = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
-      await fetchTasks();
+      const data = await res.json().catch(() => null);
+      if (data?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data.task } : t)));
+      } else {
+        fetchTasks();
+      }
 
       if (updateData.status === 'Completed' && existingTask?.status !== 'Completed') {
         setCurrentUser((prev) => {
@@ -340,11 +383,14 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const deleteTask = async (id: string) => {
+    const snapshot = tasks;
+    setTasks((prev) => prev.filter((t) => t.id !== id));
     try {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      await fetchTasks();
+      const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      if (!res.ok) setTasks(snapshot);
     } catch (err) {
       console.error('Task deletion error:', err);
+      setTasks(snapshot);
     }
   };
 
@@ -357,9 +403,11 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...blogData, authorId: currentUser.id }),
       });
-      const data = await res.json();
-      if (data.blog) {
+      const data = await res.json().catch(() => null);
+      if (data?.blog) {
         setBlogs((prev) => [data.blog, ...prev]);
+      } else {
+        fetchBlogs();
       }
       setCurrentUser((prev) => {
         if (!prev) return prev;
@@ -377,49 +425,69 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateBlog = async (id: string, data: Partial<BlogPost>) => {
+    setBlogs((prev) => prev.map((b) => (b.id === id ? { ...b, ...data } : b)));
     try {
-      await fetch(`/api/blogs/${id}`, {
+      const res = await fetch(`/api/blogs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Update blog error:', err);
+      fetchBlogs();
     }
   };
 
   const deleteBlog = async (id: string) => {
+    const snapshot = blogs;
+    setBlogs((prev) => prev.filter((b) => b.id !== id));
     try {
-      await fetch(`/api/blogs/${id}`, { method: 'DELETE' });
-      await fetchBlogs();
+      const res = await fetch(`/api/blogs/${id}`, { method: 'DELETE' });
+      if (!res.ok) setBlogs(snapshot);
     } catch (err) {
       console.error('Delete blog error:', err);
+      setBlogs(snapshot);
     }
   };
 
   const toggleLikeBlog = async (blogId: string) => {
     if (!currentUser) return;
+    const me = currentUser.id;
+    // Optimistic toggle so the heart responds instantly.
+    setBlogs((prev) =>
+      prev.map((b) => {
+        if (b.id !== blogId) return b;
+        const liked = !!b.isLikedByMe;
+        const reactions = liked
+          ? (b.reactions || []).filter((r) => r.userId !== me)
+          : [...(b.reactions || []), { id: `tmp-${Date.now()}`, blogId, userId: me, type: 'like' }];
+        return { ...b, isLikedByMe: !liked, reactions, likesCount: reactions.length };
+      })
+    );
     try {
-      await fetch(`/api/blogs/${blogId}/reactions`, {
+      const res = await fetch(`/api/blogs/${blogId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, type: 'like' }),
+        body: JSON.stringify({ userId: me, type: 'like' }),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Reaction error:', err);
+      fetchBlogs();
     }
   };
 
   const incrementShareCount = async (blogId: string, count: number = 1) => {
+    setBlogs((prev) =>
+      prev.map((b) => (b.id === blogId ? { ...b, sharesCount: (b.sharesCount || 0) + count } : b))
+    );
     try {
       await fetch(`/api/blogs/${blogId}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ count }),
       });
-      await fetchBlogs();
     } catch (err) {
       console.error('Increment share count error:', err);
     }
@@ -428,12 +496,37 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addComment = async (blogId: string, content: string, parentId?: string) => {
     if (!currentUser) return;
     try {
-      await fetch(`/api/blogs/${blogId}/comments`, {
+      const res = await fetch(`/api/blogs/${blogId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorId: currentUser.id, content, parentId }),
       });
-      await fetchBlogs();
+      const data = await res.json().catch(() => null);
+      if (data?.comment) {
+        const newComment = {
+          ...data.comment,
+          replies: [],
+          reactions: [],
+          likesCount: 0,
+          isLikedByMe: false,
+        };
+        setBlogs((prev) =>
+          prev.map((b) => {
+            if (b.id !== blogId) return b;
+            if (parentId) {
+              return {
+                ...b,
+                comments: b.comments.map((c) =>
+                  c.id === parentId ? { ...c, replies: [...(c.replies || []), newComment] } : c
+                ),
+              };
+            }
+            return { ...b, comments: [...b.comments, newComment] };
+          })
+        );
+      } else {
+        fetchBlogs();
+      }
     } catch (err) {
       console.error('Add comment error:', err);
     }
@@ -441,41 +534,86 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const toggleLikeComment = async (blogId: string, commentId: string) => {
     if (!currentUser) return;
+    const me = currentUser.id;
+    const toggle = (c: any) => {
+      if (c.id !== commentId) return c;
+      const liked = !!c.isLikedByMe;
+      const reactions = liked
+        ? (c.reactions || []).filter((r: any) => r.userId !== me)
+        : [...(c.reactions || []), { id: `tmp-${Date.now()}`, commentId, userId: me, type: 'like' }];
+      return { ...c, isLikedByMe: !liked, reactions, likesCount: reactions.length };
+    };
+    setBlogs((prev) =>
+      prev.map((b) =>
+        b.id !== blogId
+          ? b
+          : {
+              ...b,
+              comments: b.comments.map((c) => ({
+                ...toggle(c),
+                replies: (c.replies || []).map(toggle),
+              })),
+            }
+      )
+    );
     try {
-      await fetch(`/api/comments/${commentId}/reactions`, {
+      const res = await fetch(`/api/comments/${commentId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, type: 'like' }),
+        body: JSON.stringify({ userId: me, type: 'like' }),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Comment reaction error:', err);
+      fetchBlogs();
     }
   };
 
   const updateComment = async (blogId: string, commentId: string, content: string) => {
     if (!currentUser) return;
+    const patch = (c: any) => (c.id === commentId ? { ...c, content } : c);
+    setBlogs((prev) =>
+      prev.map((b) =>
+        b.id !== blogId
+          ? b
+          : { ...b, comments: b.comments.map((c) => ({ ...patch(c), replies: (c.replies || []).map(patch) })) }
+      )
+    );
     try {
-      await fetch(`/api/blogs/${blogId}/comments/${commentId}`, {
+      const res = await fetch(`/api/blogs/${blogId}/comments/${commentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorId: currentUser.id, content }),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Update comment error:', err);
+      fetchBlogs();
     }
   };
 
   const deleteComment = async (blogId: string, commentId: string) => {
     if (!currentUser) return;
+    setBlogs((prev) =>
+      prev.map((b) =>
+        b.id !== blogId
+          ? b
+          : {
+              ...b,
+              comments: b.comments
+                .filter((c) => c.id !== commentId)
+                .map((c) => ({ ...c, replies: (c.replies || []).filter((r) => r.id !== commentId) })),
+            }
+      )
+    );
     try {
-      await fetch(`/api/blogs/${blogId}/comments/${commentId}?userId=${currentUser.id}`, {
+      const res = await fetch(`/api/blogs/${blogId}/comments/${commentId}?userId=${currentUser.id}`, {
         method: 'DELETE',
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Delete comment error:', err);
+      fetchBlogs();
     }
   };
 
@@ -490,7 +628,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...item,
         }),
       });
-      await fetchSavedItems();
+      // Flip the bookmark flag locally; refresh the vault list in the background.
+      if (item.itemId) {
+        setBlogs((prev) =>
+          prev.map((b) => (b.id === item.itemId ? { ...b, isSavedByMe: !b.isSavedByMe } : b))
+        );
+      }
+      fetchSavedItems();
     } catch (err) {
       console.error('Save item error:', err);
     }
@@ -499,35 +643,21 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteSavedItem = async (id: string) => {
     setSavedItems((prev) => prev.filter((item) => item.id !== id));
     try {
-      await fetch(`/api/saved?id=${id}`, { method: 'DELETE' });
-      await fetchSavedItems();
+      const res = await fetch(`/api/saved?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) fetchSavedItems();
     } catch (err) {
       console.error('Delete saved item error:', err);
     }
   };
 
-  const seenTimestampsRef = useRef<Record<string, number>>({});
-
   // Chat Actions
   const fetchConversations = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`/api/chat?userId=${currentUser.id}&t=${Date.now()}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`/api/chat?userId=${currentUser.id}`);
       const data = await res.json();
       if (data.recentConversations) {
-        const updatedConvs = { ...data.recentConversations };
-        Object.keys(updatedConvs).forEach((contactId) => {
-          const openedTime = seenTimestampsRef.current[contactId];
-          if (openedTime) {
-            const msgTime = new Date(updatedConvs[contactId].lastMessageAt).getTime();
-            if (msgTime <= openedTime + 5000) {
-              updatedConvs[contactId].unseenCount = 0;
-            }
-          }
-        });
-        setRecentConversations(updatedConvs);
+        applyConversations(data.recentConversations);
       }
     } catch (err) {
       console.error('Fetch conversations error:', err);
@@ -538,20 +668,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!currentUser) return;
     seenTimestampsRef.current[targetUserId] = Date.now();
     try {
-      const res = await fetch(`/api/chat?userId=${currentUser.id}&targetUserId=${targetUserId}&t=${Date.now()}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`/api/chat?userId=${currentUser.id}&targetUserId=${targetUserId}`);
       const data = await res.json();
       if (data.messages) {
-        setMessages(data.messages);
+        // Skip the state update (and re-render) when the thread hasn't changed.
+        setMessages((prev) => (isSameMessageList(prev, data.messages) ? prev : data.messages));
         setIsChatBlocked(data.isBlocked);
-        setRecentConversations((prev) => ({
-          ...prev,
-          [targetUserId]: prev[targetUserId]
-            ? { ...prev[targetUserId], unseenCount: 0 }
-            : prev[targetUserId],
-        }));
-        await fetchConversations();
+        setRecentConversations((prev) => {
+          const existing = prev[targetUserId];
+          if (!existing || existing.unseenCount === 0) return prev;
+          return { ...prev, [targetUserId]: { ...existing, unseenCount: 0 } };
+        });
+        // Conversation list is refreshed by the combined /api/sync poll,
+        // so no extra request is needed here.
       }
     } catch (err) {
       console.error('Fetch messages error:', err);
@@ -560,8 +689,31 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const sendMessage = async (receiverId: string, content: string) => {
     if (!currentUser) return;
+    const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const now = new Date().toISOString();
+    const optimistic: MessageItem = {
+      id: tempId,
+      senderId: currentUser.id,
+      receiverId,
+      sender: currentUser,
+      content,
+      isSeen: false,
+      createdAt: now,
+    };
+    const isActiveThread = activeChatUser?.id === receiverId;
+    // Show the message instantly in the open thread and bump the conversation list.
+    if (isActiveThread) setMessages((prev) => [...prev, optimistic]);
+    setRecentConversations((prev) => ({
+      ...prev,
+      [receiverId]: {
+        lastMessageAt: now,
+        lastMessageSnippet: content.length > 120 ? content.slice(0, 120) : content,
+        isMeSender: true,
+        unseenCount: 0,
+      },
+    }));
     try {
-      await fetch('/api/chat', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -570,35 +722,51 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           content,
         }),
       });
-      await fetchMessages(receiverId);
+      const data = await res.json().catch(() => null);
+      if (isActiveThread) {
+        if (data?.message) {
+          setMessages((prev) => prev.map((m) => (m.id === tempId ? data.message : m)));
+        } else {
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        }
+      }
+      if (!data?.message && data?.error) {
+        console.error('Send message error:', data.error);
+      }
     } catch (err) {
       console.error('Send message error:', err);
+      if (isActiveThread) setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
   };
 
   const editMessage = async (messageId: string, content: string, targetUserId: string) => {
     if (!currentUser) return;
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content } : m)));
     try {
-      await fetch('/api/chat', {
+      const res = await fetch('/api/chat', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, userId: currentUser.id, content }),
       });
-      await fetchMessages(targetUserId);
+      if (!res.ok) fetchMessages(targetUserId);
     } catch (err) {
       console.error('Edit message error:', err);
+      fetchMessages(targetUserId);
     }
   };
 
   const deleteMessage = async (messageId: string, targetUserId: string) => {
     if (!currentUser) return;
+    const snapshot = messages;
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
     try {
-      await fetch(`/api/chat?messageId=${messageId}&userId=${currentUser.id}`, {
+      const res = await fetch(`/api/chat?messageId=${messageId}&userId=${currentUser.id}`, {
         method: 'DELETE',
       });
-      await fetchMessages(targetUserId);
+      if (!res.ok) setMessages(snapshot);
     } catch (err) {
       console.error('Delete message error:', err);
+      setMessages(snapshot);
     }
   };
 
@@ -626,6 +794,16 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Communities Actions
+  /** Apply a mutated community from the API response; fall back to a full refetch. */
+  const applyCommunityResponse = async (res: Response) => {
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.community) {
+      setCommunities((prev) => prev.map((c) => (c.id === data.community.id ? data.community : c)));
+    } else {
+      await fetchCommunities();
+    }
+  };
+
   const createCommunity = async (commData: any) => {
     if (!currentUser) return;
     try {
@@ -637,9 +815,11 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...commData,
         }),
       });
-      const data = await res.json();
-      if (data.community) {
+      const data = await res.json().catch(() => null);
+      if (data?.community) {
         setCommunities((prev) => [data.community, ...prev]);
+      } else {
+        await fetchCommunities();
       }
     } catch (err) {
       console.error('Create community error:', err);
@@ -652,85 +832,36 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const res = await fetch(`/api/communities/${communityId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ action, userId: currentUser.id }),
       });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Join/Leave community error:', err);
     }
   };
 
-  const requestToJoinCommunity = async (communityId: string) => {
+  const communityRequestAction = async (communityId: string, payload: Record<string, unknown>, label: string) => {
     if (!currentUser) return;
     try {
       const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'request-join',
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ userId: currentUser.id, ...payload }),
       });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
+      await applyCommunityResponse(res);
     } catch (err) {
-      console.error('Request join community error:', err);
+      console.error(`${label} error:`, err);
     }
   };
 
-  const cancelRequestToJoinCommunity = async (communityId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch(`/api/communities/${communityId}/requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cancel-request',
-          userId: currentUser.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
-    } catch (err) {
-      console.error('Cancel join request error:', err);
-    }
-  };
+  const requestToJoinCommunity = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'request-join' }, 'Request join community');
 
-  const handleMembershipRequest = async (
-    communityId: string,
-    applicantId: string,
-    decision: 'approve' | 'reject'
-  ) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch(`/api/communities/${communityId}/requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'handle-request',
-          applicantId,
-          decision,
-          userId: currentUser.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
-    } catch (err) {
-      console.error('Handle membership request error:', err);
-    }
-  };
+  const cancelRequestToJoinCommunity = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'cancel-request' }, 'Cancel request join community');
+
+  const handleMembershipRequest = (communityId: string, applicantId: string, decision: 'approve' | 'reject') =>
+    communityRequestAction(communityId, { action: 'handle-request', applicantId, decision }, 'Handle membership request');
 
   const updateCommunityDetails = async (communityId: string, data: any) => {
     if (!currentUser) return;
@@ -738,15 +869,9 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const res = await fetch(`/api/communities/${communityId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          ...data,
-        }),
+        body: JSON.stringify({ userId: currentUser.id, ...data }),
       });
-      const dataRes = await res.json();
-      if (dataRes.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? dataRes.community : c)));
-      }
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Update community details error:', err);
     }
@@ -760,7 +885,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isApproved: true }),
       });
-      await fetchBlogs();
+      setBlogs((prev) => prev.map((b) => (b.id === blogId ? { ...b, isApproved: true } : b)));
     } catch (err) {
       console.error('Approve community blog error:', err);
     }
@@ -772,102 +897,41 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const res = await fetch(`/api/communities/${communityId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'remove-member',
-          memberId,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ action: 'remove-member', memberId, userId: currentUser.id }),
       });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Remove community member error:', err);
     }
   };
 
-  const inviteUserToCommunity = async (communityId: string, targetUserId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch(`/api/communities/${communityId}/requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'invite-user',
-          applicantId: targetUserId,
-          userId: currentUser.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
-    } catch (err) {
-      console.error('Invite user to community error:', err);
-    }
-  };
+  const inviteUserToCommunity = (communityId: string, targetUserId: string) =>
+    communityRequestAction(communityId, { action: 'invite-user', targetUserId }, 'Invite user to community');
 
-  const acceptCommunityInvite = async (communityId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch(`/api/communities/${communityId}/requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'accept-invite',
-          userId: currentUser.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
-    } catch (err) {
-      console.error('Accept community invite error:', err);
-    }
-  };
+  const acceptCommunityInvite = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'accept-invite' }, 'Accept community invite');
 
-  const declineCommunityInvite = async (communityId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch(`/api/communities/${communityId}/requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'decline-invite',
-          userId: currentUser.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.community) {
-        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
-      }
-    } catch (err) {
-      console.error('Decline community invite error:', err);
-    }
-  };
+  const declineCommunityInvite = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'decline-invite' }, 'Decline community invite');
 
   const deleteCommunity = async (communityId: string) => {
     if (!currentUser) return;
+    const snapshot = communities;
+    setCommunities((prev) => prev.filter((c) => c.id !== communityId));
+    setSelectedCommunityId(null);
     try {
-      const res = await fetch(`/api/communities/${communityId}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCommunities((prev) => prev.filter((c) => c.id !== communityId));
-      }
-      setSelectedCommunityId(null);
+      const res = await fetch(`/api/communities/${communityId}`, { method: 'DELETE' });
+      if (!res.ok) setCommunities(snapshot);
     } catch (err) {
       console.error('Delete community error:', err);
+      setCommunities(snapshot);
     }
   };
 
   const fetchNotifications = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`/api/notifications?userId=${currentUser.id}&t=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch(`/api/notifications?userId=${currentUser.id}`);
       const data = await res.json();
       if (data.notifications) {
         setNotifications(data.notifications);
@@ -907,17 +971,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Poll notifications periodically when currentUser is active
-  useEffect(() => {
-    if (currentUser) {
-      fetchNotifications();
-      const interval = setInterval(() => {
-        if (typeof document !== 'undefined' && document.hidden) return;
-        fetchNotifications();
-      }, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [currentUser]);
+  // Notifications are refreshed by the combined /api/sync poll above.
 
   const updateUserProfile = async (updateData: Partial<User>): Promise<User | null> => {
     if (!currentUser) return null;
