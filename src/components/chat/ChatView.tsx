@@ -120,15 +120,16 @@ export const ChatView: React.FC = () => {
     }
   }, [filteredContacts, activeChatUser, setActiveChatUser]);
 
-  // Periodically poll messages for active chat
+  // Periodically poll messages for active chat when tab is visible
   useEffect(() => {
     if (activeChatUser) {
       userScrolledUpRef.current = false;
       fetchMessages(activeChatUser.id);
 
       const interval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         fetchMessages(activeChatUser.id);
-      }, 3000);
+      }, 6000);
       return () => clearInterval(interval);
     }
   }, [activeChatUser]);

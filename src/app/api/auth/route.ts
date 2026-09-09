@@ -12,22 +12,7 @@ export async function GET() {
       orderBy: { createdAt: 'asc' },
     });
 
-    // Compute dynamic continuous activity streak and rank for each user
-    const usersWithUpdatedStreak = await Promise.all(
-      users.map(async (user) => {
-        const streak = await calculateUserStreak(user.id);
-        const calculatedRank = getRankFromPoints(user.totalPoints);
-        if (streak !== user.activeStreak || calculatedRank !== user.rank) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { activeStreak: streak, rank: calculatedRank },
-          });
-        }
-        return { ...user, activeStreak: streak, rank: calculatedRank };
-      })
-    );
-
-    return NextResponse.json({ allUsers: usersWithUpdatedStreak });
+    return NextResponse.json({ allUsers: users });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch user profiles' }, { status: 500 });
   }

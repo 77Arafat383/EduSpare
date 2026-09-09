@@ -10,27 +10,27 @@ import { prisma } from '@/lib/prisma';
  */
 export async function calculateUserStreak(userId: string): Promise<number> {
   try {
-    // 1. Fetch completed tasks for user
-    const completedTasks = await prisma.task.findMany({
-      where: {
-        userId,
-        status: 'Completed',
-      },
-      select: {
-        updatedAt: true,
-        createdAt: true,
-      },
-    });
-
-    // 2. Fetch blogs posted by user
-    const blogs = await prisma.blog.findMany({
-      where: {
-        authorId: userId,
-      },
-      select: {
-        createdAt: true,
-      },
-    });
+    // 1. Fetch completed tasks and blogs in parallel
+    const [completedTasks, blogs] = await Promise.all([
+      prisma.task.findMany({
+        where: {
+          userId,
+          status: 'Completed',
+        },
+        select: {
+          updatedAt: true,
+          createdAt: true,
+        },
+      }),
+      prisma.blog.findMany({
+        where: {
+          authorId: userId,
+        },
+        select: {
+          createdAt: true,
+        },
+      }),
+    ]);
 
     // Extract unique activity dates (YYYY-MM-DD in local time)
     const activityDates = new Set<string>();

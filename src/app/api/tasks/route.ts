@@ -62,18 +62,18 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create system notification for calculated task start time
+    // Create system notification asynchronously without blocking HTTP response
     if (startTime) {
       const startDate = new Date(startTime);
       const formattedStart = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      await createNotification({
+      createNotification({
         userId,
         actorId: userId,
         type: 'task_reminder',
         title: `🔔 Task Start Notification: Time to start "${title}"!`,
         content: `Estimated duration: ${estimatedTime || 'N/A'}. Target start time: ${formattedStart} to meet deadline.`,
         linkId: newTask.id,
-      });
+      }).catch((e) => console.error('Task reminder notification error:', e));
     }
 
     const formattedTask = {

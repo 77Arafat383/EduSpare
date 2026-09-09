@@ -98,20 +98,22 @@ export async function POST(request: Request) {
       },
     });
 
-    // Recalculate dynamic active streak, reward points, and update rank
-    const newStreak = await calculateUserStreak(authorId);
-    const authorUser = await prisma.user.findUnique({ where: { id: authorId } });
-    const updatedPoints = (authorUser?.totalPoints || 0) + POINT_REWARDS.BLOG_CREATED;
-    const updatedRank = getRankFromPoints(updatedPoints);
-
-    await prisma.user.update({
-      where: { id: authorId },
-      data: {
-        activeStreak: newStreak,
-        totalPoints: updatedPoints,
-        rank: updatedRank,
-      },
-    });
+    // Recalculate dynamic active streak and update user points in parallel
+    Promise.all([
+      calculateUserStreak(authorId),
+      prisma.user.findUnique({ where: { id: authorId } }),
+    ]).then(([newStreak, authorUser]) => {
+      const updatedPoints = (authorUser?.totalPoints || 0) + POINT_REWARDS.BLOG_CREATED;
+      const updatedRank = getRankFromPoints(updatedPoints);
+      return prisma.user.update({
+        where: { id: authorId },
+        data: {
+          activeStreak: newStreak,
+          totalPoints: updatedPoints,
+          rank: updatedRank,
+        },
+      });
+    }).catch((e) => console.error('Background blog point update error:', e));
 
     return NextResponse.json({
       blog: {

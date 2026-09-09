@@ -225,10 +225,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     if (currentUser) {
-      fetchTasks();
-      fetchBlogs();
-      fetchCommunities();
-      fetchSavedItems();
+      // Execute initial data fetches concurrently in parallel
+      Promise.all([
+        fetchTasks(),
+        fetchBlogs(),
+        fetchCommunities(),
+        fetchSavedItems(),
+      ]).catch((err) => console.error('Initial parallel fetch error:', err));
 
       // Initial heartbeat
       fetch('/api/auth/heartbeat', {
@@ -237,28 +240,41 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         body: JSON.stringify({ userId: currentUser.id }),
       }).catch(() => { });
 
-      // Poll heartbeat every 20s and users presence list every 10s
+      // Smart polling intervals (only execute when tab is visible)
       const heartbeatInterval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         fetch('/api/auth/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser.id }),
         }).catch(() => { });
-      }, 20000);
+      }, 30000);
 
       const usersInterval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         fetchUsers();
-      }, 10000);
+      }, 30000);
 
-      // Poll tasks every 5 seconds for real-time database updates on task completions & heatmap
+      // Poll tasks every 15 seconds when active
       const taskInterval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         fetchTasks();
-      }, 5000);
+      }, 15000);
+
+      const handleVisibilityChange = () => {
+        if (!document.hidden && currentUser) {
+          fetchTasks();
+          fetchUsers();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
       return () => {
         clearInterval(heartbeatInterval);
         clearInterval(usersInterval);
         clearInterval(taskInterval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
   }, [currentUser]);
@@ -274,7 +290,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
       const data = await res.json();
       if (data.task) {
-        await fetchTasks();
+        setTasks((prev) => [data.task, ...prev]);
         return data.task;
       }
       return null;
@@ -336,12 +352,15 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const createBlog = async (blogData: Partial<BlogPost>) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/blogs', {
+      const res = await fetch('/api/blogs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...blogData, authorId: currentUser.id }),
       });
-      await Promise.all([fetchBlogs(), fetchTasks()]);
+      const data = await res.json();
+      if (data.blog) {
+        setBlogs((prev) => [data.blog, ...prev]);
+      }
       setCurrentUser((prev) => {
         if (!prev) return prev;
         const newPoints = prev.totalPoints + POINT_REWARDS.BLOG_CREATED;
@@ -472,7 +491,6 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }),
       });
       await fetchSavedItems();
-      await fetchBlogs();
     } catch (err) {
       console.error('Save item error:', err);
     }
@@ -611,16 +629,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const createCommunity = async (commData: any) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create',
           createdById: currentUser.id,
           ...commData,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => [data.community, ...prev]);
+      }
     } catch (err) {
       console.error('Create community error:', err);
     }
@@ -629,16 +649,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const toggleJoinCommunity = async (communityId: string, action: 'join' | 'leave') => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
-          communityId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Join/Leave community error:', err);
     }
@@ -647,16 +669,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const requestToJoinCommunity = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'request-join',
-          communityId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Request join community error:', err);
     }
@@ -665,16 +689,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const cancelRequestToJoinCommunity = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'cancel-request',
-          communityId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Cancel join request error:', err);
     }
@@ -687,18 +713,20 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   ) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'handle-request',
-          communityId,
           applicantId,
           decision,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Handle membership request error:', err);
     }
@@ -707,17 +735,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateCommunityDetails = async (communityId: string, data: any) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
-        method: 'POST',
+      const res = await fetch(`/api/communities/${communityId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'update-cover',
-          communityId,
           userId: currentUser.id,
           ...data,
         }),
       });
-      await fetchCommunities();
+      const dataRes = await res.json();
+      if (dataRes.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? dataRes.community : c)));
+      }
     } catch (err) {
       console.error('Update community details error:', err);
     }
@@ -740,17 +769,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const removeCommunityMember = async (communityId: string, memberId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'remove-member',
-          communityId,
           memberId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Remove community member error:', err);
     }
@@ -759,17 +790,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const inviteUserToCommunity = async (communityId: string, targetUserId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'invite-user',
-          communityId,
           applicantId: targetUserId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Invite user to community error:', err);
     }
@@ -778,16 +811,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const acceptCommunityInvite = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'accept-invite',
-          communityId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Accept community invite error:', err);
     }
@@ -796,16 +831,18 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const declineCommunityInvite = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'decline-invite',
-          communityId,
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.community) {
+        setCommunities((prev) => prev.map((c) => (c.id === communityId ? data.community : c)));
+      }
     } catch (err) {
       console.error('Decline community invite error:', err);
     }
@@ -814,16 +851,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteCommunity = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'delete',
-          communityId,
-          userId: currentUser.id,
-        }),
+      const res = await fetch(`/api/communities/${communityId}`, {
+        method: 'DELETE',
       });
-      await fetchCommunities();
+      const data = await res.json();
+      if (data.success) {
+        setCommunities((prev) => prev.filter((c) => c.id !== communityId));
+      }
       setSelectedCommunityId(null);
     } catch (err) {
       console.error('Delete community error:', err);
@@ -878,8 +912,9 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (currentUser) {
       fetchNotifications();
       const interval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         fetchNotifications();
-      }, 5000);
+      }, 15000);
       return () => clearInterval(interval);
     }
   }, [currentUser]);
