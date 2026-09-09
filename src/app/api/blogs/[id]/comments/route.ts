@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 import { createNotification, notifyMentions } from '@/lib/notifications';
 
 export async function POST(
@@ -22,7 +23,7 @@ export async function POST(
         parentId: parentId || null,
       },
       include: {
-        author: true,
+        author: { select: authorSelect },
         blog: true,
       },
     });

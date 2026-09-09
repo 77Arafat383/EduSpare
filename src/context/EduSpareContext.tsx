@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   User,
   TaskItem,
@@ -93,6 +93,18 @@ interface EduSpareContextType {
 
 const EduSpareContext = createContext<EduSpareContextType | undefined>(undefined);
 
+/** Cheap structural check so polling doesn't trigger re-renders when nothing changed. */
+function isSameMessageList(a: MessageItem[], b: MessageItem[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id || x.content !== y.content || x.isSeen !== y.isSeen) return false;
+  }
+  return true;
+}
+
 export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -114,6 +126,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const seenTimestampsRef = useRef<Record<string, number>>({});
 
   const handleSetCurrentUser = (user: User | null) => {
     setCurrentUser(user);
@@ -213,7 +226,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`/api/auth?t=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch('/api/auth');
       const data = await res.json();
       if (data.allUsers) {
         setAllUsers(data.allUsers);
@@ -223,45 +236,85 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  useEffect(() => {
-    if (currentUser) {
-      fetchTasks();
-      fetchBlogs();
-      fetchCommunities();
-      fetchSavedItems();
+  /**
+   * Single combined poll: presence list + heartbeat + tasks + notifications +
+   * conversation list in ONE request (instead of 5 separate polling loops).
+   * The endpoint is ETag'd, so unchanged data costs a body-less 304.
+   */
+  const syncInFlightRef = useRef(false);
+  const applyConversations = useCallback(
+    (convs: Record<string, { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }>) => {
+      const updatedConvs = { ...convs };
+      Object.keys(updatedConvs).forEach((contactId) => {
+        const openedTime = seenTimestampsRef.current[contactId];
+        if (openedTime) {
+          const msgTime = new Date(updatedConvs[contactId].lastMessageAt).getTime();
+          if (msgTime <= openedTime + 5000) {
+            updatedConvs[contactId] = { ...updatedConvs[contactId], unseenCount: 0 };
+          }
+        }
+      });
+      setRecentConversations(updatedConvs);
+    },
+    []
+  );
 
-      // Initial heartbeat
-      fetch('/api/auth/heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id }),
-      }).catch(() => { });
-
-      // Poll heartbeat every 20s and users presence list every 10s
-      const heartbeatInterval = setInterval(() => {
-        fetch('/api/auth/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id }),
-        }).catch(() => { });
-      }, 20000);
-
-      const usersInterval = setInterval(() => {
-        fetchUsers();
-      }, 10000);
-
-      // Poll tasks every 5 seconds for real-time database updates on task completions & heatmap
-      const taskInterval = setInterval(() => {
-        fetchTasks();
-      }, 5000);
-
-      return () => {
-        clearInterval(heartbeatInterval);
-        clearInterval(usersInterval);
-        clearInterval(taskInterval);
-      };
+  const sync = useCallback(async () => {
+    if (!currentUser || syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    try {
+      const res = await fetch(`/api/sync?userId=${currentUser.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.allUsers) setAllUsers(data.allUsers);
+      if (data.tasks) setTasks(data.tasks);
+      if (data.notifications) setNotifications(data.notifications);
+      if (data.recentConversations) applyConversations(data.recentConversations);
+    } catch (err) {
+      console.error('Sync error:', err);
+    } finally {
+      syncInFlightRef.current = false;
     }
-  }, [currentUser]);
+  }, [currentUser, applyConversations]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Initial load (one-off data that is refreshed after mutations, not polled)
+    fetchBlogs();
+    fetchCommunities();
+    fetchSavedItems();
+    sync();
+
+    // Poll only while the tab is visible; back off to a slow poll when hidden.
+    const ACTIVE_INTERVAL = 8000;
+    const HIDDEN_INTERVAL = 60000;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      timer = setTimeout(async () => {
+        await sync();
+        schedule();
+      }, hidden ? HIDDEN_INTERVAL : ACTIVE_INTERVAL);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        sync();
+      }
+      schedule();
+    };
+
+    schedule();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [currentUser, sync]);
 
   // Task Actions
   const createTask = async (taskData: Partial<TaskItem>): Promise<TaskItem | null> => {
@@ -488,28 +541,14 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const seenTimestampsRef = useRef<Record<string, number>>({});
-
   // Chat Actions
   const fetchConversations = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`/api/chat?userId=${currentUser.id}&t=${Date.now()}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`/api/chat?userId=${currentUser.id}`);
       const data = await res.json();
       if (data.recentConversations) {
-        const updatedConvs = { ...data.recentConversations };
-        Object.keys(updatedConvs).forEach((contactId) => {
-          const openedTime = seenTimestampsRef.current[contactId];
-          if (openedTime) {
-            const msgTime = new Date(updatedConvs[contactId].lastMessageAt).getTime();
-            if (msgTime <= openedTime + 5000) {
-              updatedConvs[contactId].unseenCount = 0;
-            }
-          }
-        });
-        setRecentConversations(updatedConvs);
+        applyConversations(data.recentConversations);
       }
     } catch (err) {
       console.error('Fetch conversations error:', err);
@@ -520,20 +559,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!currentUser) return;
     seenTimestampsRef.current[targetUserId] = Date.now();
     try {
-      const res = await fetch(`/api/chat?userId=${currentUser.id}&targetUserId=${targetUserId}&t=${Date.now()}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`/api/chat?userId=${currentUser.id}&targetUserId=${targetUserId}`);
       const data = await res.json();
       if (data.messages) {
-        setMessages(data.messages);
+        // Skip the state update (and re-render) when the thread hasn't changed.
+        setMessages((prev) => (isSameMessageList(prev, data.messages) ? prev : data.messages));
         setIsChatBlocked(data.isBlocked);
-        setRecentConversations((prev) => ({
-          ...prev,
-          [targetUserId]: prev[targetUserId]
-            ? { ...prev[targetUserId], unseenCount: 0 }
-            : prev[targetUserId],
-        }));
-        await fetchConversations();
+        setRecentConversations((prev) => {
+          const existing = prev[targetUserId];
+          if (!existing || existing.unseenCount === 0) return prev;
+          return { ...prev, [targetUserId]: { ...existing, unseenCount: 0 } };
+        });
+        // Conversation list is refreshed by the combined /api/sync poll,
+        // so no extra request is needed here.
       }
     } catch (err) {
       console.error('Fetch messages error:', err);
@@ -833,7 +871,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const fetchNotifications = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`/api/notifications?userId=${currentUser.id}&t=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch(`/api/notifications?userId=${currentUser.id}`);
       const data = await res.json();
       if (data.notifications) {
         setNotifications(data.notifications);
@@ -873,16 +911,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Poll notifications periodically when currentUser is active
-  useEffect(() => {
-    if (currentUser) {
-      fetchNotifications();
-      const interval = setInterval(() => {
-        fetchNotifications();
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [currentUser]);
+  // Notifications are refreshed by the combined /api/sync poll above.
 
   const updateUserProfile = async (updateData: Partial<User>): Promise<User | null> => {
     if (!currentUser) return null;

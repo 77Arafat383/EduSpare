@@ -126,9 +126,12 @@ export const ChatView: React.FC = () => {
       userScrolledUpRef.current = false;
       fetchMessages(activeChatUser.id);
 
+      // Poll the open thread only while the tab is visible (responses are ETag'd,
+      // so an unchanged thread costs a body-less 304).
       const interval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         fetchMessages(activeChatUser.id);
-      }, 3000);
+      }, 4000);
       return () => clearInterval(interval);
     }
   }, [activeChatUser]);

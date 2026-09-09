@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { jsonWithEtag, authorSelect } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
-      include: { actor: true },
+      include: { actor: { select: authorSelect } },
       orderBy: { createdAt: 'desc' },
       take: 30,
     });
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
       createdAt: n.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ notifications: formatted });
+    return jsonWithEtag(request, { notifications: formatted });
   } catch (error) {
     console.error('Fetch notifications error:', error);
     return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });

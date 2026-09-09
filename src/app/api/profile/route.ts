@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { publicUserSelect, authorSelect } from '@/lib/apiResponse';
 
 export async function GET(request: Request) {
   try {
@@ -9,32 +10,33 @@ export async function GET(request: Request) {
 
     let user;
     if (username) {
-      user = await prisma.user.findUnique({ where: { username } });
+      user = await prisma.user.findUnique({ where: { username }, select: publicUserSelect });
     } else if (userId) {
-      user = await prisma.user.findUnique({ where: { id: userId } });
+      user = await prisma.user.findUnique({ where: { id: userId }, select: publicUserSelect });
     }
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const blogs = await prisma.blog.findMany({
-      where: {
-        authorId: user.id,
-        communityId: null,
-      },
-      include: {
-        author: true,
-        comments: { include: { author: true } },
-        reactions: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const savedItems = await prisma.savedItem.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [blogs, savedItems] = await Promise.all([
+      prisma.blog.findMany({
+        where: {
+          authorId: user.id,
+          communityId: null,
+        },
+        include: {
+          author: { select: authorSelect },
+          comments: { include: { author: { select: authorSelect } } },
+          reactions: { select: { id: true, blogId: true, userId: true, type: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.savedItem.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     return NextResponse.json({
       user,
@@ -96,6 +98,7 @@ export async function PUT(request: Request) {
     const updated = await prisma.user.update({
       where: { id: userId },
       data: updateData,
+      select: publicUserSelect,
     });
 
     return NextResponse.json({ user: updated });

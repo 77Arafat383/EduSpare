@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { jsonWithEtag } from '@/lib/apiResponse';
+
+export const dynamic = 'force-dynamic';
 
 function parseCommunityMeta(c: any) {
   let meta: any = {};
@@ -60,13 +63,13 @@ function encodeCommunityMeta(
   return JSON.stringify(meta);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const communities = await prisma.community.findMany({
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({
+    return jsonWithEtag(request, {
       communities: communities.map((c) => parseCommunityMeta(c)),
     });
   } catch (error) {

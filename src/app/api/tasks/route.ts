@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sortTasksByPriority } from '@/lib/priorityAlgorithm';
 import { createNotification } from '@/lib/notifications';
+import { jsonWithEtag, authorSelect } from '@/lib/apiResponse';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +14,14 @@ export async function GET(request: Request) {
     const tasks = await prisma.task.findMany({
       where: userId ? { userId } : undefined,
       include: {
-        user: true,
+        user: { select: authorSelect },
       },
     });
 
     const formattedTasks = tasks.map((task) => ({
       ...task,
       dueAt: task.dueAt.toISOString(),
+      startTime: task.startTime ? task.startTime.toISOString() : null,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
       materials: JSON.parse(task.materials || '[]'),
@@ -28,7 +32,7 @@ export async function GET(request: Request) {
     // 2. If equal, higher importance score (0-100) first
     const sortedTasks = sortTasksByPriority(formattedTasks);
 
-    return NextResponse.json({ tasks: sortedTasks });
+    return jsonWithEtag(request, { tasks: sortedTasks });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
         startTime: startTime ? new Date(startTime) : null,
       },
       include: {
-        user: true,
+        user: { select: authorSelect },
       },
     });
 

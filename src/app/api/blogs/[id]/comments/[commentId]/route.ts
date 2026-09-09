@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 
 export async function PUT(
   request: Request,
@@ -28,7 +29,7 @@ export async function PUT(
     const updatedComment = await prisma.comment.update({
       where: { id: params.commentId },
       data: { content },
-      include: { author: true },
+      include: { author: { select: authorSelect } },
     });
 
     return NextResponse.json({

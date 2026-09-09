@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authorSelect } from '@/lib/apiResponse';
 import { createNotification } from '@/lib/notifications';
 
 export async function POST(
@@ -16,7 +17,7 @@ export async function POST(
 
     const blog = await prisma.blog.findUnique({
       where: { id: params.id },
-      include: { author: true },
+      include: { author: { select: authorSelect } },
     });
 
     const existingReaction = await prisma.reaction.findUnique({

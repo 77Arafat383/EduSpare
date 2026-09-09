@@ -63,6 +63,9 @@ model Task {
   startTime     DateTime? // Calculated Start Time = dueAt - estimatedDuration
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, dueAt])
 }
 
 model Blog {
@@ -81,6 +84,10 @@ model Blog {
 
   comments    Comment[]
   reactions   Reaction[]
+
+  @@index([authorId, createdAt])
+  @@index([communityId, createdAt])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -96,6 +103,9 @@ model Comment {
   reactions CommentReaction[]
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
+
+  @@index([blogId, createdAt])
+  @@index([parentId])
 }
 
 model CommentReaction {
@@ -132,6 +142,9 @@ model SavedItem {
   url       String?
   meta      String?  // JSON additional meta
   createdAt DateTime @default(now())
+
+  @@index([userId, itemType])
+  @@index([userId, createdAt])
 }
 
 model Message {
@@ -144,6 +157,10 @@ model Message {
   isSeen     Boolean  @default(false)
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, senderId, isSeen])
+  @@index([receiverId, createdAt])
 }
 
 model UserBlock {
@@ -167,6 +184,8 @@ model Community {
   memberIds   String   @default("[]") // JSON array of user IDs
   createdById String
   createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Notification {
@@ -182,4 +201,7 @@ model Notification {
 
   user  User @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
   actor User @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
 }

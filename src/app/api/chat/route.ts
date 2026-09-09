@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { jsonWithEtag, authorSelect, publicUserSelect } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,11 +17,13 @@ export async function GET(request: Request) {
 
     if (targetUserId) {
       // Mark all messages received from targetUserId as seen by userId
+      // (only touch rows that actually need it to avoid needless writes).
       try {
         await prisma.message.updateMany({
           where: {
             senderId: targetUserId,
             receiverId: userId,
+            OR: [{ isSeen: false }, { isRead: false }],
           },
           data: {
             isSeen: true,
@@ -31,31 +34,30 @@ export async function GET(request: Request) {
         console.warn('Update seen status error:', err);
       }
 
-      // Check block status
-      const isBlocked = await prisma.userBlock.findFirst({
-        where: {
-          OR: [
-            { blockerId: userId, blockedId: targetUserId },
-            { blockerId: targetUserId, blockedId: userId },
-          ],
-        },
-      });
+      const [isBlocked, messages] = await Promise.all([
+        prisma.userBlock.findFirst({
+          where: {
+            OR: [
+              { blockerId: userId, blockedId: targetUserId },
+              { blockerId: targetUserId, blockedId: userId },
+            ],
+          },
+        }),
+        prisma.message.findMany({
+          where: {
+            OR: [
+              { senderId: userId, receiverId: targetUserId },
+              { senderId: targetUserId, receiverId: userId },
+            ],
+          },
+          include: {
+            sender: { select: authorSelect },
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+      ]);
 
-      const messages = await prisma.message.findMany({
-        where: {
-          OR: [
-            { senderId: userId, receiverId: targetUserId },
-            { senderId: targetUserId, receiverId: userId },
-          ],
-        },
-        include: {
-          sender: true,
-          receiver: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      });
-
-      return NextResponse.json({
+      return jsonWithEtag(request, {
         messages: messages.map((m) => ({
           ...m,
           isSeen: m.isSeen ?? (m as any).isRead ?? false,
@@ -71,6 +73,7 @@ export async function GET(request: Request) {
       where: {
         OR: [{ senderId: userId }, { receiverId: userId }],
       },
+      select: { senderId: true, receiverId: true, content: true, isSeen: true, isRead: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -88,7 +91,7 @@ export async function GET(request: Request) {
       if (!recentConversations[contactId]) {
         recentConversations[contactId] = {
           lastMessageAt: msg.createdAt.toISOString(),
-          lastMessageSnippet: msg.content,
+          lastMessageSnippet: msg.content.length > 120 ? msg.content.slice(0, 120) : msg.content,
           isMeSender: msg.senderId === userId,
           unseenCount: 0,
         };
@@ -102,9 +105,10 @@ export async function GET(request: Request) {
 
     const contacts = await prisma.user.findMany({
       where: { id: { in: Array.from(contactIdsSet) } },
+      select: publicUserSelect,
     });
 
-    return NextResponse.json({ contacts, recentConversations });
+    return jsonWithEtag(request, { contacts, recentConversations });
   } catch (error) {
     console.error('Get messages API error:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
@@ -170,8 +174,7 @@ export async function POST(request: Request) {
         content,
       },
       include: {
-        sender: true,
-        receiver: true,
+        sender: { select: authorSelect },
       },
     });
 
@@ -210,7 +213,7 @@ export async function PATCH(request: Request) {
     const updatedMessage = await prisma.message.update({
       where: { id: messageId },
       data: { content },
-      include: { sender: true, receiver: true },
+      include: { sender: { select: authorSelect } },
     });
 
     return NextResponse.json({
