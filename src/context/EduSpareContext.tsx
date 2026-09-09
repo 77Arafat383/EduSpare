@@ -327,7 +327,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
       const data = await res.json();
       if (data.task) {
-        await fetchTasks();
+        // Insert immediately from the API response; no full refetch needed.
+        setTasks((prev) => [data.task, ...prev.filter((t) => t.id !== data.task.id)]);
         return data.task;
       }
       return null;
@@ -353,12 +354,17 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       const existingTask = tasks.find((t) => t.id === id);
-      await fetch(`/api/tasks/${id}`, {
+      const res = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
-      await fetchTasks();
+      const data = await res.json().catch(() => null);
+      if (data?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data.task } : t)));
+      } else {
+        fetchTasks();
+      }
 
       if (updateData.status === 'Completed' && existingTask?.status !== 'Completed') {
         setCurrentUser((prev) => {
@@ -377,11 +383,14 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const deleteTask = async (id: string) => {
+    const snapshot = tasks;
+    setTasks((prev) => prev.filter((t) => t.id !== id));
     try {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      await fetchTasks();
+      const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      if (!res.ok) setTasks(snapshot);
     } catch (err) {
       console.error('Task deletion error:', err);
+      setTasks(snapshot);
     }
   };
 
@@ -389,12 +398,17 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const createBlog = async (blogData: Partial<BlogPost>) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/blogs', {
+      const res = await fetch('/api/blogs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...blogData, authorId: currentUser.id }),
       });
-      await Promise.all([fetchBlogs(), fetchTasks()]);
+      const data = await res.json().catch(() => null);
+      if (data?.blog) {
+        setBlogs((prev) => [data.blog, ...prev]);
+      } else {
+        fetchBlogs();
+      }
       setCurrentUser((prev) => {
         if (!prev) return prev;
         const newPoints = prev.totalPoints + POINT_REWARDS.BLOG_CREATED;
@@ -411,49 +425,69 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateBlog = async (id: string, data: Partial<BlogPost>) => {
+    setBlogs((prev) => prev.map((b) => (b.id === id ? { ...b, ...data } : b)));
     try {
-      await fetch(`/api/blogs/${id}`, {
+      const res = await fetch(`/api/blogs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Update blog error:', err);
+      fetchBlogs();
     }
   };
 
   const deleteBlog = async (id: string) => {
+    const snapshot = blogs;
+    setBlogs((prev) => prev.filter((b) => b.id !== id));
     try {
-      await fetch(`/api/blogs/${id}`, { method: 'DELETE' });
-      await fetchBlogs();
+      const res = await fetch(`/api/blogs/${id}`, { method: 'DELETE' });
+      if (!res.ok) setBlogs(snapshot);
     } catch (err) {
       console.error('Delete blog error:', err);
+      setBlogs(snapshot);
     }
   };
 
   const toggleLikeBlog = async (blogId: string) => {
     if (!currentUser) return;
+    const me = currentUser.id;
+    // Optimistic toggle so the heart responds instantly.
+    setBlogs((prev) =>
+      prev.map((b) => {
+        if (b.id !== blogId) return b;
+        const liked = !!b.isLikedByMe;
+        const reactions = liked
+          ? (b.reactions || []).filter((r) => r.userId !== me)
+          : [...(b.reactions || []), { id: `tmp-${Date.now()}`, blogId, userId: me, type: 'like' }];
+        return { ...b, isLikedByMe: !liked, reactions, likesCount: reactions.length };
+      })
+    );
     try {
-      await fetch(`/api/blogs/${blogId}/reactions`, {
+      const res = await fetch(`/api/blogs/${blogId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, type: 'like' }),
+        body: JSON.stringify({ userId: me, type: 'like' }),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Reaction error:', err);
+      fetchBlogs();
     }
   };
 
   const incrementShareCount = async (blogId: string, count: number = 1) => {
+    setBlogs((prev) =>
+      prev.map((b) => (b.id === blogId ? { ...b, sharesCount: (b.sharesCount || 0) + count } : b))
+    );
     try {
       await fetch(`/api/blogs/${blogId}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ count }),
       });
-      await fetchBlogs();
     } catch (err) {
       console.error('Increment share count error:', err);
     }
@@ -462,12 +496,37 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addComment = async (blogId: string, content: string, parentId?: string) => {
     if (!currentUser) return;
     try {
-      await fetch(`/api/blogs/${blogId}/comments`, {
+      const res = await fetch(`/api/blogs/${blogId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorId: currentUser.id, content, parentId }),
       });
-      await fetchBlogs();
+      const data = await res.json().catch(() => null);
+      if (data?.comment) {
+        const newComment = {
+          ...data.comment,
+          replies: [],
+          reactions: [],
+          likesCount: 0,
+          isLikedByMe: false,
+        };
+        setBlogs((prev) =>
+          prev.map((b) => {
+            if (b.id !== blogId) return b;
+            if (parentId) {
+              return {
+                ...b,
+                comments: b.comments.map((c) =>
+                  c.id === parentId ? { ...c, replies: [...(c.replies || []), newComment] } : c
+                ),
+              };
+            }
+            return { ...b, comments: [...b.comments, newComment] };
+          })
+        );
+      } else {
+        fetchBlogs();
+      }
     } catch (err) {
       console.error('Add comment error:', err);
     }
@@ -475,41 +534,86 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const toggleLikeComment = async (blogId: string, commentId: string) => {
     if (!currentUser) return;
+    const me = currentUser.id;
+    const toggle = (c: any) => {
+      if (c.id !== commentId) return c;
+      const liked = !!c.isLikedByMe;
+      const reactions = liked
+        ? (c.reactions || []).filter((r: any) => r.userId !== me)
+        : [...(c.reactions || []), { id: `tmp-${Date.now()}`, commentId, userId: me, type: 'like' }];
+      return { ...c, isLikedByMe: !liked, reactions, likesCount: reactions.length };
+    };
+    setBlogs((prev) =>
+      prev.map((b) =>
+        b.id !== blogId
+          ? b
+          : {
+              ...b,
+              comments: b.comments.map((c) => ({
+                ...toggle(c),
+                replies: (c.replies || []).map(toggle),
+              })),
+            }
+      )
+    );
     try {
-      await fetch(`/api/comments/${commentId}/reactions`, {
+      const res = await fetch(`/api/comments/${commentId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, type: 'like' }),
+        body: JSON.stringify({ userId: me, type: 'like' }),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Comment reaction error:', err);
+      fetchBlogs();
     }
   };
 
   const updateComment = async (blogId: string, commentId: string, content: string) => {
     if (!currentUser) return;
+    const patch = (c: any) => (c.id === commentId ? { ...c, content } : c);
+    setBlogs((prev) =>
+      prev.map((b) =>
+        b.id !== blogId
+          ? b
+          : { ...b, comments: b.comments.map((c) => ({ ...patch(c), replies: (c.replies || []).map(patch) })) }
+      )
+    );
     try {
-      await fetch(`/api/blogs/${blogId}/comments/${commentId}`, {
+      const res = await fetch(`/api/blogs/${blogId}/comments/${commentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorId: currentUser.id, content }),
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Update comment error:', err);
+      fetchBlogs();
     }
   };
 
   const deleteComment = async (blogId: string, commentId: string) => {
     if (!currentUser) return;
+    setBlogs((prev) =>
+      prev.map((b) =>
+        b.id !== blogId
+          ? b
+          : {
+              ...b,
+              comments: b.comments
+                .filter((c) => c.id !== commentId)
+                .map((c) => ({ ...c, replies: (c.replies || []).filter((r) => r.id !== commentId) })),
+            }
+      )
+    );
     try {
-      await fetch(`/api/blogs/${blogId}/comments/${commentId}?userId=${currentUser.id}`, {
+      const res = await fetch(`/api/blogs/${blogId}/comments/${commentId}?userId=${currentUser.id}`, {
         method: 'DELETE',
       });
-      await fetchBlogs();
+      if (!res.ok) fetchBlogs();
     } catch (err) {
       console.error('Delete comment error:', err);
+      fetchBlogs();
     }
   };
 
@@ -524,8 +628,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...item,
         }),
       });
-      await fetchSavedItems();
-      await fetchBlogs();
+      // Flip the bookmark flag locally; refresh the vault list in the background.
+      if (item.itemId) {
+        setBlogs((prev) =>
+          prev.map((b) => (b.id === item.itemId ? { ...b, isSavedByMe: !b.isSavedByMe } : b))
+        );
+      }
+      fetchSavedItems();
     } catch (err) {
       console.error('Save item error:', err);
     }
@@ -534,8 +643,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteSavedItem = async (id: string) => {
     setSavedItems((prev) => prev.filter((item) => item.id !== id));
     try {
-      await fetch(`/api/saved?id=${id}`, { method: 'DELETE' });
-      await fetchSavedItems();
+      const res = await fetch(`/api/saved?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) fetchSavedItems();
     } catch (err) {
       console.error('Delete saved item error:', err);
     }
@@ -580,8 +689,31 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const sendMessage = async (receiverId: string, content: string) => {
     if (!currentUser) return;
+    const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const now = new Date().toISOString();
+    const optimistic: MessageItem = {
+      id: tempId,
+      senderId: currentUser.id,
+      receiverId,
+      sender: currentUser,
+      content,
+      isSeen: false,
+      createdAt: now,
+    };
+    const isActiveThread = activeChatUser?.id === receiverId;
+    // Show the message instantly in the open thread and bump the conversation list.
+    if (isActiveThread) setMessages((prev) => [...prev, optimistic]);
+    setRecentConversations((prev) => ({
+      ...prev,
+      [receiverId]: {
+        lastMessageAt: now,
+        lastMessageSnippet: content.length > 120 ? content.slice(0, 120) : content,
+        isMeSender: true,
+        unseenCount: 0,
+      },
+    }));
     try {
-      await fetch('/api/chat', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -590,35 +722,51 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           content,
         }),
       });
-      await fetchMessages(receiverId);
+      const data = await res.json().catch(() => null);
+      if (isActiveThread) {
+        if (data?.message) {
+          setMessages((prev) => prev.map((m) => (m.id === tempId ? data.message : m)));
+        } else {
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        }
+      }
+      if (!data?.message && data?.error) {
+        console.error('Send message error:', data.error);
+      }
     } catch (err) {
       console.error('Send message error:', err);
+      if (isActiveThread) setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
   };
 
   const editMessage = async (messageId: string, content: string, targetUserId: string) => {
     if (!currentUser) return;
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content } : m)));
     try {
-      await fetch('/api/chat', {
+      const res = await fetch('/api/chat', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, userId: currentUser.id, content }),
       });
-      await fetchMessages(targetUserId);
+      if (!res.ok) fetchMessages(targetUserId);
     } catch (err) {
       console.error('Edit message error:', err);
+      fetchMessages(targetUserId);
     }
   };
 
   const deleteMessage = async (messageId: string, targetUserId: string) => {
     if (!currentUser) return;
+    const snapshot = messages;
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
     try {
-      await fetch(`/api/chat?messageId=${messageId}&userId=${currentUser.id}`, {
+      const res = await fetch(`/api/chat?messageId=${messageId}&userId=${currentUser.id}`, {
         method: 'DELETE',
       });
-      await fetchMessages(targetUserId);
+      if (!res.ok) setMessages(snapshot);
     } catch (err) {
       console.error('Delete message error:', err);
+      setMessages(snapshot);
     }
   };
 
@@ -646,10 +794,20 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Communities Actions
+  /** Apply a mutated community from the API response; fall back to a full refetch. */
+  const applyCommunityResponse = async (res: Response) => {
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.community) {
+      setCommunities((prev) => prev.map((c) => (c.id === data.community.id ? data.community : c)));
+    } else {
+      await fetchCommunities();
+    }
+  };
+
   const createCommunity = async (commData: any) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -658,7 +816,12 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...commData,
         }),
       });
-      await fetchCommunities();
+      const data = await res.json().catch(() => null);
+      if (data?.community) {
+        setCommunities((prev) => [data.community, ...prev]);
+      } else {
+        await fetchCommunities();
+      }
     } catch (err) {
       console.error('Create community error:', err);
     }
@@ -667,7 +830,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const toggleJoinCommunity = async (communityId: string, action: 'join' | 'leave') => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -676,7 +839,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Join/Leave community error:', err);
     }
@@ -685,7 +848,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const requestToJoinCommunity = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -694,7 +857,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Request join community error:', err);
     }
@@ -703,7 +866,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const cancelRequestToJoinCommunity = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -712,7 +875,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Cancel join request error:', err);
     }
@@ -725,7 +888,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   ) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -736,7 +899,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Handle membership request error:', err);
     }
@@ -745,7 +908,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateCommunityDetails = async (communityId: string, data: any) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -755,7 +918,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...data,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Update community details error:', err);
     }
@@ -769,7 +932,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isApproved: true }),
       });
-      await fetchBlogs();
+      setBlogs((prev) => prev.map((b) => (b.id === blogId ? { ...b, isApproved: true } : b)));
     } catch (err) {
       console.error('Approve community blog error:', err);
     }
@@ -778,7 +941,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const removeCommunityMember = async (communityId: string, memberId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -788,7 +951,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Remove community member error:', err);
     }
@@ -797,7 +960,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const inviteUserToCommunity = async (communityId: string, targetUserId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -807,7 +970,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Invite user to community error:', err);
     }
@@ -816,7 +979,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const acceptCommunityInvite = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -825,7 +988,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Accept community invite error:', err);
     }
@@ -834,7 +997,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const declineCommunityInvite = async (communityId: string) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/communities', {
+      const res = await fetch('/api/communities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -843,7 +1006,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      await applyCommunityResponse(res);
     } catch (err) {
       console.error('Decline community invite error:', err);
     }
@@ -861,7 +1024,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: currentUser.id,
         }),
       });
-      await fetchCommunities();
+      setCommunities((prev) => prev.filter((c) => c.id !== communityId));
       setSelectedCommunityId(null);
     } catch (err) {
       console.error('Delete community error:', err);

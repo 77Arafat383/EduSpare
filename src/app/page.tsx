@@ -1,15 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DashboardView } from '@/components/dashboard/DashboardView';
-import { TaskListView } from '@/components/tasks/TaskListView';
-import { BlogFeedView } from '@/components/blog/BlogFeedView';
-import { ChatView } from '@/components/chat/ChatView';
-import { ProfileView } from '@/components/profile/ProfileView';
-import { CommunityView } from '@/components/community/CommunityView';
 import { LoginPage } from '@/components/auth/LoginPage';
 import {
   Loader2,
@@ -21,6 +17,19 @@ import {
   User,
 } from 'lucide-react';
 import { ActiveTab } from '@/types/eduspare';
+
+// Load each tab's bundle only when it is first opened, so the initial page
+// (login + dashboard) ships a fraction of the JavaScript.
+const viewLoader = () => (
+  <div className="flex items-center justify-center py-20">
+    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+  </div>
+);
+const TaskListView = dynamic(() => import('@/components/tasks/TaskListView').then((m) => m.TaskListView), { loading: viewLoader, ssr: false });
+const BlogFeedView = dynamic(() => import('@/components/blog/BlogFeedView').then((m) => m.BlogFeedView), { loading: viewLoader, ssr: false });
+const ChatView = dynamic(() => import('@/components/chat/ChatView').then((m) => m.ChatView), { loading: viewLoader, ssr: false });
+const ProfileView = dynamic(() => import('@/components/profile/ProfileView').then((m) => m.ProfileView), { loading: viewLoader, ssr: false });
+const CommunityView = dynamic(() => import('@/components/community/CommunityView').then((m) => m.CommunityView), { loading: viewLoader, ssr: false });
 
 export default function Home() {
   const { activeTab, setActiveTab, currentUser, loading, recentConversations, setSelectedUsername } = useEduSpare();

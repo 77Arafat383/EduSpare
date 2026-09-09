@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { authorSelect } from '@/lib/apiResponse';
 import { createNotification } from '@/lib/notifications';
 
 export async function POST(
@@ -15,19 +14,20 @@ export async function POST(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    const blog = await prisma.blog.findUnique({
-      where: { id: params.id },
-      include: { author: { select: authorSelect } },
-    });
-
-    const existingReaction = await prisma.reaction.findUnique({
-      where: {
-        blogId_userId: {
-          blogId: params.id,
-          userId,
+    const [blog, existingReaction] = await Promise.all([
+      prisma.blog.findUnique({
+        where: { id: params.id },
+        select: { id: true, authorId: true, title: true },
+      }),
+      prisma.reaction.findUnique({
+        where: {
+          blogId_userId: {
+            blogId: params.id,
+            userId,
+          },
         },
-      },
-    });
+      }),
+    ]);
 
     if (existingReaction) {
       await prisma.reaction.delete({
@@ -44,7 +44,7 @@ export async function POST(
       });
 
       if (blog && blog.authorId !== userId) {
-        const actor = await prisma.user.findUnique({ where: { id: userId } });
+        const actor = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
         if (actor) {
           await createNotification({
             userId: blog.authorId,
