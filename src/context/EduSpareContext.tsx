@@ -811,7 +811,6 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create',
           createdById: currentUser.id,
           ...commData,
         }),
@@ -830,14 +829,10 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const toggleJoinCommunity = async (communityId: string, action: 'join' | 'leave') => {
     if (!currentUser) return;
     try {
-      const res = await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          communityId,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ action, userId: currentUser.id }),
       });
       await applyCommunityResponse(res);
     } catch (err) {
@@ -845,78 +840,36 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const requestToJoinCommunity = async (communityId: string) => {
+  const communityRequestAction = async (communityId: string, payload: Record<string, unknown>, label: string) => {
     if (!currentUser) return;
     try {
-      const res = await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'request-join',
-          communityId,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ userId: currentUser.id, ...payload }),
       });
       await applyCommunityResponse(res);
     } catch (err) {
-      console.error('Request join community error:', err);
+      console.error(`${label} error:`, err);
     }
   };
 
-  const cancelRequestToJoinCommunity = async (communityId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cancel-request',
-          communityId,
-          userId: currentUser.id,
-        }),
-      });
-      await applyCommunityResponse(res);
-    } catch (err) {
-      console.error('Cancel join request error:', err);
-    }
-  };
+  const requestToJoinCommunity = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'request-join' }, 'Request join community');
 
-  const handleMembershipRequest = async (
-    communityId: string,
-    applicantId: string,
-    decision: 'approve' | 'reject'
-  ) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'handle-request',
-          communityId,
-          applicantId,
-          decision,
-          userId: currentUser.id,
-        }),
-      });
-      await applyCommunityResponse(res);
-    } catch (err) {
-      console.error('Handle membership request error:', err);
-    }
-  };
+  const cancelRequestToJoinCommunity = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'cancel-request' }, 'Cancel request join community');
+
+  const handleMembershipRequest = (communityId: string, applicantId: string, decision: 'approve' | 'reject') =>
+    communityRequestAction(communityId, { action: 'handle-request', applicantId, decision }, 'Handle membership request');
 
   const updateCommunityDetails = async (communityId: string, data: any) => {
     if (!currentUser) return;
     try {
-      const res = await fetch('/api/communities', {
-        method: 'POST',
+      const res = await fetch(`/api/communities/${communityId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update-cover',
-          communityId,
-          userId: currentUser.id,
-          ...data,
-        }),
+        body: JSON.stringify({ userId: currentUser.id, ...data }),
       });
       await applyCommunityResponse(res);
     } catch (err) {
@@ -941,15 +894,10 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const removeCommunityMember = async (communityId: string, memberId: string) => {
     if (!currentUser) return;
     try {
-      const res = await fetch('/api/communities', {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'remove-member',
-          communityId,
-          memberId,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ action: 'remove-member', memberId, userId: currentUser.id }),
       });
       await applyCommunityResponse(res);
     } catch (err) {
@@ -957,77 +905,26 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const inviteUserToCommunity = async (communityId: string, targetUserId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'invite-user',
-          communityId,
-          applicantId: targetUserId,
-          userId: currentUser.id,
-        }),
-      });
-      await applyCommunityResponse(res);
-    } catch (err) {
-      console.error('Invite user to community error:', err);
-    }
-  };
+  const inviteUserToCommunity = (communityId: string, targetUserId: string) =>
+    communityRequestAction(communityId, { action: 'invite-user', targetUserId }, 'Invite user to community');
 
-  const acceptCommunityInvite = async (communityId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'accept-invite',
-          communityId,
-          userId: currentUser.id,
-        }),
-      });
-      await applyCommunityResponse(res);
-    } catch (err) {
-      console.error('Accept community invite error:', err);
-    }
-  };
+  const acceptCommunityInvite = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'accept-invite' }, 'Accept community invite');
 
-  const declineCommunityInvite = async (communityId: string) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'decline-invite',
-          communityId,
-          userId: currentUser.id,
-        }),
-      });
-      await applyCommunityResponse(res);
-    } catch (err) {
-      console.error('Decline community invite error:', err);
-    }
-  };
+  const declineCommunityInvite = (communityId: string) =>
+    communityRequestAction(communityId, { action: 'decline-invite' }, 'Decline community invite');
 
   const deleteCommunity = async (communityId: string) => {
     if (!currentUser) return;
+    const snapshot = communities;
+    setCommunities((prev) => prev.filter((c) => c.id !== communityId));
+    setSelectedCommunityId(null);
     try {
-      await fetch('/api/communities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'delete',
-          communityId,
-          userId: currentUser.id,
-        }),
-      });
-      setCommunities((prev) => prev.filter((c) => c.id !== communityId));
-      setSelectedCommunityId(null);
+      const res = await fetch(`/api/communities/${communityId}`, { method: 'DELETE' });
+      if (!res.ok) setCommunities(snapshot);
     } catch (err) {
       console.error('Delete community error:', err);
+      setCommunities(snapshot);
     }
   };
 
