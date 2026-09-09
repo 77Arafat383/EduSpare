@@ -24,7 +24,7 @@ export async function GET(request: Request) {
         ],
       },
       take: 4,
-      select: authorSelect,
+      select: { ...authorSelect, university: true },
     }),
     prisma.blog.findMany({
       where: {
