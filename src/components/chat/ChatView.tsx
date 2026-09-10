@@ -132,6 +132,7 @@ export const ChatView: React.FC = () => {
       // so an unchanged thread costs a body-less 304).
       const interval = setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
         fetchMessages(activeChatUser.id);
       }, 4000);
       return () => clearInterval(interval);

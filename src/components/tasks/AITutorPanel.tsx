@@ -351,7 +351,7 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
                   <div className="flex items-center justify-end pt-1">
                     <button
                       onClick={() => handleCopyText(msg.id, msg.text)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-outline hover:text-primary rounded-lg flex items-center gap-1 text-[10px]"
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 transition-opacity p-1 text-outline hover:text-primary rounded-lg flex items-center gap-1 text-[10px]"
                       title="Copy Markdown Text"
                     >
                       {copiedId === msg.id ? (

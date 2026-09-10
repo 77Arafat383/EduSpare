@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { EduSpareProvider } from '@/context/EduSpareContext';
+import { ServiceWorkerRegistrar } from '@/components/common/ServiceWorkerRegistrar';
 
 // Self-hosted, subset, preloaded at build time: no request to Google Fonts at
 // runtime, no render-blocking stylesheet and no layout shift (font-display: swap
@@ -50,6 +51,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} font-sans antialiased bg-background text-on-surface`}>
         <EduSpareProvider>{children}</EduSpareProvider>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

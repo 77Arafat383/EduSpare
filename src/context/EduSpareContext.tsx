@@ -311,35 +311,66 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       fetchSavedItems();
     });
 
-    // Poll only while the tab is visible; back off to a slow poll when hidden.
+    // Adaptive polling: fast while the user is interacting, slower after a
+    // couple of minutes without input, slowest when the tab is hidden, and
+    // relaxed further on Data-Saver / slow connections.
     const ACTIVE_INTERVAL = 8000;
+    const IDLE_INTERVAL = 30000;
     const HIDDEN_INTERVAL = 60000;
+    const IDLE_AFTER_MS = 2 * 60 * 1000;
+    const conn = typeof navigator !== 'undefined' ? (navigator as any).connection : undefined;
+    const slowNet = !!(conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || '')));
+    let lastInteraction = Date.now();
     let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const nextDelay = () => {
+      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      let d = hidden ? HIDDEN_INTERVAL : Date.now() - lastInteraction > IDLE_AFTER_MS ? IDLE_INTERVAL : ACTIVE_INTERVAL;
+      if (slowNet) d *= 2;
+      return d;
+    };
 
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
       timer = setTimeout(async () => {
         await sync();
         schedule();
-      }, hidden ? HIDDEN_INTERVAL : ACTIVE_INTERVAL);
+      }, nextDelay());
     };
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
+        lastInteraction = Date.now();
         sync();
       }
+      schedule();
+    };
+    const onInteract = () => {
+      const wasIdle = Date.now() - lastInteraction > IDLE_AFTER_MS;
+      lastInteraction = Date.now();
+      if (wasIdle) {
+        sync();
+        schedule();
+      }
+    };
+    const onOnline = () => {
+      sync();
       schedule();
     };
 
     schedule();
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
+    const interactEvents: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    interactEvents.forEach((ev) => window.addEventListener(ev, onInteract, { passive: true }));
 
     return () => {
       if (timer) clearTimeout(timer);
       if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) (window as any).cancelIdleCallback(idleHandle);
       else clearTimeout(idleHandle as any);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onOnline);
+      interactEvents.forEach((ev) => window.removeEventListener(ev, onInteract));
     };
   }, [currentUser, sync]);
 

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { ActiveTab } from '@/types/eduspare';
+import { prefetchView } from '@/lib/prefetchViews';
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -77,6 +78,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           <button
             key={item.id}
             onClick={() => handleSelectTab(item.id)}
+            onMouseEnter={() => prefetchView(item.id)}
+            onTouchStart={() => prefetchView(item.id)}
+            onFocus={() => prefetchView(item.id)}
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${isActive
               ? 'bg-primary text-white shadow-md shadow-primary/20'
               : 'text-on-surface hover:bg-surface-container-high'

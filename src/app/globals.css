@@ -83,6 +83,13 @@
   }
 }
 
+/* Devices without hover (phones/tablets): hover-revealed controls must be visible. */
+@media (hover: none) {
+  .group .group-hover\:opacity-100.opacity-0 {
+    opacity: 1;
+  }
+}
+
 /* Smooth momentum scrolling in horizontally scrollable regions on touch devices. */
 .overflow-x-auto,
 .overflow-y-auto,
