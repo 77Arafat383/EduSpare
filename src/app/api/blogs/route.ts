@@ -11,6 +11,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const communityId = searchParams.get('communityId');
+    const limitParam = Number(searchParams.get('limit'));
+    const take = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : undefined;
 
     const [blogs, savedItems] = await Promise.all([
       prisma.blog.findMany({
@@ -27,6 +29,7 @@ export async function GET(request: Request) {
           reactions: { select: { id: true, blogId: true, userId: true, type: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take,
       }),
       userId
         ? prisma.savedItem.findMany({

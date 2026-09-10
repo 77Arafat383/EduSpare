@@ -1,5 +1,7 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { User, MessageItem } from '@/types/eduspare';
@@ -7,7 +9,7 @@ import { Send, ShieldAlert, Reply, X } from 'lucide-react';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessageItem } from './ChatMessageItem';
-import { ForwardMessageModal } from './ForwardMessageModal';
+const ForwardMessageModal = dynamic(() => import('./ForwardMessageModal').then((m) => m.ForwardMessageModal), { ssr: false });
 
 function formatRelativeTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -344,6 +346,7 @@ export const ChatView: React.FC = () => {
       )}
 
       {/* Forward Message Modal */}
+      {forwardingMsg && (
       <ForwardMessageModal
         forwardingMsg={forwardingMsg}
         setForwardingMsg={setForwardingMsg}
@@ -357,6 +360,7 @@ export const ChatView: React.FC = () => {
         handleForwardMsgSubmit={handleForwardMsgSubmit}
         toggleForwardUserSelect={toggleForwardUserSelect}
       />
+      )}
     </div>
   );
 };

@@ -50,7 +50,7 @@ export const AdminApprovalQueueCard: React.FC<AdminApprovalQueueCardProps> = ({
                   className="p-3 rounded-2xl bg-surface-lowest border border-outline-variant/40 flex items-center justify-between gap-3 shadow-xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={applicant?.avatar || '/assets/default_avatar.png'}
                       alt="Applicant"
                       className="w-8 h-8 rounded-full object-cover shrink-0"

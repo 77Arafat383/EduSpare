@@ -284,11 +284,19 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!currentUser) return;
 
-    // Initial load (one-off data that is refreshed after mutations, not polled)
-    fetchBlogs();
-    fetchCommunities();
-    fetchSavedItems();
+    // Initial load: the dashboard only needs the sync payload (tasks, users,
+    // notifications). Blogs / communities / saved items are fetched right after
+    // first paint so they don't compete with it for bandwidth and DB time.
     sync();
+    const idle =
+      typeof window !== 'undefined' && 'requestIdleCallback' in window
+        ? (cb: () => void) => (window as any).requestIdleCallback(cb, { timeout: 1500 })
+        : (cb: () => void) => setTimeout(cb, 300);
+    const idleHandle = idle(() => {
+      fetchBlogs();
+      fetchCommunities();
+      fetchSavedItems();
+    });
 
     // Poll only while the tab is visible; back off to a slow poll when hidden.
     const ACTIVE_INTERVAL = 8000;
@@ -316,6 +324,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => {
       if (timer) clearTimeout(timer);
+      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) (window as any).cancelIdleCallback(idleHandle);
+      else clearTimeout(idleHandle as any);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [currentUser, sync]);

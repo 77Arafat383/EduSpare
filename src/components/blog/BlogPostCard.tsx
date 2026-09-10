@@ -1,11 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { BlogPost } from '@/types/eduspare';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { CommentSection } from './CommentSection';
-import { CreateBlogModal } from './CreateBlogModal';
-import { ShareModal } from './ShareModal';
+const CreateBlogModal = dynamic(() => import('./CreateBlogModal').then((m) => m.CreateBlogModal), { ssr: false });
+const ShareModal = dynamic(() => import('./ShareModal').then((m) => m.ShareModal), { ssr: false });
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
 import {
   Heart,
@@ -25,7 +27,7 @@ interface BlogPostCardProps {
   post: BlogPost;
 }
 
-export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
+const BlogPostCardInner: React.FC<BlogPostCardProps> = ({ post }) => {
   const {
     currentUser,
     toggleLikeBlog,
@@ -94,7 +96,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
       {/* Post Author Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img
+          <img loading="lazy" decoding="async"
             src={post.author.avatar}
             alt={post.author.name}
             onClick={handleProfileClick}
@@ -186,7 +188,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
       {/* Cover Image if present */}
       {post.coverImage && (
         <div className="relative rounded-2xl overflow-hidden max-h-80 border border-outline-variant/40">
-          <img
+          <img loading="lazy" decoding="async"
             src={post.coverImage}
             alt={post.title}
             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
@@ -357,3 +359,5 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post }) => {
     </div>
   );
 };
+
+export const BlogPostCard = React.memo(BlogPostCardInner);

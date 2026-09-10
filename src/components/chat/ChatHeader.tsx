@@ -47,7 +47,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onClick={() => handleVisitProfile(activeChatUser)}
           className="relative cursor-pointer group shrink-0"
         >
-          <img
+          <img loading="lazy" decoding="async"
             src={activeChatUser.avatar}
             alt={activeChatUser.name}
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"

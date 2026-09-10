@@ -95,7 +95,7 @@ export const ForwardMessageModal: React.FC<ForwardMessageModalProps> = ({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <input type="checkbox" checked={isSel} onChange={() => {}} className="w-3.5 h-3.5 accent-primary" />
-                      <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full shrink-0 object-cover" />
+                      <img loading="lazy" decoding="async" src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full shrink-0 object-cover" />
                       <span className="text-xs truncate">{u.name}</span>
                     </div>
                   </div>

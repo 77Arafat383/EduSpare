@@ -73,11 +73,28 @@ export async function GET(request: Request) {
           })
         : null,
       include.has('conversations')
-        ? prisma.message.findMany({
-            where: { OR: [{ senderId: userId }, { receiverId: userId }] },
-            select: { senderId: true, receiverId: true, content: true, isSeen: true, isRead: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-          })
+        ? Promise.all([
+            // Latest message per contact (DISTINCT ON keeps this a single indexed scan)
+            prisma.$queryRaw<
+              { contactId: string; content: string; createdAt: Date; isMeSender: boolean }[]
+            >`
+              SELECT DISTINCT ON (contact) contact AS "contactId", content, "createdAt",
+                     ("senderId" = ${userId}) AS "isMeSender"
+              FROM (
+                SELECT CASE WHEN "senderId" = ${userId} THEN "receiverId" ELSE "senderId" END AS contact,
+                       content, "createdAt", "senderId"
+                FROM "Message"
+                WHERE "senderId" = ${userId} OR "receiverId" = ${userId}
+              ) m
+              ORDER BY contact, "createdAt" DESC
+            `,
+            // Unseen counts per sender
+            prisma.message.groupBy({
+              by: ['senderId'],
+              where: { receiverId: userId, isSeen: false, isRead: false },
+              _count: { _all: true },
+            }),
+          ])
         : null,
       // Presence heartbeat piggybacks on the poll; failures must not break the response.
       heartbeat
@@ -116,24 +133,19 @@ export async function GET(request: Request) {
     }
 
     if (userMessages) {
+      const [latest, unseen] = userMessages;
+      const unseenBySender = new Map<string, number>(unseen.map((u) => [u.senderId, u._count._all]));
       const recentConversations: Record<
         string,
         { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }
       > = {};
-      userMessages.forEach((msg) => {
-        const contactId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-        if (!recentConversations[contactId]) {
-          recentConversations[contactId] = {
-            lastMessageAt: msg.createdAt.toISOString(),
-            lastMessageSnippet: msg.content.length > 120 ? msg.content.slice(0, 120) : msg.content,
-            isMeSender: msg.senderId === userId,
-            unseenCount: 0,
-          };
-        }
-        const isSeenVal = msg.isSeen ?? msg.isRead ?? false;
-        if (msg.receiverId === userId && !isSeenVal) {
-          recentConversations[contactId].unseenCount += 1;
-        }
+      latest.forEach((msg) => {
+        recentConversations[msg.contactId] = {
+          lastMessageAt: new Date(msg.createdAt).toISOString(),
+          lastMessageSnippet: msg.content.length > 120 ? msg.content.slice(0, 120) : msg.content,
+          isMeSender: msg.isMeSender,
+          unseenCount: unseenBySender.get(msg.contactId) ?? 0,
+        };
       });
       payload.recentConversations = recentConversations;
     }

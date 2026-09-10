@@ -125,7 +125,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post })
 
         {/* Post Preview Card */}
         <div className="p-3.5 bg-surface-container-low rounded-2xl border border-outline-variant/50 flex items-center gap-3">
-          <img
+          <img loading="lazy" decoding="async"
             src={post.author.avatar}
             alt={post.author.name}
             className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-primary/20"
@@ -228,7 +228,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, post })
                             onChange={() => {}} // Handled by div onClick
                             className="w-4 h-4 accent-primary rounded cursor-pointer shrink-0"
                           />
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={u.avatar}
                             alt={u.name}
                             className="w-7 h-7 rounded-full object-cover shrink-0"

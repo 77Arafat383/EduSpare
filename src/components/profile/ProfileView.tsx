@@ -1,9 +1,11 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { User, BlogPost, SavedVaultItem } from '@/types/eduspare';
-import { CreateBlogModal } from '../blog/CreateBlogModal';
+const CreateBlogModal = dynamic(() => import('../blog/CreateBlogModal').then((m) => m.CreateBlogModal), { ssr: false });
 import { ActivityHeatmap } from '../dashboard/ActivityHeatmap';
 
 import { ProfileHeaderCard } from './ProfileHeaderCard';
@@ -313,7 +315,9 @@ export const ProfileView: React.FC = () => {
       )}
 
       {/* Create Blog Modal */}
+      {isCreateBlogOpen && (
       <CreateBlogModal isOpen={isCreateBlogOpen} onClose={() => setIsCreateBlogOpen(false)} />
+      )}
     </div>
   );
 };

@@ -342,17 +342,17 @@ export const TaskWorkspaceModal: React.FC<TaskWorkspaceModalProps> = ({
                     </div>
 
                     {/* PDF Document Viewer Frame */}
-                    <div className="bg-slate-900 flex items-center justify-center min-h-[500px]">
+                    <div className="bg-slate-900 flex items-center justify-center min-h-[60vh] sm:min-h-[500px]">
                       {activeTab.type === 'image' || activeTab.url.startsWith('data:image/') ? (
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={activeTab.url}
                           alt={activeTab.title}
-                          className="max-w-full max-h-[650px] object-contain rounded-none p-2"
+                          className="max-w-full max-h-[70vh] sm:max-h-[650px] object-contain rounded-none p-2"
                         />
                       ) : (
                         <iframe
                           src={activeTab.url}
-                          className="w-full h-[650px] border-none bg-slate-900"
+                          className="w-full h-[70vh] sm:h-[650px] border-none bg-slate-900" loading="lazy"
                           title={activeTab.title}
                         />
                       )}

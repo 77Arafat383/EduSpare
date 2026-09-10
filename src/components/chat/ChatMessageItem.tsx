@@ -33,7 +33,7 @@ interface ChatMessageItemProps {
   setActiveTab: (tab: ActiveTab) => void;
 }
 
-export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
+const ChatMessageItemInner: React.FC<ChatMessageItemProps> = ({
   msg,
   currentUser,
   activeChatUser,
@@ -58,7 +58,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   return (
     <div className={`flex items-start gap-2 group ${isMe ? 'justify-end' : 'justify-start'}`}>
       {!isMe && (
-        <img
+        <img loading="lazy" decoding="async"
           src={msg.sender?.avatar || activeChatUser.avatar}
           alt="Avatar"
           onClick={() => handleVisitProfile(activeChatUser)}
@@ -274,3 +274,5 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     </div>
   );
 };
+
+export const ChatMessageItem = React.memo(ChatMessageItemInner);

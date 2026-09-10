@@ -1,6 +1,17 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { EduSpareProvider } from '@/context/EduSpareContext';
+
+// Self-hosted, subset, preloaded at build time: no request to Google Fonts at
+// runtime, no render-blocking stylesheet and no layout shift (font-display: swap
+// with size-adjusted fallback).
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+  fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+});
 
 export const metadata: Metadata = {
   title: 'EduSpare',
@@ -13,25 +24,26 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#FAF8FF',
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
         <link rel="icon" type="image/png" href="/assets/eduspare_brain_icon_without_bg.png" />
         <link rel="shortcut icon" href="/assets/eduspare_brain_icon_without_bg.png" />
         <link rel="apple-touch-icon" href="/assets/eduspare_brain_icon_without_bg.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
-        />
       </head>
-      <body className="font-sans antialiased bg-background text-on-surface">
+      <body className={`${inter.className} font-sans antialiased bg-background text-on-surface`}>
         <EduSpareProvider>{children}</EduSpareProvider>
       </body>
     </html>

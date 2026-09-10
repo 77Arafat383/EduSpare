@@ -25,7 +25,7 @@ export const ProfileSummaryCard: React.FC = () => {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <img
+            <img loading="lazy" decoding="async"
               src={currentUser.avatar}
               alt={currentUser.name}
               className="w-16 h-16 rounded-full object-cover ring-4 ring-primary/20 group-hover:scale-105 transition-transform"

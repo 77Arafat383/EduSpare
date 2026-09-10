@@ -302,7 +302,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({
             </label>
             {coverImage ? (
               <div className="relative rounded-xl overflow-hidden border border-outline-variant/60 group">
-                <img src={coverImage} alt="Cover Preview" className="w-full h-36 object-cover" />
+                <img loading="lazy" decoding="async" src={coverImage} alt="Cover Preview" className="w-full h-36 object-cover" />
                 <button
                   type="button"
                   onClick={() => setCoverImage('')}

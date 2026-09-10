@@ -1,10 +1,12 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { formatTimeRemaining } from '@/lib/priorityAlgorithm';
-import { TaskWorkspaceModal } from './TaskWorkspaceModal';
-import { CreateTaskModal } from './CreateTaskModal';
+const TaskWorkspaceModal = dynamic(() => import('./TaskWorkspaceModal').then((m) => m.TaskWorkspaceModal), { ssr: false });
+const CreateTaskModal = dynamic(() => import('./CreateTaskModal').then((m) => m.CreateTaskModal), { ssr: false });
 import {
   CheckSquare,
   Plus,
@@ -351,6 +353,7 @@ export const TaskListView: React.FC = () => {
       )}
 
       {/* Create / Edit Task Modal */}
+      {(isCreateOpen || taskToEdit) && (
       <CreateTaskModal
         isOpen={isCreateOpen}
         taskToEdit={taskToEdit}
@@ -359,6 +362,7 @@ export const TaskListView: React.FC = () => {
           setTaskToEdit(null);
         }}
       />
+      )}
     </div>
   );
 };

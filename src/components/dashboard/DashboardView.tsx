@@ -1,11 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState } from 'react';
 import { ProfileSummaryCard } from './ProfileSummaryCard';
 import { ActivityHeatmap } from './ActivityHeatmap';
 import { RemainingTasksWidget } from './RemainingTasksWidget';
 import { TopPriorityTasksWidget } from './TopPriorityTasksWidget';
-import { CreateTaskModal } from '../tasks/CreateTaskModal';
+const CreateTaskModal = dynamic(() => import('../tasks/CreateTaskModal').then((m) => m.CreateTaskModal), { ssr: false });
 import { useEduSpare } from '@/context/EduSpareContext';
 
 export const DashboardView: React.FC = () => {
@@ -33,10 +35,12 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Create Task Modal */}
+      {isCreateModalOpen && (
       <CreateTaskModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       />
+      )}
     </div>
   );
 };

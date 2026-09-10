@@ -166,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg overflow-hidden border border-outline-variant/40">
-                  <img src="/assets/eduspare_brain_icon.png" alt="EduSpare" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src="/assets/eduspare_brain_icon.png" alt="EduSpare" className="w-full h-full object-cover" />
                 </div>
                 <span className="font-bold text-base text-on-surface tracking-tight">
                   Edu<span className="text-primary">Spare</span>

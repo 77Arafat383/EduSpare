@@ -22,7 +22,7 @@ export const CommunityPostBoxCard: React.FC<CommunityPostBoxCardProps> = ({
       onClick={onOpenCreatePost}
       className="p-4 rounded-3xl bg-surface-lowest hover:bg-surface-container-low border border-outline-variant/60 shadow-sm flex items-center gap-3 cursor-pointer transition-all group"
     >
-      <img
+      <img loading="lazy" decoding="async"
         src={currentUser.avatar || '/assets/default_avatar.png'}
         alt={currentUser.name}
         className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-primary/20"

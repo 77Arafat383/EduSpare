@@ -143,7 +143,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
               />
             </div>
             <div className="h-16 rounded-xl overflow-hidden bg-surface-container">
-              <img src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
             </div>
           </div>
 
@@ -167,7 +167,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                 className="hidden"
               />
             </div>
-            <img src={avatarImage} alt="Profile Photo Preview" className="w-10 h-10 rounded-full object-cover" />
+            <img loading="lazy" decoding="async" src={avatarImage} alt="Profile Photo Preview" className="w-10 h-10 rounded-full object-cover" />
           </div>
 
           {/* Community Rules Input */}
