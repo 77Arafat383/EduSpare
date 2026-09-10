@@ -1,5 +1,7 @@
 'use client';
 
+import { compressImageToDataUrl, IMAGE_PRESETS } from '@/lib/imageCompression';
+
 import React, { useState } from 'react';
 import { X, Image as ImageIcon, FileText, Tag, Upload, Eye, Edit3, Sparkles, Sigma } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
@@ -189,11 +191,7 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCoverImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.post).then(setCoverImage);
     }
   };
 

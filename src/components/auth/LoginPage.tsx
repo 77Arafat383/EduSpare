@@ -80,7 +80,7 @@ export const LoginPage: React.FC = () => {
         <header className="pt-8 px-6 pb-4 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg border border-outline-variant/40 bg-surface-container-low mb-4 p-1 flex items-center justify-center">
             <img loading="eager" fetchPriority="high" decoding="async"
-              src="/assets/eduspare_brain_icon.png"
+              src="/assets/eduspare_brain_icon_128.png"
               alt="EduSpare Brain Logo"
               className="w-full h-full object-cover"
             />

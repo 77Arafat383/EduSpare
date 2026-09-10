@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { sortTasksByPriority } from '@/lib/priorityAlgorithm';
 import { getRankFromPoints } from '@/lib/rankSystem';
 import { calculateStreaksForUsers } from '@/lib/streak';
-import { jsonWithEtag, publicUserSelect, authorSelect } from '@/lib/apiResponse';
+import { jsonWithEtag, presenceUserSelect, authorSelect } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 
     const [users, tasks, notifications, userMessages] = await Promise.all([
       include.has('users')
-        ? prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: publicUserSelect })
+        ? prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: presenceUserSelect })
         : null,
       include.has('tasks')
         ? prisma.task.findMany({ where: { userId }, include: { user: { select: authorSelect } } })

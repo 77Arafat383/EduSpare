@@ -22,11 +22,11 @@ export async function GET(request: Request) {
           comments: {
             include: {
               author: { select: authorSelect },
-              reactions: { select: { id: true, commentId: true, userId: true, type: true } },
+              reactions: { select: { userId: true } },
             },
             orderBy: { createdAt: 'asc' },
           },
-          reactions: { select: { id: true, blogId: true, userId: true, type: true } },
+          reactions: { select: { userId: true } },
         },
         orderBy: { createdAt: 'desc' },
         take,
@@ -46,12 +46,13 @@ export async function GET(request: Request) {
       const isLikedByMe = userId ? blog.reactions.some((r) => r.userId === userId) : false;
       const isSavedByMe = savedBlogIds.has(blog.id);
 
-      const allComments = (blog.comments || []).map((c) => ({
+      const allComments = (blog.comments || []).map(({ reactions: cReactions, ...c }) => ({
         ...c,
+        reactions: undefined,
         createdAt: c.createdAt.toISOString(),
         updatedAt: c.updatedAt ? c.updatedAt.toISOString() : c.createdAt.toISOString(),
-        likesCount: c.reactions ? c.reactions.length : 0,
-        isLikedByMe: userId && c.reactions ? c.reactions.some((r) => r.userId === userId) : false,
+        likesCount: cReactions ? cReactions.length : 0,
+        isLikedByMe: userId && cReactions ? cReactions.some((r) => r.userId === userId) : false,
       }));
 
       const repliesByParent = new Map<string, typeof allComments>();
@@ -65,8 +66,9 @@ export async function GET(request: Request) {
         .filter((c) => !c.parentId)
         .map((parent) => ({ ...parent, replies: repliesByParent.get(parent.id) ?? [] }));
 
+      const { reactions: _reactions, ...blogRest } = blog;
       return {
-        ...blog,
+        ...blogRest,
         createdAt: blog.createdAt.toISOString(),
         updatedAt: blog.updatedAt ? blog.updatedAt.toISOString() : blog.createdAt.toISOString(),
         attachments: JSON.parse(blog.attachments || '[]'),

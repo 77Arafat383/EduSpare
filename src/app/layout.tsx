@@ -17,10 +17,17 @@ export const metadata: Metadata = {
   title: 'EduSpare',
   description:
     'EduSpare integrates activity heatmaps, intelligent task prioritization, Notion-style task workspaces with AI Tutors, Facebook-style blogs, real-time user chat, profile vaults, and study communities.',
+  manifest: '/manifest.webmanifest',
+  applicationName: 'EduSpare',
+  appleWebApp: { capable: true, title: 'EduSpare', statusBarStyle: 'default' },
+  formatDetection: { telephone: false },
   icons: {
-    icon: '/assets/eduspare_brain_icon_without_bg.png',
-    shortcut: '/assets/eduspare_brain_icon.png',
-    apple: '/assets/eduspare_brain_icon.svg',
+    icon: [
+      { url: '/assets/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/assets/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: '/assets/icon-192.png',
+    apple: '/assets/apple-touch-icon.png',
   },
 };
 
@@ -39,9 +46,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        <link rel="icon" type="image/png" href="/assets/eduspare_brain_icon_without_bg.png" />
-        <link rel="shortcut icon" href="/assets/eduspare_brain_icon_without_bg.png" />
-        <link rel="apple-touch-icon" href="/assets/eduspare_brain_icon_without_bg.png" />
+        <link rel="preload" as="image" href="/assets/eduspare_brain_icon_128.png" />
       </head>
       <body className={`${inter.className} font-sans antialiased bg-background text-on-surface`}>
         <EduSpareProvider>{children}</EduSpareProvider>

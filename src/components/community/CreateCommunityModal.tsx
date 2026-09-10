@@ -1,5 +1,7 @@
 'use client';
 
+import { compressImageToDataUrl, IMAGE_PRESETS } from '@/lib/imageCompression';
+
 import React, { useState } from 'react';
 import { DEFAULT_COMMUNITY_COVERS, DEFAULT_COMMUNITY_RULES } from './communityConstants';
 import { X, Upload, ScrollText, Lock } from 'lucide-react';
@@ -37,26 +39,14 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setCoverImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.cover).then(setCoverImage);
     }
   };
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setAvatarImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.avatar).then(setAvatarImage);
     }
   };
 

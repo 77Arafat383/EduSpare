@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
         >
           <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md group-hover:scale-105 transition-transform shrink-0 border border-outline-variant/40 bg-surface-container-low">
             <img loading="eager" fetchPriority="high" decoding="async"
-              src="/assets/eduspare_brain_icon.png"
+              src="/assets/eduspare_brain_icon_128.png"
               alt="EduSpare Brain Logo"
               className="w-full h-full object-cover"
             />

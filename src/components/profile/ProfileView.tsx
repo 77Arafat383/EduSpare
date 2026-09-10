@@ -1,5 +1,7 @@
 'use client';
 
+import { compressImageToDataUrl, IMAGE_PRESETS } from '@/lib/imageCompression';
+
 import dynamic from 'next/dynamic';
 
 import React, { useState, useEffect } from 'react';
@@ -162,26 +164,14 @@ export const ProfileView: React.FC = () => {
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setEditAvatar(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.avatar).then(setEditAvatar);
     }
   };
 
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setEditCoverImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.cover).then(setEditCoverImage);
     }
   };
 
