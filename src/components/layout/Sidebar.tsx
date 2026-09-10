@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { ActiveTab } from '@/types/eduspare';
+import { prefetchView } from '@/lib/prefetchViews';
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -77,6 +78,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           <button
             key={item.id}
             onClick={() => handleSelectTab(item.id)}
+            onMouseEnter={() => prefetchView(item.id)}
+            onTouchStart={() => prefetchView(item.id)}
+            onFocus={() => prefetchView(item.id)}
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${isActive
               ? 'bg-primary text-white shadow-md shadow-primary/20'
               : 'text-on-surface hover:bg-surface-container-high'
@@ -166,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg overflow-hidden border border-outline-variant/40">
-                  <img src="/assets/eduspare_brain_icon.png" alt="EduSpare" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src="/assets/eduspare_brain_icon_128.png" alt="EduSpare" className="w-full h-full object-cover" />
                 </div>
                 <span className="font-bold text-base text-on-surface tracking-tight">
                   Edu<span className="text-primary">Spare</span>

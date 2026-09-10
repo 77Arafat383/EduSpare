@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import React, { useState, useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import { MaterialItem } from '@/types/eduspare';
+import { MarkdownRenderer, preprocessLatex } from '../common/MarkdownRenderer';
 import {
   FileText,
   CheckCircle2,
@@ -28,6 +26,84 @@ export interface NotionPage {
   createdAt?: string;
 }
 
+/** Convert copied rich HTML (e.g. a rendered AI answer) back to Markdown + TeX. */
+function htmlToMarkdown(html: string): string {
+  if (typeof window === 'undefined') return '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  // KaTeX keeps the original TeX source in <annotation encoding="application/x-tex">.
+  doc.querySelectorAll('.katex-display, .katex').forEach((node) => {
+    if (node.parentElement?.closest('.katex-display, .katex') && node.parentElement.closest('.katex-display, .katex') !== node) return;
+    const ann = node.querySelector('annotation[encoding="application/x-tex"]');
+    if (!ann) return;
+    const tex = (ann.textContent || '').trim();
+    const isDisplay = node.classList.contains('katex-display') || !!node.closest('.katex-display');
+    node.replaceWith(doc.createTextNode(isDisplay ? `\n\n$$\n${tex}\n$$\n\n` : `$${tex}$`));
+  });
+
+  const walk = (node: Node, listDepth = 0): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const el = node as HTMLElement;
+    const tag = el.tagName.toLowerCase();
+    const inner = () => Array.from(el.childNodes).map((c) => walk(c, listDepth)).join('');
+
+    switch (tag) {
+      case 'br': return '\n';
+      case 'h1': return `\n\n# ${inner().trim()}\n\n`;
+      case 'h2': return `\n\n## ${inner().trim()}\n\n`;
+      case 'h3': return `\n\n### ${inner().trim()}\n\n`;
+      case 'h4': case 'h5': case 'h6': return `\n\n#### ${inner().trim()}\n\n`;
+      case 'p': case 'div': case 'section': case 'article': return `\n\n${inner().trim()}\n\n`;
+      case 'strong': case 'b': { const t = inner().trim(); return t ? `**${t}**` : ''; }
+      case 'em': case 'i': { const t = inner().trim(); return t ? `*${t}*` : ''; }
+      case 'code':
+        if (el.parentElement?.tagName.toLowerCase() === 'pre') return el.textContent || '';
+        return `\`${el.textContent || ''}\``;
+      case 'pre': {
+        const code = el.querySelector('code');
+        const lang = (code?.className.match(/language-([\w-]+)/) || [])[1] || '';
+        return `\n\n\`\`\`${lang}\n${(el.textContent || '').replace(/\n$/, '')}\n\`\`\`\n\n`;
+      }
+      case 'blockquote':
+        return `\n\n${inner().trim().split('\n').map((l) => `> ${l}`).join('\n')}\n\n`;
+      case 'ul': case 'ol': {
+        const ordered = tag === 'ol';
+        let i = 0;
+        const items = Array.from(el.children)
+          .filter((c) => c.tagName.toLowerCase() === 'li')
+          .map((li) => {
+            i += 1;
+            const body = Array.from(li.childNodes).map((c) => walk(c, listDepth + 1)).join('').trim().replace(/\n{2,}/g, '\n');
+            return `${'  '.repeat(listDepth)}${ordered ? `${i}.` : '-'} ${body}`;
+          });
+        return `\n\n${items.join('\n')}\n\n`;
+      }
+      case 'li': return inner();
+      case 'table': {
+        const rows = Array.from(el.querySelectorAll('tr')).map((tr) =>
+          Array.from(tr.children).map((td) => walk(td, listDepth).trim().replace(/\|/g, '\\|'))
+        );
+        if (!rows.length) return '';
+        const header = rows[0];
+        const out = [`| ${header.join(' | ')} |`, `| ${header.map(() => '---').join(' | ')} |`];
+        rows.slice(1).forEach((r) => out.push(`| ${r.join(' | ')} |`));
+        return `\n\n${out.join('\n')}\n\n`;
+      }
+      case 'a': { const href = el.getAttribute('href'); const t = inner().trim(); return href ? `[${t}](${href})` : t; }
+      case 'hr': return '\n\n---\n\n';
+      case 'script': case 'style': return '';
+      default: return inner();
+    }
+  };
+
+  return walk(doc.body)
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 interface NotionKeepNotesProps {
   initialNotes?: string | null;
   onSaveNotes: (notes: string) => void;
@@ -45,6 +121,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [isSaved, setIsSaved] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Initialize Notion Pages from initialNotes (supports JSON array or plain text)
   useEffect(() => {
@@ -88,6 +165,55 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
       prev.map((p) => (p.id === activePageId ? { ...p, content: newContent } : p))
     );
     setIsSaved(false);
+  };
+
+  /**
+   * Smart paste: anything copied from the AI Tutor chat (Markdown, LaTeX
+   * \( \) / \[ \] delimiters, ```math blocks, raw \frac{}{} equations, or the
+   * rendered HTML of a message) is normalised into the same Markdown + $math$
+   * syntax the renderer understands, so it formats automatically in preview.
+   */
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const clipboard = e.clipboardData;
+    let text = clipboard.getData('text/plain');
+    const html = clipboard.getData('text/html');
+
+    // If the user copied rendered output (selection in the chat bubble),
+    // recover the original TeX from KaTeX's <annotation> nodes and basic
+    // structure (headings, lists, code, emphasis) from the HTML.
+    if (html && (!text || /katex|<(h[1-6]|ul|ol|pre|code|strong|em|table)\b/i.test(html))) {
+      const fromHtml = htmlToMarkdown(html);
+      if (fromHtml.trim()) text = fromHtml;
+    }
+
+    if (!text) return;
+
+    const formatted = preprocessLatex(text)
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\n+/, '')
+      .replace(/\n+$/, '');
+
+    if (!formatted) return;
+
+    e.preventDefault();
+    const el = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = el;
+    const before = value.slice(0, selectionStart);
+    const after = value.slice(selectionEnd);
+    // Keep block math / headings on their own lines.
+    const needsLeadingBreak = before.length > 0 && !before.endsWith('\n') && /^(\$\$|#|-|\*|\d+\.|```|>)/.test(formatted);
+    const insert = (needsLeadingBreak ? '\n' : '') + formatted;
+    const next = before + insert + after;
+
+    handleContentChange(next);
+    const caret = before.length + insert.length;
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        ta.selectionStart = ta.selectionEnd = caret;
+        ta.focus();
+      }
+    });
   };
 
   // Renaming: allow empty string while typing so user can backspace & erase previous name completely!
@@ -393,22 +519,20 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
         <div className="relative">
           {viewMode === 'edit' ? (
             <textarea
+              ref={textareaRef}
               rows={12}
               value={activePage.content}
               onChange={(e) => handleContentChange(e.target.value)}
+              onPaste={handlePaste}
               placeholder="Type notes, Markdown, or paste LaTeX math equations directly from AI Tutor..."
               className="w-full p-4 rounded-2xl bg-surface-container-low text-on-surface text-xs sm:text-sm font-mono border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-lowest leading-relaxed transition-all resize-y"
             />
           ) : (
             <div className="p-5 rounded-2xl bg-surface-container-low border border-outline-variant/60 min-h-[260px] text-on-surface overflow-x-auto leading-relaxed">
-              <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm">
-                <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {activePage.content || '*No content in this page yet.*'}
-                </ReactMarkdown>
-              </div>
+              <MarkdownRenderer
+                className="text-xs sm:text-sm"
+                content={activePage.content || '*No content in this page yet.*'}
+              />
             </div>
           )}
         </div>

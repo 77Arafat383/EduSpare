@@ -2,10 +2,36 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sortTasksByPriority } from '@/lib/priorityAlgorithm';
 import { getRankFromPoints } from '@/lib/rankSystem';
-import { jsonWithEtag, publicUserSelect, authorSelect } from '@/lib/apiResponse';
+import { calculateStreaksForUsers } from '@/lib/streak';
+import { jsonWithEtag, presenceUserSelect, authorSelect } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+// Streak/rank recomputation is expensive (scans tasks + blogs); it is throttled and
+// runs from this poll (signed-in users only) so the login gate (/api/auth) stays cheap.
+const STREAK_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const globalForSync = globalThis as unknown as { __eduspareLastStreakRefresh?: number };
+
+async function refreshStreaksIfDue(users: { id: string; activeStreak: number; totalPoints: number; rank: string }[]) {
+  const now = Date.now();
+  if (now - (globalForSync.__eduspareLastStreakRefresh ?? 0) <= STREAK_REFRESH_INTERVAL_MS) return null;
+  globalForSync.__eduspareLastStreakRefresh = now;
+  try {
+    const streaks = await calculateStreaksForUsers(users.map((u) => u.id));
+    const updates = users
+      .map((u) => ({ id: u.id, streak: streaks.get(u.id) ?? u.activeStreak, rank: getRankFromPoints(u.totalPoints), u }))
+      .filter(({ streak, rank, u }) => streak !== u.activeStreak || rank !== u.rank)
+      .map(({ id, streak, rank }) =>
+        prisma.user.update({ where: { id }, data: { activeStreak: streak, rank } })
+      );
+    if (updates.length) await prisma.$transaction(updates);
+    return streaks;
+  } catch (err) {
+    console.error('Streak refresh error:', err);
+    return null;
+  }
+}
 
 /**
  * Combined polling endpoint.
@@ -33,7 +59,7 @@ export async function GET(request: Request) {
 
     const [users, tasks, notifications, userMessages] = await Promise.all([
       include.has('users')
-        ? prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: publicUserSelect })
+        ? prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: presenceUserSelect })
         : null,
       include.has('tasks')
         ? prisma.task.findMany({ where: { userId }, include: { user: { select: authorSelect } } })
@@ -47,11 +73,28 @@ export async function GET(request: Request) {
           })
         : null,
       include.has('conversations')
-        ? prisma.message.findMany({
-            where: { OR: [{ senderId: userId }, { receiverId: userId }] },
-            select: { senderId: true, receiverId: true, content: true, isSeen: true, isRead: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-          })
+        ? Promise.all([
+            // Latest message per contact (DISTINCT ON keeps this a single indexed scan)
+            prisma.$queryRaw<
+              { contactId: string; content: string; createdAt: Date; isMeSender: boolean }[]
+            >`
+              SELECT DISTINCT ON (contact) contact AS "contactId", content, "createdAt",
+                     ("senderId" = ${userId}) AS "isMeSender"
+              FROM (
+                SELECT CASE WHEN "senderId" = ${userId} THEN "receiverId" ELSE "senderId" END AS contact,
+                       content, "createdAt", "senderId"
+                FROM "Message"
+                WHERE "senderId" = ${userId} OR "receiverId" = ${userId}
+              ) m
+              ORDER BY contact, "createdAt" DESC
+            `,
+            // Unseen counts per sender
+            prisma.message.groupBy({
+              by: ['senderId'],
+              where: { receiverId: userId, isSeen: false, isRead: false },
+              _count: { _all: true },
+            }),
+          ])
         : null,
       // Presence heartbeat piggybacks on the poll; failures must not break the response.
       heartbeat
@@ -64,7 +107,12 @@ export async function GET(request: Request) {
     const payload: Record<string, unknown> = {};
 
     if (users) {
-      payload.allUsers = users.map((u) => ({ ...u, rank: getRankFromPoints(u.totalPoints) }));
+      const streaks = await refreshStreaksIfDue(users);
+      payload.allUsers = users.map((u) => ({
+        ...u,
+        activeStreak: streaks?.get(u.id) ?? u.activeStreak,
+        rank: getRankFromPoints(u.totalPoints),
+      }));
     }
 
     if (tasks) {
@@ -85,24 +133,19 @@ export async function GET(request: Request) {
     }
 
     if (userMessages) {
+      const [latest, unseen] = userMessages;
+      const unseenBySender = new Map<string, number>(unseen.map((u) => [u.senderId, u._count._all]));
       const recentConversations: Record<
         string,
         { lastMessageAt: string; lastMessageSnippet: string; isMeSender: boolean; unseenCount: number }
       > = {};
-      userMessages.forEach((msg) => {
-        const contactId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-        if (!recentConversations[contactId]) {
-          recentConversations[contactId] = {
-            lastMessageAt: msg.createdAt.toISOString(),
-            lastMessageSnippet: msg.content.length > 120 ? msg.content.slice(0, 120) : msg.content,
-            isMeSender: msg.senderId === userId,
-            unseenCount: 0,
-          };
-        }
-        const isSeenVal = msg.isSeen ?? msg.isRead ?? false;
-        if (msg.receiverId === userId && !isSeenVal) {
-          recentConversations[contactId].unseenCount += 1;
-        }
+      latest.forEach((msg) => {
+        recentConversations[msg.contactId] = {
+          lastMessageAt: new Date(msg.createdAt).toISOString(),
+          lastMessageSnippet: msg.content.length > 120 ? msg.content.slice(0, 120) : msg.content,
+          isMeSender: msg.isMeSender,
+          unseenCount: unseenBySender.get(msg.contactId) ?? 0,
+        };
       });
       payload.recentConversations = recentConversations;
     }

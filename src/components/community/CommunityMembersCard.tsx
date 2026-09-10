@@ -65,7 +65,7 @@ export const CommunityMembersCard: React.FC<CommunityMembersCardProps> = ({
                 className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex items-center justify-between gap-2"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={member.avatar || '/assets/default_avatar.png'}
                     alt={member.name}
                     className="w-8 h-8 rounded-full object-cover shrink-0"
@@ -141,7 +141,7 @@ export const CommunityMembersCard: React.FC<CommunityMembersCardProps> = ({
                     className="p-2.5 rounded-xl bg-surface-lowest flex items-center justify-between gap-2 border border-outline-variant/30"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={u.avatar || '/assets/default_avatar.png'}
                         alt={u.name}
                         className="w-8 h-8 rounded-full object-cover shrink-0"

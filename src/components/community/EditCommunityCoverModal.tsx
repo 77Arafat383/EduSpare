@@ -1,5 +1,7 @@
 'use client';
 
+import { compressImageToDataUrl, IMAGE_PRESETS } from '@/lib/imageCompression';
+
 import React, { useState, useEffect } from 'react';
 import { CommunityItem } from '@/types/eduspare';
 import { DEFAULT_COMMUNITY_COVERS, DEFAULT_COMMUNITY_RULES } from './communityConstants';
@@ -49,26 +51,14 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setCoverImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.cover).then(setCoverImage);
     }
   };
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setAvatarImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.avatar).then(setAvatarImage);
     }
   };
 
@@ -152,7 +142,7 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
               />
             </div>
             <div className="h-20 rounded-xl overflow-hidden bg-surface-container">
-              <img src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
             </div>
           </div>
 
@@ -176,7 +166,7 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
                 className="hidden"
               />
             </div>
-            <img src={avatarImage} alt="Profile Photo Preview" className="w-12 h-12 rounded-full object-cover" />
+            <img loading="lazy" decoding="async" src={avatarImage} alt="Profile Photo Preview" className="w-12 h-12 rounded-full object-cover" />
           </div>
 
           {/* Community Guidelines & Rules */}

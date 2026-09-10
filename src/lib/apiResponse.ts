@@ -48,6 +48,25 @@ export const publicUserSelect = {
   createdAt: true,
 } as const;
 
+/**
+ * Presence-list projection used by the frequently polled /api/sync endpoint.
+ * Excludes coverImage / bio / contact fields (which can be large base64 blobs)
+ * — those are fetched on demand from /api/profile.
+ */
+export const presenceUserSelect = {
+  id: true,
+  username: true,
+  name: true,
+  email: true,
+  avatar: true,
+  university: true,
+  activeStreak: true,
+  totalPoints: true,
+  rank: true,
+  lastActiveAt: true,
+  createdAt: true,
+} as const;
+
 /** Minimal user identity used when embedding authors / senders / actors in lists. */
 export const authorSelect = {
   id: true,

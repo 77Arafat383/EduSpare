@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   User,
   TaskItem,
@@ -91,6 +91,16 @@ interface EduSpareContextType {
   loading: boolean;
 }
 
+/** Cheap structural equality for API payloads (arrays / plain objects). */
+const sameJson = (a: unknown, b: unknown) => {
+  if (a === b) return true;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+};
+
 const EduSpareContext = createContext<EduSpareContextType | undefined>(undefined);
 
 /** Cheap structural check so polling doesn't trigger re-renders when nothing changed. */
@@ -142,12 +152,16 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Initialize auth & users
   useEffect(() => {
     async function initAuth() {
+      const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('eduspare_active_user_id') : null;
+      // Only block first paint when there is a saved session to restore. Visitors
+      // without a session see the login card immediately; the user list loads
+      // in the background.
+      if (!savedUserId) setLoading(false);
       try {
         const res = await fetch('/api/auth');
         const data = await res.json();
         if (data.allUsers) {
           setAllUsers(data.allUsers || []);
-          const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('eduspare_active_user_id') : null;
           if (savedUserId) {
             const foundUser = data.allUsers.find((u: User) => u.id === savedUserId);
             if (foundUser) {
@@ -254,7 +268,7 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
         }
       });
-      setRecentConversations(updatedConvs);
+      setRecentConversations((prev) => (sameJson(prev, updatedConvs) ? prev : updatedConvs));
     },
     []
   );
@@ -265,10 +279,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const res = await fetch(`/api/sync?userId=${currentUser.id}`);
       if (!res.ok) return;
+      if (res.status === 304) return;
       const data = await res.json();
-      if (data.allUsers) setAllUsers(data.allUsers);
-      if (data.tasks) setTasks(data.tasks);
-      if (data.notifications) setNotifications(data.notifications);
+      // Only update state when the payload actually changed, so the 8s poll
+      // doesn't re-render every consumer of the context for identical data.
+      if (data.allUsers) setAllUsers((prev) => (sameJson(prev, data.allUsers) ? prev : data.allUsers));
+      if (data.tasks) setTasks((prev) => (sameJson(prev, data.tasks) ? prev : data.tasks));
+      if (data.notifications) setNotifications((prev) => (sameJson(prev, data.notifications) ? prev : data.notifications));
       if (data.recentConversations) applyConversations(data.recentConversations);
     } catch (err) {
       console.error('Sync error:', err);
@@ -280,39 +297,80 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!currentUser) return;
 
-    // Initial load (one-off data that is refreshed after mutations, not polled)
-    fetchBlogs();
-    fetchCommunities();
-    fetchSavedItems();
+    // Initial load: the dashboard only needs the sync payload (tasks, users,
+    // notifications). Blogs / communities / saved items are fetched right after
+    // first paint so they don't compete with it for bandwidth and DB time.
     sync();
+    const idle =
+      typeof window !== 'undefined' && 'requestIdleCallback' in window
+        ? (cb: () => void) => (window as any).requestIdleCallback(cb, { timeout: 1500 })
+        : (cb: () => void) => setTimeout(cb, 300);
+    const idleHandle = idle(() => {
+      fetchBlogs();
+      fetchCommunities();
+      fetchSavedItems();
+    });
 
-    // Poll only while the tab is visible; back off to a slow poll when hidden.
+    // Adaptive polling: fast while the user is interacting, slower after a
+    // couple of minutes without input, slowest when the tab is hidden, and
+    // relaxed further on Data-Saver / slow connections.
     const ACTIVE_INTERVAL = 8000;
+    const IDLE_INTERVAL = 30000;
     const HIDDEN_INTERVAL = 60000;
+    const IDLE_AFTER_MS = 2 * 60 * 1000;
+    const conn = typeof navigator !== 'undefined' ? (navigator as any).connection : undefined;
+    const slowNet = !!(conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || '')));
+    let lastInteraction = Date.now();
     let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const nextDelay = () => {
+      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      let d = hidden ? HIDDEN_INTERVAL : Date.now() - lastInteraction > IDLE_AFTER_MS ? IDLE_INTERVAL : ACTIVE_INTERVAL;
+      if (slowNet) d *= 2;
+      return d;
+    };
 
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
       timer = setTimeout(async () => {
         await sync();
         schedule();
-      }, hidden ? HIDDEN_INTERVAL : ACTIVE_INTERVAL);
+      }, nextDelay());
     };
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
+        lastInteraction = Date.now();
         sync();
       }
+      schedule();
+    };
+    const onInteract = () => {
+      const wasIdle = Date.now() - lastInteraction > IDLE_AFTER_MS;
+      lastInteraction = Date.now();
+      if (wasIdle) {
+        sync();
+        schedule();
+      }
+    };
+    const onOnline = () => {
+      sync();
       schedule();
     };
 
     schedule();
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
+    const interactEvents: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    interactEvents.forEach((ev) => window.addEventListener(ev, onInteract, { passive: true }));
 
     return () => {
       if (timer) clearTimeout(timer);
+      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) (window as any).cancelIdleCallback(idleHandle);
+      else clearTimeout(idleHandle as any);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onOnline);
+      interactEvents.forEach((ev) => window.removeEventListener(ev, onInteract));
     };
   }, [currentUser, sync]);
 
@@ -459,10 +517,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       prev.map((b) => {
         if (b.id !== blogId) return b;
         const liked = !!b.isLikedByMe;
-        const reactions = liked
-          ? (b.reactions || []).filter((r) => r.userId !== me)
-          : [...(b.reactions || []), { id: `tmp-${Date.now()}`, blogId, userId: me, type: 'like' }];
-        return { ...b, isLikedByMe: !liked, reactions, likesCount: reactions.length };
+        const likesCount = Math.max(0, (b.likesCount ?? 0) + (liked ? -1 : 1));
+        return { ...b, isLikedByMe: !liked, likesCount };
       })
     );
     try {
@@ -538,10 +594,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const toggle = (c: any) => {
       if (c.id !== commentId) return c;
       const liked = !!c.isLikedByMe;
-      const reactions = liked
-        ? (c.reactions || []).filter((r: any) => r.userId !== me)
-        : [...(c.reactions || []), { id: `tmp-${Date.now()}`, commentId, userId: me, type: 'like' }];
-      return { ...c, isLikedByMe: !liked, reactions, likesCount: reactions.length };
+      const likesCount = Math.max(0, (c.likesCount ?? 0) + (liked ? -1 : 1));
+      return { ...c, isLikedByMe: !liked, likesCount };
     };
     setBlogs((prev) =>
       prev.map((b) =>
@@ -1037,9 +1091,8 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setActiveChatUser(null);
   };
 
-  return (
-    <EduSpareContext.Provider
-      value={{
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const contextValue = useMemo<EduSpareContextType>(() => ({
         activeTab,
         setActiveTab,
         currentUser,
@@ -1106,11 +1159,13 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         loginOrRegister,
         logout,
         loading,
-      }}
-    >
-      {children}
-    </EduSpareContext.Provider>
-  );
+      }), [
+        activeTab, currentUser, allUsers, selectedTaskId, selectedBlogId, selectedUsername, selectedCommunityId,
+        tasks, blogs, communities, savedItems, messages, recentConversations, activeChatUser, isChatBlocked,
+        notifications, loading,
+      ]);
+
+  return <EduSpareContext.Provider value={contextValue}>{children}</EduSpareContext.Provider>;
 };
 
 export const useEduSpare = () => {

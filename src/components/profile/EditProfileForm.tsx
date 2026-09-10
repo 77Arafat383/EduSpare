@@ -97,7 +97,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       <div className="space-y-2">
         <label className="block text-[11px] font-bold text-outline uppercase">Profile Picture</label>
         <div className="flex items-center gap-3">
-          <img
+          <img loading="lazy" decoding="async"
             src={editAvatar || '/assets/default_avatar.png'}
             alt="Avatar Preview"
             className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-primary/20"
@@ -119,7 +119,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         <label className="block text-[11px] font-bold text-outline uppercase">Cover Photo</label>
         <div className="flex items-center gap-3">
           <div className="w-20 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 border border-outline-variant/40">
-            <img
+            <img loading="lazy" decoding="async"
               src={editCoverImage || '/assets/default_cover.png'}
               alt="Cover Preview"
               className="w-full h-full object-cover"

@@ -102,7 +102,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
     <div className="bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm relative z-10">
       {/* Cover Backdrop */}
       <div className="h-32 sm:h-44 relative bg-gradient-to-r from-primary via-primary-container to-purple-600 rounded-t-3xl overflow-hidden">
-        <img
+        <img loading="lazy" decoding="async"
           src={user.coverImage || '/assets/default_cover.png'}
           alt="Cover Backdrop"
           className="w-full h-full object-cover"
@@ -126,7 +126,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
 
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 -mt-10 sm:-mt-12 pr-12 sm:pr-0">
           {/* Avatar with Glowing Blue Light Circle Ring for Active Status */}
-          <img
+          <img loading="lazy" decoding="async"
             src={user.avatar || '/assets/default_avatar.png'}
             alt={user.name}
             className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-xl bg-surface-lowest shrink-0 transition-all ${

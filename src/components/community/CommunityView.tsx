@@ -1,17 +1,19 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { BlogPostCard } from '../blog/BlogPostCard';
-import { CreateBlogModal } from '../blog/CreateBlogModal';
+const CreateBlogModal = dynamic(() => import('../blog/CreateBlogModal').then((m) => m.CreateBlogModal), { ssr: false });
 import { CommunityHeader } from './CommunityHeader';
 import { CommunitySelectorPills } from './CommunitySelectorPills';
 import { CommunityCoverCard } from './CommunityCoverCard';
 import { CommunityPostBoxCard } from './CommunityPostBoxCard';
 import { AdminApprovalQueueCard } from './AdminApprovalQueueCard';
 import { CommunityMembersCard } from './CommunityMembersCard';
-import { CreateCommunityModal } from './CreateCommunityModal';
-import { EditCommunityCoverModal } from './EditCommunityCoverModal';
+const CreateCommunityModal = dynamic(() => import('./CreateCommunityModal').then((m) => m.CreateCommunityModal), { ssr: false });
+const EditCommunityCoverModal = dynamic(() => import('./EditCommunityCoverModal').then((m) => m.EditCommunityCoverModal), { ssr: false });
 import { Shield, Clock, Sparkles, PenSquare } from 'lucide-react';
 
 export const CommunityView: React.FC = () => {
@@ -217,18 +219,22 @@ export const CommunityView: React.FC = () => {
       )}
 
       {/* 4. Modals */}
+      {isCreateOpen && (
       <CreateCommunityModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onSubmit={handleCreateSubmit}
       />
+      )}
 
+      {isEditCoverOpen && (
       <EditCommunityCoverModal
         isOpen={isEditCoverOpen}
         community={activeCommunity}
         onClose={() => setIsEditCoverOpen(false)}
         onSubmit={handleEditCoverSubmit}
       />
+      )}
 
       {isPostModalOpen && activeCommunity && (
         <CreateBlogModal

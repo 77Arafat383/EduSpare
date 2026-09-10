@@ -218,7 +218,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = () => {
         ref={scrollContainerRef}
         className="relative overflow-x-auto p-4 bg-surface-container-low/50 rounded-2xl border border-outline-variant/40"
       >
-        <div className="min-w-[720px]">
+        <div className="min-w-[640px] sm:min-w-[720px]">
           {/* Months label bar - Exactly aligned 1-to-1 with week columns */}
           <div className="flex gap-1.5 items-center mb-2">
             {/* Day label spacer */}

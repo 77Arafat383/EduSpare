@@ -82,7 +82,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               >
                 {/* User Avatar + Active Online Badge */}
                 <div className="relative shrink-0">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={user.avatar}
                     alt={user.name}
                     className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10"

@@ -117,7 +117,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ blogId, blogAuth
     return (
       <div key={comment.id} className="space-y-2">
         <div className="flex items-start gap-2.5 text-xs group">
-          <img
+          <img loading="lazy" decoding="async"
             src={comment.author.avatar}
             alt={comment.author.name}
             onClick={() => handleProfileClick(comment.author.username)}
@@ -292,7 +292,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ blogId, blogAuth
       {/* Input box with current user profile avatar */}
       {currentUser && (
         <form onSubmit={handleSubmitNewComment} className="flex items-center gap-3">
-          <img
+          <img loading="lazy" decoding="async"
             src={currentUser.avatar}
             alt={currentUser.name}
             className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-primary/20"

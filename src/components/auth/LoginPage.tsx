@@ -79,8 +79,8 @@ export const LoginPage: React.FC = () => {
         {/* Header & Logo */}
         <header className="pt-8 px-6 pb-4 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg border border-outline-variant/40 bg-surface-container-low mb-4 p-1 flex items-center justify-center">
-            <img
-              src="/assets/eduspare_brain_icon.png"
+            <img loading="eager" fetchPriority="high" decoding="async"
+              src="/assets/eduspare_brain_icon_128.png"
               alt="EduSpare Brain Logo"
               className="w-full h-full object-cover"
             />
@@ -275,7 +275,7 @@ export const LoginPage: React.FC = () => {
                   onClick={() => setCurrentUser(u)}
                   className="p-2 rounded-xl bg-surface-container-low hover:bg-primary/10 hover:border-primary border border-outline-variant/40 text-left transition-colors flex items-center gap-2 group"
                 >
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={u.avatar}
                     alt={u.name}
                     className="w-6 h-6 rounded-full object-cover shrink-0"

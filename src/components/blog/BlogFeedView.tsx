@@ -1,9 +1,11 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { BlogPostCard } from './BlogPostCard';
-import { CreateBlogModal } from './CreateBlogModal';
+const CreateBlogModal = dynamic(() => import('./CreateBlogModal').then((m) => m.CreateBlogModal), { ssr: false });
 import { BookOpen, Plus, Search, Bookmark, X } from 'lucide-react';
 
 export const BlogFeedView: React.FC = () => {
@@ -72,7 +74,7 @@ export const BlogFeedView: React.FC = () => {
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/40 cursor-pointer transition-colors"
           >
-            <img
+            <img loading="lazy" decoding="async"
               src={currentUser.avatar}
               alt={currentUser.name}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-primary/20"
@@ -115,7 +117,7 @@ export const BlogFeedView: React.FC = () => {
           </div>
         ) : (
           filteredBlogs.map((post) => (
-            <div key={post.id} className={selectedBlogId === post.id ? 'ring-2 ring-primary rounded-3xl' : ''}>
+            <div key={post.id} className={`content-auto ${selectedBlogId === post.id ? 'ring-2 ring-primary rounded-3xl' : ''}`}>
               <BlogPostCard post={post} />
             </div>
           ))
@@ -123,7 +125,9 @@ export const BlogFeedView: React.FC = () => {
       </div>
 
       {/* Create Blog Modal */}
+      {isCreateOpen && (
       <CreateBlogModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+      )}
     </div>
   );
 };

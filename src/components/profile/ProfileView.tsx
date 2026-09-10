@@ -1,9 +1,13 @@
 'use client';
 
+import { compressImageToDataUrl, IMAGE_PRESETS } from '@/lib/imageCompression';
+
+import dynamic from 'next/dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { User, BlogPost, SavedVaultItem } from '@/types/eduspare';
-import { CreateBlogModal } from '../blog/CreateBlogModal';
+const CreateBlogModal = dynamic(() => import('../blog/CreateBlogModal').then((m) => m.CreateBlogModal), { ssr: false });
 import { ActivityHeatmap } from '../dashboard/ActivityHeatmap';
 
 import { ProfileHeaderCard } from './ProfileHeaderCard';
@@ -160,26 +164,14 @@ export const ProfileView: React.FC = () => {
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setEditAvatar(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.avatar).then(setEditAvatar);
     }
   };
 
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setEditCoverImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageToDataUrl(file, IMAGE_PRESETS.cover).then(setEditCoverImage);
     }
   };
 
@@ -313,7 +305,9 @@ export const ProfileView: React.FC = () => {
       )}
 
       {/* Create Blog Modal */}
+      {isCreateBlogOpen && (
       <CreateBlogModal isOpen={isCreateBlogOpen} onClose={() => setIsCreateBlogOpen(false)} />
+      )}
     </div>
   );
 };

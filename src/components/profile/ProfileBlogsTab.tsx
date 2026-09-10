@@ -26,7 +26,7 @@ export const ProfileBlogsTab: React.FC<ProfileBlogsTabProps> = ({
           onClick={() => setIsCreateBlogOpen(true)}
           className="p-3.5 rounded-3xl bg-surface-lowest hover:bg-surface-container-low border border-outline-variant/60 shadow-sm flex items-center gap-3 cursor-pointer transition-all group"
         >
-          <img
+          <img loading="lazy" decoding="async"
             src={user.avatar || '/assets/default_avatar.png'}
             alt={user.name}
             className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-primary/20"

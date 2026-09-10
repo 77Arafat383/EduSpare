@@ -5,6 +5,9 @@ import { jsonWithEtag, authorSelect, publicUserSelect } from '@/lib/apiResponse'
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+/** Messages returned per thread request (older history can be paged later). */
+const THREAD_LIMIT = 200;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -43,6 +46,8 @@ export async function GET(request: Request) {
             ],
           },
         }),
+        // Latest N messages only (chat UI never needs the sender relation — the
+        // sidebar already has every user). Oldest-first order is restored below.
         prisma.message.findMany({
           where: {
             OR: [
@@ -50,12 +55,11 @@ export async function GET(request: Request) {
               { senderId: targetUserId, receiverId: userId },
             ],
           },
-          include: {
-            sender: { select: authorSelect },
-          },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: 'desc' },
+          take: THREAD_LIMIT,
         }),
       ]);
+      messages.reverse();
 
       return jsonWithEtag(request, {
         messages: messages.map((m) => ({
@@ -68,14 +72,35 @@ export async function GET(request: Request) {
       });
     }
 
-    // Get all messages involving userId to compute last message timestamp and unseen counts
-    const allUserMessages = await prisma.message.findMany({
-      where: {
-        OR: [{ senderId: userId }, { receiverId: userId }],
-      },
-      select: { senderId: true, receiverId: true, content: true, isSeen: true, isRead: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Latest message per contact + unseen counts (two indexed queries instead of
+    // loading the user's entire message history).
+    const [latest, unseen] = await Promise.all([
+      prisma.$queryRaw<{ contactId: string; content: string; createdAt: Date; senderId: string }[]>`
+        SELECT DISTINCT ON (contact) contact AS "contactId", content, "createdAt", "senderId"
+        FROM (
+          SELECT CASE WHEN "senderId" = ${userId} THEN "receiverId" ELSE "senderId" END AS contact,
+                 content, "createdAt", "senderId"
+          FROM "Message"
+          WHERE "senderId" = ${userId} OR "receiverId" = ${userId}
+        ) m
+        ORDER BY contact, "createdAt" DESC
+      `,
+      prisma.message.groupBy({
+        by: ['senderId'],
+        where: { receiverId: userId, isSeen: false, isRead: false },
+        _count: { _all: true },
+      }),
+    ]);
+    const unseenBySender = new Map<string, number>(unseen.map((u) => [u.senderId, u._count._all]));
+    const allUserMessages = latest.map((m) => ({
+      senderId: m.senderId,
+      receiverId: m.senderId === userId ? m.contactId : userId,
+      content: m.content,
+      createdAt: new Date(m.createdAt),
+      isSeen: true,
+      isRead: true,
+      _unseen: unseenBySender.get(m.contactId) ?? 0,
+    }));
 
     const recentConversations: Record<
       string,
@@ -93,13 +118,8 @@ export async function GET(request: Request) {
           lastMessageAt: msg.createdAt.toISOString(),
           lastMessageSnippet: msg.content.length > 120 ? msg.content.slice(0, 120) : msg.content,
           isMeSender: msg.senderId === userId,
-          unseenCount: 0,
+          unseenCount: msg._unseen,
         };
-      }
-
-      const isSeenVal = msg.isSeen ?? (msg as any).isRead ?? false;
-      if (msg.receiverId === userId && msg.senderId === contactId && !isSeenVal) {
-        recentConversations[contactId].unseenCount += 1;
       }
     });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { Header } from '@/components/layout/Header';
@@ -17,6 +17,7 @@ import {
   User,
 } from 'lucide-react';
 import { ActiveTab } from '@/types/eduspare';
+import { prefetchView, prefetchAllViewsWhenIdle } from '@/lib/prefetchViews';
 
 // Load each tab's bundle only when it is first opened, so the initial page
 // (login + dashboard) ships a fraction of the JavaScript.
@@ -34,6 +35,11 @@ const CommunityView = dynamic(() => import('@/components/community/CommunityView
 export default function Home() {
   const { activeTab, setActiveTab, currentUser, loading, recentConversations, setSelectedUsername } = useEduSpare();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Once signed in and idle, warm the other tab bundles so navigation is instant.
+  useEffect(() => {
+    if (currentUser) prefetchAllViewsWhenIdle();
+  }, [currentUser]);
 
   if (loading) {
     return (
@@ -116,6 +122,7 @@ export default function Home() {
                 }
                 setActiveTab(item.id);
               }}
+              onTouchStart={() => prefetchView(item.id)}
               className={`flex flex-col items-center justify-center gap-0.5 px-1 sm:px-2 py-1 rounded-xl transition-all relative flex-1 max-w-[65px] ${
                 isActive ? 'text-primary font-bold' : 'text-outline hover:text-on-surface font-medium'
               }`}

@@ -88,7 +88,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
     <div className="bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm space-y-4 relative z-10">
       {/* 1. Cover Photo Banner Backdrop */}
       <div className="h-32 sm:h-44 relative bg-gradient-to-r from-primary via-primary-container to-purple-600 rounded-t-3xl overflow-hidden">
-        <img
+        <img loading="lazy" decoding="async"
           src={community.image}
           alt={community.name}
           className="w-full h-full object-cover"
@@ -99,7 +99,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
       <div className="p-4 sm:p-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 -mt-8 sm:-mt-10">
           <div className="flex items-end justify-between w-full sm:w-auto">
-            <img
+            <img loading="lazy" decoding="async"
               src={community.avatarImage || community.image}
               alt={community.name}
               className="w-20 h-20 rounded-full object-cover ring-4 ring-white shadow-xl bg-surface-lowest shrink-0"
@@ -505,7 +505,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
                           className="p-2 rounded-xl bg-surface-lowest flex items-center justify-between gap-2 border border-outline-variant/30 text-xs"
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={u.avatar || '/assets/default_avatar.png'}
                               alt={u.name}
                               className="w-7 h-7 rounded-full object-cover shrink-0"
@@ -554,7 +554,7 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
                         className="p-2.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex items-center justify-between gap-2"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={member.avatar || '/assets/default_avatar.png'}
                             alt={member.name}
                             className="w-7 h-7 rounded-full object-cover shrink-0"

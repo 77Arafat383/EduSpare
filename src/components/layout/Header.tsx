@@ -88,8 +88,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           className="flex items-center gap-2 cursor-pointer group shrink-0"
         >
           <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md group-hover:scale-105 transition-transform shrink-0 border border-outline-variant/40 bg-surface-container-low">
-            <img
-              src="/assets/eduspare_brain_icon.png"
+            <img loading="eager" fetchPriority="high" decoding="async"
+              src="/assets/eduspare_brain_icon_128.png"
               alt="EduSpare Brain Logo"
               className="w-full h-full object-cover"
             />
@@ -186,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                           }`}
                         >
                           {/* Actor Avatar Profile Link */}
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={n.actor?.avatar || '/assets/default_avatar.png'}
                             alt={n.actor?.name || 'User'}
                             onClick={(e) => {
@@ -308,7 +308,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               className="flex items-center gap-2 sm:p-1 sm:pl-2 sm:pr-3 rounded-full hover:bg-surface-container-low sm:border sm:border-outline-variant/40 transition-colors shrink-0"
               title="User Profile Menu"
             >
-              <img
+              <img loading="lazy" decoding="async"
                 src={currentUser.avatar}
                 alt={currentUser.name}
                 className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/30"
