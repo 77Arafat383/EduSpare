@@ -2,10 +2,36 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sortTasksByPriority } from '@/lib/priorityAlgorithm';
 import { getRankFromPoints } from '@/lib/rankSystem';
+import { calculateStreaksForUsers } from '@/lib/streak';
 import { jsonWithEtag, publicUserSelect, authorSelect } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+// Streak/rank recomputation is expensive (scans tasks + blogs); it is throttled and
+// runs from this poll (signed-in users only) so the login gate (/api/auth) stays cheap.
+const STREAK_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const globalForSync = globalThis as unknown as { __eduspareLastStreakRefresh?: number };
+
+async function refreshStreaksIfDue(users: { id: string; activeStreak: number; totalPoints: number; rank: string }[]) {
+  const now = Date.now();
+  if (now - (globalForSync.__eduspareLastStreakRefresh ?? 0) <= STREAK_REFRESH_INTERVAL_MS) return null;
+  globalForSync.__eduspareLastStreakRefresh = now;
+  try {
+    const streaks = await calculateStreaksForUsers(users.map((u) => u.id));
+    const updates = users
+      .map((u) => ({ id: u.id, streak: streaks.get(u.id) ?? u.activeStreak, rank: getRankFromPoints(u.totalPoints), u }))
+      .filter(({ streak, rank, u }) => streak !== u.activeStreak || rank !== u.rank)
+      .map(({ id, streak, rank }) =>
+        prisma.user.update({ where: { id }, data: { activeStreak: streak, rank } })
+      );
+    if (updates.length) await prisma.$transaction(updates);
+    return streaks;
+  } catch (err) {
+    console.error('Streak refresh error:', err);
+    return null;
+  }
+}
 
 /**
  * Combined polling endpoint.
@@ -64,7 +90,12 @@ export async function GET(request: Request) {
     const payload: Record<string, unknown> = {};
 
     if (users) {
-      payload.allUsers = users.map((u) => ({ ...u, rank: getRankFromPoints(u.totalPoints) }));
+      const streaks = await refreshStreaksIfDue(users);
+      payload.allUsers = users.map((u) => ({
+        ...u,
+        activeStreak: streaks?.get(u.id) ?? u.activeStreak,
+        rank: getRankFromPoints(u.totalPoints),
+      }));
     }
 
     if (tasks) {

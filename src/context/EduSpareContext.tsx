@@ -142,12 +142,16 @@ export const EduSpareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Initialize auth & users
   useEffect(() => {
     async function initAuth() {
+      const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('eduspare_active_user_id') : null;
+      // Only block first paint when there is a saved session to restore. Visitors
+      // without a session see the login card immediately; the user list loads
+      // in the background.
+      if (!savedUserId) setLoading(false);
       try {
         const res = await fetch('/api/auth');
         const data = await res.json();
         if (data.allUsers) {
           setAllUsers(data.allUsers || []);
-          const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('eduspare_active_user_id') : null;
           if (savedUserId) {
             const foundUser = data.allUsers.find((u: User) => u.id === savedUserId);
             if (foundUser) {
