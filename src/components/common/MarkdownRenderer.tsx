@@ -12,7 +12,7 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-function preprocessLatex(text: string): string {
+export function preprocessLatex(text: string): string {
   if (!text) return '';
   let result = text;
 
@@ -71,7 +71,7 @@ function preprocessLatex(text: string): string {
         return `\n$$\n${trimmed}\n$$\n`;
       }
       // If embedded in prose text, wrap \frac{...}{...} in $...$
-      return line.replace(/(\\(?:f|d|t|c)?frac\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/g, '$$1$');
+      return line.replace(/(\\(?:f|d|t|c)?frac\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/g, (_, m) => `$${m}$`);
     }
     return line;
   });
@@ -79,7 +79,8 @@ function preprocessLatex(text: string): string {
   result = processedLines.join('\n');
 
   // 7. Normalize single dollar math with internal padding spaces: "$ \frac{a}{b} $" -> "$\frac{a}{b}$"
-  result = result.replace(/\$\s+([^$\n]+?)\s+\$/g, '$$1$');
+  // (single-line only, so it never eats the newlines around $$ display blocks)
+  result = result.replace(/(^|[\s(])\$[ \t]+(\S[^$\n]*?)[ \t]+\$(?=$|[\s.,;:!?)])/gm, (_, pre, m) => `${pre}$${m}$`);
 
   return result;
 }
