@@ -195,6 +195,13 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
     setLoading(true);
 
     try {
+      // Send the prior conversation (excluding the static welcome bubble) so the
+      // tutor keeps context across follow-up questions.
+      const history = messages
+        .filter((m) => m.id !== 'welcome-1')
+        .slice(-12)
+        .map((m) => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }));
+
       const res = await fetch('/api/ai-tutor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -205,15 +212,18 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
           category,
           notes,
           model: currentModel,
+          history,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
         modelId: currentModel,
-        text: data.result || 'I encountered an issue generating a response. Please try again.',
+        text:
+          data.result ||
+          (data.error ? `**${data.error}**` : 'I encountered an issue generating a response. Please try again.'),
       };
 
       setMessages((prev) => [...prev, aiMsg]);
