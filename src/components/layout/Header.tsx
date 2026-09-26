@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UniversalSearchBar } from '../search/UniversalSearchBar';
 import { useEduSpare } from '@/context/EduSpareContext';
-import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users, Menu, Search, X } from 'lucide-react';
+import { Flame, Bell, User as UserIcon, LogOut, ChevronDown, CheckCheck, Users, Menu, Search, X, CheckSquare, BookOpen } from 'lucide-react';
 
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
@@ -34,6 +34,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     setSelectedUsername,
     setSelectedBlogId,
     setSelectedCommunityId,
+    setSelectedTaskId,
+    tasks,
     blogs,
     communities,
     logout,
@@ -173,13 +175,30 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                     notifications.map((n) => {
                       const type = n.type?.toLowerCase() || '';
                       const isCommunityNotif = type.includes('community');
+                      const isTaskNotif = type.includes('task') || n.title?.toLowerCase().includes('task');
+
                       const linkedCommunity = isCommunityNotif && n.linkId ? communities.find((c) => c.id === n.linkId) : null;
-                      const linkedBlog = !isCommunityNotif && n.linkId ? blogs.find((b) => b.id === n.linkId) : null;
+                      const linkedTask = isTaskNotif && n.linkId ? tasks.find((t) => t.id === n.linkId) : null;
+                      const linkedBlog = !isCommunityNotif && !isTaskNotif && n.linkId ? blogs.find((b) => b.id === n.linkId) : null;
 
                       return (
                         <div
                           key={n.id}
-                          className={`p-3 rounded-2xl flex items-start gap-3 transition-colors ${
+                          onClick={() => {
+                            markNotificationAsRead(n.id);
+                            if (isTaskNotif) {
+                              if (n.linkId) setSelectedTaskId(n.linkId);
+                              setActiveTab('tasks');
+                            } else if (isCommunityNotif) {
+                              if (n.linkId) setSelectedCommunityId(n.linkId);
+                              setActiveTab('communities');
+                            } else if (n.linkId) {
+                              setSelectedBlogId(n.linkId);
+                              setActiveTab('blog');
+                            }
+                            setShowNotifDropdown(false);
+                          }}
+                          className={`p-3 rounded-2xl flex items-start gap-3 transition-colors cursor-pointer ${
                             !n.isRead
                               ? 'bg-primary/5 hover:bg-primary/10 font-medium'
                               : 'hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -226,7 +245,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                                 {!['comment', 'mention', 'reaction', 'community_invite', 'community_request'].includes(type) && n.title}
                               </span>{' '}
 
-                              {/* Target Item Link (Community Name Link or Blog Title Link) */}
+                              {/* Target Item Link (Community, Task, or Blog) */}
                               {linkedCommunity ? (
                                 <span
                                   onClick={(e) => {
@@ -241,6 +260,20 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                                   <Users className="w-3 h-3 text-primary inline" />
                                   {linkedCommunity.name}
                                 </span>
+                              ) : linkedTask ? (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markNotificationAsRead(n.id);
+                                    setSelectedTaskId(linkedTask.id);
+                                    setActiveTab('tasks');
+                                    setShowNotifDropdown(false);
+                                  }}
+                                  className="font-extrabold text-primary hover:underline cursor-pointer transition-colors inline-flex items-center gap-1"
+                                >
+                                  <CheckSquare className="w-3 h-3 text-primary inline" />
+                                  "{linkedTask.title}"
+                                </span>
                               ) : linkedBlog ? (
                                 <span
                                   onClick={(e) => {
@@ -250,8 +283,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                                     setActiveTab('blog');
                                     setShowNotifDropdown(false);
                                   }}
-                                  className="font-extrabold text-primary hover:underline cursor-pointer transition-colors"
+                                  className="font-extrabold text-primary hover:underline cursor-pointer transition-colors inline-flex items-center gap-1"
                                 >
+                                  <BookOpen className="w-3 h-3 text-primary inline" />
                                   "{linkedBlog.title}"
                                 </span>
                               ) : n.linkId ? (
@@ -259,7 +293,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     markNotificationAsRead(n.id);
-                                    if (isCommunityNotif) {
+                                    if (isTaskNotif) {
+                                      setSelectedTaskId(n.linkId!);
+                                      setActiveTab('tasks');
+                                    } else if (isCommunityNotif) {
                                       setSelectedCommunityId(n.linkId!);
                                       setActiveTab('communities');
                                     } else {
@@ -270,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                                   }}
                                   className="font-extrabold text-primary hover:underline cursor-pointer transition-colors"
                                 >
-                                  View Item
+                                  {isTaskNotif ? 'View Task' : 'View Item'}
                                 </span>
                               ) : null}
                             </div>

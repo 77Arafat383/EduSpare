@@ -135,10 +135,16 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
                   </button>
                 ) : (
                   <button
-                    onClick={() => setIsRulesModalOpen(true)}
-                    className="px-3.5 py-1.5 bg-primary text-white font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1"
+                    onClick={() => {
+                      if (community.isPrivate) {
+                        onRequestJoin();
+                      } else {
+                        onJoin();
+                      }
+                    }}
+                    className="px-3.5 py-1.5 bg-primary hover:bg-primary-container text-white font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Join
+                    <Plus className="w-3.5 h-3.5" /> {community.isPrivate ? 'Request to Join' : 'Join'}
                   </button>
                 )
               )}
@@ -276,8 +282,15 @@ export const CommunityCoverCard: React.FC<CommunityCoverCardProps> = ({
               </button>
             ) : (
               <button
-                onClick={() => setIsRulesModalOpen(true)}
-                className="px-5 py-2 bg-primary hover:bg-primary-container text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                type="button"
+                onClick={() => {
+                  if (community.isPrivate) {
+                    onRequestJoin();
+                  } else {
+                    onJoin();
+                  }
+                }}
+                className="px-5 py-2 bg-primary hover:bg-primary-container text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 {community.isPrivate ? 'Request to Join' : 'Join Community'}
