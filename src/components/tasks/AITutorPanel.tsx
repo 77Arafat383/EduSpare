@@ -40,26 +40,34 @@ interface ChatMessage {
 
 const AI_STUDY_MODELS = [
   {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o mini',
-    tag: 'OpenAI Fast Q&A',
-    provider: 'OpenAI',
-    icon: Bot,
-    badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-  },
-  {
-    id: 'gemini-flash',
-    name: 'Gemini 2.5 Flash',
-    tag: 'Google Smart Q&A',
-    provider: 'Google',
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
+    tag: 'Free Google Q&A',
+    provider: 'Google AI (Free)',
     icon: Sparkles,
     badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
   },
   {
+    id: 'gpt-oss-120b',
+    name: 'GPT-OSS (120B)',
+    tag: 'Free Groq Ultra-Fast',
+    provider: 'Groq (Free)',
+    icon: Bot,
+    badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  },
+  {
+    id: 'llama-3.3',
+    name: 'Llama 3.3 (70B)',
+    tag: 'Free Meta Q&A',
+    provider: 'Meta / Groq (Free)',
+    icon: ShieldCheck,
+    badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  },
+  {
     id: 'gemma',
     name: 'Gemma 3 (27B)',
-    tag: 'Google Open Q&A',
-    provider: 'Google Open',
+    tag: 'Free Open Q&A',
+    provider: 'Google Open (Free)',
     icon: Cpu,
     badgeColor: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
   },
@@ -72,22 +80,15 @@ const AI_STUDY_MODELS = [
     badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
   },
   {
-    id: 'llama-3.3',
-    name: 'Llama 3.3 (70B)',
-    tag: 'Meta Open Q&A',
-    provider: 'Meta',
-    icon: ShieldCheck,
-    badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  },
-  {
-    id: 'gpt-oss-120b',
-    name: 'GPT-OSS (120B)',
-    tag: 'Groq Ultra-Fast',
-    provider: 'Groq',
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o mini',
+    tag: 'OpenAI Fast Q&A',
+    provider: 'OpenAI',
     icon: Bot,
-    badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+    badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
   },
 ];
+
 
 export const AITutorPanel: React.FC<AITutorPanelProps> = ({
   taskTitle,
@@ -96,7 +97,7 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
 }) => {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.8-flash');
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [insertedId, setInsertedId] = useState<string | null>(null);
@@ -121,7 +122,7 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
   const initialWelcomeMsg: ChatMessage = {
     id: 'welcome-1',
     sender: 'ai',
-    modelId: 'gpt-4o-mini',
+    modelId: 'gemini-3.8-flash',
     text: `Hello! How can I assist you with your studies today? You can switch question-and-answer models anytime (GPT, Gemini, Gemma, DeepSeek, Llama, Groq) using the chips or the 3-dot icon (⋮).`,
   };
 
