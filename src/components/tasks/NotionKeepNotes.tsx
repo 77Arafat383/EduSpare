@@ -19,13 +19,27 @@ import {
   Sparkles,
   Bold,
   Italic,
+  Underline,
+  Strikethrough,
   Heading1,
   Heading2,
+  Heading3,
   List,
   ListOrdered,
   Quote,
   Code,
   ClipboardPaste,
+  Palette,
+  Type,
+  Highlighter,
+  CheckSquare,
+  Table as TableIcon,
+  Minus,
+  Sigma,
+  ChevronDown,
+  Info,
+  AlertTriangle,
+  Lightbulb,
 } from 'lucide-react';
 
 export interface NotionPage {
@@ -214,8 +228,33 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFontPicker, setShowFontPicker] = useState(false);
+  const [showFontSizePicker, setShowFontSizePicker] = useState(false);
+  const [selectedFont, setSelectedFont] = useState('Inter, sans-serif');
+  const [selectedFontSize, setSelectedFontSize] = useState('14px');
+
   const editorRef = useRef<HTMLDivElement | null>(null);
   const isTypingRef = useRef<boolean>(false);
+  const colorPickerRef = useRef<HTMLDivElement | null>(null);
+  const fontPickerRef = useRef<HTMLDivElement | null>(null);
+  const sizePickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setShowColorPicker(false);
+      }
+      if (fontPickerRef.current && !fontPickerRef.current.contains(e.target as Node)) {
+        setShowFontPicker(false);
+      }
+      if (sizePickerRef.current && !sizePickerRef.current.contains(e.target as Node)) {
+        setShowFontSizePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Initialize pages and convert initial markdown notes to rich HTML
   useEffect(() => {
@@ -398,18 +437,104 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     handleEditorInput();
   };
 
-  const handleInsertMath = () => {
-    const formula = window.prompt('Enter LaTeX Math formula (e.g. E = mc^2 or \\int_0^1 x dx):', 'E = mc^2');
+  const handleInsertMathBlock = () => {
+    const formula = window.prompt(
+      'Enter LaTeX Display Math Block formula (e.g. \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}):',
+      '\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}'
+    );
     if (!formula) return;
     try {
-      const rendered = katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
-      const mathHtml = `<span class="katex-inline inline-block px-1 select-all" contenteditable="false">${rendered}</span>&nbsp;`;
+      const rendered = katex.renderToString(formula.trim(), { displayMode: true, throwOnError: false });
+      const mathHtml = `<div class="katex-display my-3 select-all" contenteditable="false">${rendered}</div><p><br></p>`;
       insertHtmlAtCursor(mathHtml);
       handleEditorInput();
     } catch {
-      insertHtmlAtCursor(`$${formula}$`);
+      insertHtmlAtCursor(`<p class="my-2 font-mono text-xs">$$${formula}$$</p>`);
       handleEditorInput();
     }
+  };
+
+  const handleInsertCallout = (type: 'info' | 'warning' | 'tip' = 'info') => {
+    let calloutHtml = '';
+    if (type === 'warning') {
+      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>⚠️ Warning:</strong> <span>Important concept or exam note...</span></div><p><br></p>`;
+    } else if (type === 'tip') {
+      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-emerald-500/10 border-l-4 border-emerald-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>💡 Study Tip:</strong> <span>Key formula or shortcut...</span></div><p><br></p>`;
+    } else {
+      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-primary/10 border-l-4 border-primary rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>ℹ️ Info:</strong> <span>Definition or reference detail...</span></div><p><br></p>`;
+    }
+    insertHtmlAtCursor(calloutHtml);
+    handleEditorInput();
+  };
+
+  const handleInsertTable = () => {
+    const tableHtml = `
+      <table class="w-full my-3 border-collapse border border-outline-variant/60 text-xs sm:text-sm rounded-xl overflow-hidden">
+        <thead>
+          <tr class="bg-surface-container-high border-b border-outline-variant/60">
+            <th class="p-2 border-r border-outline-variant/60 font-bold text-left">Header 1</th>
+            <th class="p-2 border-r border-outline-variant/60 font-bold text-left">Header 2</th>
+            <th class="p-2 font-bold text-left">Header 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-outline-variant/40">
+            <td class="p-2 border-r border-outline-variant/40">Item A</td>
+            <td class="p-2 border-r border-outline-variant/40">Value A</td>
+            <td class="p-2">Description A</td>
+          </tr>
+          <tr>
+            <td class="p-2 border-r border-outline-variant/40">Item B</td>
+            <td class="p-2 border-r border-outline-variant/40">Value B</td>
+            <td class="p-2">Description B</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><br></p>
+    `;
+    insertHtmlAtCursor(tableHtml);
+    handleEditorInput();
+  };
+
+  const handleInsertDivider = () => {
+    insertHtmlAtCursor('<hr class="my-4 border-t border-outline-variant/60" /><p><br></p>');
+    handleEditorInput();
+  };
+
+  const handleInsertChecklist = () => {
+    insertHtmlAtCursor('<div class="flex items-center gap-2 my-1.5"><input type="checkbox" class="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary" /><span class="text-xs sm:text-sm"> Action item checklist...</span></div>');
+    handleEditorInput();
+  };
+
+  const applyTextColor = (color: string) => {
+    executeCommand('foreColor', color);
+    setShowColorPicker(false);
+  };
+
+  const applyHighlightColor = (color: string) => {
+    executeCommand('hiliteColor', color);
+    setShowColorPicker(false);
+  };
+
+  const applyFontFamily = (fontFamily: string, fontLabel: string) => {
+    setSelectedFont(fontLabel);
+    executeCommand('fontName', fontFamily);
+    setShowFontPicker(false);
+  };
+
+  const applyFontSize = (sizePx: string, sizeLabel: string) => {
+    setSelectedFontSize(sizeLabel);
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const wrapper = document.createElement('span');
+      wrapper.style.fontSize = sizePx;
+      const range = sel.getRangeAt(0);
+      range.surroundContents(wrapper);
+      handleEditorInput();
+    } else {
+      executeCommand('fontSize', '4');
+    }
+    setShowFontSizePicker(false);
   };
 
   const handleQuickPaste = async () => {
@@ -712,13 +837,82 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
         </button>
       </div>
 
-      {/* Notion-Style Formatting Toolbar */}
-      <div className="flex items-center justify-between flex-wrap gap-1 px-3 py-1.5 bg-surface-container-low rounded-2xl border border-outline-variant/60 text-outline">
+      {/* Notion-Style Formatting Toolbar with Full Elements */}
+      <div className="flex items-center justify-between flex-wrap gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-2xl border border-outline-variant/60 text-outline text-xs">
         <div className="flex items-center gap-1 flex-wrap">
+          {/* 1. Font Family Dropdown */}
+          <div ref={fontPickerRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFontPicker(!showFontPicker)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors font-medium border border-outline-variant/30 text-[11px]"
+              title="Font Family"
+            >
+              <Type className="w-3.5 h-3.5 text-primary" />
+              <span className="max-w-[70px] truncate">{selectedFont.split(',')[0]}</span>
+              <ChevronDown className="w-3 h-3 text-outline" />
+            </button>
+            {showFontPicker && (
+              <div className="absolute left-0 top-full mt-1 z-50 w-44 bg-surface-lowest dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-xl p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+                {[
+                  { label: 'Sans-Serif (Inter)', font: 'Inter, sans-serif' },
+                  { label: 'Serif (Georgia)', font: 'Georgia, serif' },
+                  { label: 'Monospace (Code)', font: 'monospace' },
+                  { label: 'Casual (Comic)', font: 'Comic Sans MS, cursive' },
+                ].map((f) => (
+                  <button
+                    key={f.font}
+                    type="button"
+                    onClick={() => applyFontFamily(f.font, f.label)}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-surface-container-high transition-colors"
+                    style={{ fontFamily: f.font }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Font Size Dropdown */}
+          <div ref={sizePickerRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFontSizePicker(!showFontSizePicker)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors font-medium border border-outline-variant/30 text-[11px]"
+              title="Font Size"
+            >
+              <span>{selectedFontSize}</span>
+              <ChevronDown className="w-3 h-3 text-outline" />
+            </button>
+            {showFontSizePicker && (
+              <div className="absolute left-0 top-full mt-1 z-50 w-32 bg-surface-lowest dark:bg-slate-900 border border-outline-variant/60 rounded-xl shadow-xl p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+                {[
+                  { label: 'Small', size: '12px' },
+                  { label: 'Normal', size: '14px' },
+                  { label: 'Large', size: '18px' },
+                  { label: 'Title', size: '24px' },
+                ].map((s) => (
+                  <button
+                    key={s.size}
+                    type="button"
+                    onClick={() => applyFontSize(s.size, s.label)}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-surface-container-high transition-colors"
+                  >
+                    {s.label} ({s.size})
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
+
+          {/* 3. Text Styles: Bold, Italic, Underline, Strikethrough */}
           <button
             type="button"
             onClick={() => executeCommand('bold')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
             title="Bold (Ctrl+B)"
           >
             <Bold className="w-3.5 h-3.5" />
@@ -726,15 +920,99 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('italic')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
             title="Italic (Ctrl+I)"
           >
             <Italic className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
+            onClick={() => executeCommand('underline')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Underline (Ctrl+U)"
+          >
+            <Underline className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('strikeThrough')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Strikethrough"
+          >
+            <Strikethrough className="w-3.5 h-3.5" />
+          </button>
+
+          {/* 4. Text Color & Highlight Popover */}
+          <div ref={colorPickerRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+              title="Text Color & Highlight"
+            >
+              <Palette className="w-3.5 h-3.5 text-primary" />
+              <ChevronDown className="w-3 h-3 text-outline" />
+            </button>
+            {showColorPicker && (
+              <div className="absolute left-0 top-full mt-1 z-50 w-56 bg-surface-lowest dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl p-2.5 space-y-2 animate-in fade-in zoom-in-95">
+                <div>
+                  <p className="text-[10px] font-bold text-outline uppercase tracking-wider mb-1.5">Text Color</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { color: '#000000', label: 'Default' },
+                      { color: '#003EC7', label: 'Blue' },
+                      { color: '#059669', label: 'Green' },
+                      { color: '#7C3AED', label: 'Purple' },
+                      { color: '#E11D48', label: 'Rose' },
+                      { color: '#D97706', label: 'Amber' },
+                      { color: '#0891B2', label: 'Cyan' },
+                    ].map((c) => (
+                      <button
+                        key={c.color}
+                        type="button"
+                        onClick={() => applyTextColor(c.color)}
+                        className="w-5 h-5 rounded-full border border-outline-variant/40 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: c.color }}
+                        title={c.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-outline-variant/30 pt-2">
+                  <p className="text-[10px] font-bold text-outline uppercase tracking-wider mb-1.5">Background Highlight</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { color: 'transparent', label: 'None' },
+                      { color: '#FEF08A', label: 'Yellow' },
+                      { color: '#A7F3D0', label: 'Green' },
+                      { color: '#BFDBFE', label: 'Blue' },
+                      { color: '#FBCFE8', label: 'Pink' },
+                      { color: '#DDD6FE', label: 'Lavender' },
+                    ].map((h) => (
+                      <button
+                        key={h.color}
+                        type="button"
+                        onClick={() => applyHighlightColor(h.color)}
+                        className="w-5 h-5 rounded-full border border-outline-variant/40 hover:scale-110 transition-transform flex items-center justify-center text-[9px] font-bold"
+                        style={{ backgroundColor: h.color }}
+                        title={h.label}
+                      >
+                        {h.color === 'transparent' && '✕'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
+
+          {/* 5. Headings */}
+          <button
+            type="button"
             onClick={() => executeCommand('formatBlock', '<h1>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
             title="Heading 1"
           >
             <Heading1 className="w-3.5 h-3.5" />
@@ -742,15 +1020,27 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('formatBlock', '<h2>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
             title="Heading 2"
           >
             <Heading2 className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
+            onClick={() => executeCommand('formatBlock', '<h3>')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Heading 3"
+          >
+            <Heading3 className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
+
+          {/* 6. Lists & Checklists */}
+          <button
+            type="button"
             onClick={() => executeCommand('insertUnorderedList')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
             title="Bullet List"
           >
             <List className="w-3.5 h-3.5" />
@@ -758,33 +1048,81 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('insertOrderedList')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
             title="Numbered List"
           >
             <ListOrdered className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
+            onClick={handleInsertChecklist}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Checkbox Checklist"
+          >
+            <CheckSquare className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
+
+          {/* 7. Notion Elements: Quote, Callout, Table, Divider */}
+          <button
+            type="button"
             onClick={() => executeCommand('formatBlock', '<blockquote>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
-            title="Quote"
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Quote Block"
           >
             <Quote className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
-            onClick={handleInsertMath}
-            className="px-2 py-0.5 text-xs font-mono font-bold rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
-            title="Insert LaTeX Math"
+            onClick={() => handleInsertCallout('info')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors text-primary font-bold"
+            title="Insert Callout Box"
           >
-            $$ Math
+            <Info className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleInsertTable}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Insert Table"
+          >
+            <TableIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleInsertDivider}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            title="Insert Divider Line"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
+
+          {/* 8. Equations: Inline Math & Block Math */}
+          <button
+            type="button"
+            onClick={handleInsertMath}
+            className="px-1.5 py-0.5 text-[11px] font-mono font-bold rounded-lg hover:bg-surface-lowest hover:text-primary transition-colors border border-outline-variant/40"
+            title="Insert Inline LaTeX Math ($...$)"
+          >
+            $ Math
+          </button>
+          <button
+            type="button"
+            onClick={handleInsertMathBlock}
+            className="px-1.5 py-0.5 text-[11px] font-mono font-bold rounded-lg hover:bg-surface-lowest hover:text-purple-600 transition-colors border border-outline-variant/40"
+            title="Insert Display Math Block ($$...$$)"
+          >
+            $$ Block
           </button>
         </div>
 
         <button
           type="button"
           onClick={handleQuickPaste}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-xl transition-all cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-xl transition-all cursor-pointer shrink-0"
           title="Paste and auto-format from clipboard"
         >
           <ClipboardPaste className="w-3.5 h-3.5" />
