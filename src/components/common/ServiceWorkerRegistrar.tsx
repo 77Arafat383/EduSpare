@@ -2,14 +2,23 @@
 
 import { useEffect } from 'react';
 
-/** Registers the service worker in production, after the page has loaded. */
+/** Unregisters any legacy service workers and clears browser caches to load fresh code. */
 export function ServiceWorkerRegistrar() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') return;
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
-    const register = () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
-    if (document.readyState === 'complete') register();
-    else window.addEventListener('load', register, { once: true });
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    });
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        for (const key of keys) {
+          caches.delete(key);
+        }
+      });
+    }
   }, []);
   return null;
 }
+
