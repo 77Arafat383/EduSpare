@@ -7,6 +7,7 @@ import { X, Image as ImageIcon, FileText, Tag, Upload, Eye, Edit3, Sparkles, Sig
 import { useEduSpare } from '@/context/EduSpareContext';
 import { BlogAttachment, BlogPost } from '@/types/eduspare';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
+import { NotionBlogEditor } from './NotionBlogEditor';
 
 interface CreateBlogModalProps {
   isOpen: boolean;
@@ -131,7 +132,6 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({
   const [communityId, setCommunityId] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [attachments, setAttachments] = useState<BlogAttachment[]>([]);
-  const [activeContentTab, setActiveContentTab] = useState<'write' | 'preview'>('write');
 
   React.useEffect(() => {
     if (postToEdit) {
@@ -329,55 +329,17 @@ export const CreateBlogModal: React.FC<CreateBlogModalProps> = ({
 
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <label className="block text-xs font-bold text-on-surface uppercase tracking-wider">
-                  Content Body
-                </label>
-
-
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveContentTab(activeContentTab === 'write' ? 'preview' : 'write')}
-                className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-surface-container-high hover:bg-primary/10 text-primary border border-outline-variant/50 transition-all flex items-center gap-1.5 shadow-xs"
-              >
-                {activeContentTab === 'write' ? (
-                  <>
-                    <Eye className="w-3.5 h-3.5" /> Preview
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="w-3.5 h-3.5" /> Write
-                  </>
-                )}
-              </button>
+              <label className="block text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                Content Body (Notion Workspace)
+              </label>
             </div>
 
-            {activeContentTab === 'write' ? (
-              <div className="space-y-3">
-                <textarea
-                  rows={6}
-                  required
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  onPaste={handlePaste}
-                  placeholder="Paste or write Markdown and LaTeX math formulas (e.g. $E=mc^2$ or \frac{a}{b} or [ d = vt ])..."
-                  className="w-full p-4 rounded-xl bg-surface-container-low text-on-surface text-sm border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary font-mono leading-relaxed"
-                />
-
-              </div>
-            ) : (
-              <div className="w-full min-h-[200px] max-h-[350px] overflow-y-auto p-4 rounded-xl bg-surface-container-low border border-outline-variant/60">
-                {content ? (
-                  <MarkdownRenderer content={content} />
-                ) : (
-                  <p className="text-xs text-outline italic">
-                    Nothing to preview yet. Paste or write Markdown and LaTeX math formulas in the Write tab!
-                  </p>
-                )}
-              </div>
-            )}
+            <NotionBlogEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Type / for slash commands or paste Markdown & LaTeX math formulas ($E=mc^2$)..."
+            />
           </div>
 
           <div>

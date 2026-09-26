@@ -3,20 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { MaterialItem } from '@/types/eduspare';
-import { preprocessLatex } from '../common/MarkdownRenderer';
 import {
-  FileText,
-  CheckCircle2,
-  Save,
-  Plus,
-  X,
-  Download,
-  FilePlus,
-  Pencil,
-  MoreVertical,
-  Trash2,
-  Sparkles,
   Bold,
   Italic,
   Underline,
@@ -27,42 +14,36 @@ import {
   List,
   ListOrdered,
   Quote,
-  Code,
   ClipboardPaste,
   Palette,
   Type,
-  Highlighter,
   CheckSquare,
   Table as TableIcon,
   Minus,
-  Sigma,
   ChevronDown,
   Info,
-  AlertTriangle,
-  Lightbulb,
+  Sigma,
+  Command,
 } from 'lucide-react';
+import { preprocessLatex } from '../common/MarkdownRenderer';
 
-export interface NotionPage {
-  id: string;
-  title: string;
-  content: string;
-  createdAt?: string;
+interface NotionBlogEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  minHeight?: string;
 }
 
 /**
- * Convert markdown (from AI Tutor, clipboard, or plain text) into rich HTML
- * with rendered KaTeX equations, headings, bold/italics, bullet lists, etc.
- * just like Notion.
+ * Convert Markdown text into styled rich HTML with KaTeX equations & Notion-style blocks
  */
-export function markdownToRichHtml(markdown: string): string {
+export function markdownToNotionHtml(markdown: string): string {
   if (!markdown) return '';
 
-  // If it's already full HTML (e.g. from a previous rich edit session)
   const isHtml = /<([a-z]+)[^>]*>[\s\S]*<\/\1>/i.test(markdown) || /<br\s*\/?>/i.test(markdown);
   if (isHtml) return markdown;
 
   let text = preprocessLatex(markdown);
-
   const rawLines = text.split(/\r?\n/);
   const outputBlocks: string[] = [];
   let inList: 'ul' | 'ol' | null = null;
@@ -152,6 +133,7 @@ export function markdownToRichHtml(markdown: string): string {
     // Empty line
     if (!trimmed) {
       closeList();
+      outputBlocks.push('<p><br></p>');
       continue;
     }
 
@@ -172,10 +154,39 @@ export function markdownToRichHtml(markdown: string): string {
       continue;
     }
 
+    // Callout boxes
+    if (/^>\s*ℹ️/.test(trimmed) || /^>\s*\[!INFO\]/i.test(trimmed)) {
+      closeList();
+      const body = trimmed.replace(/^>\s*(?:ℹ️|\[!INFO\])\s*/i, '');
+      outputBlocks.push(`<div class="flex items-start gap-2.5 p-3.5 my-3 bg-primary/10 border-l-4 border-primary rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>ℹ️ Info:</strong> <span>${renderInline(body)}</span></div>`);
+      continue;
+    }
+    if (/^>\s*💡/.test(trimmed) || /^>\s*\[!TIP\]/i.test(trimmed)) {
+      closeList();
+      const body = trimmed.replace(/^>\s*(?:💡|\[!TIP\])\s*/i, '');
+      outputBlocks.push(`<div class="flex items-start gap-2.5 p-3.5 my-3 bg-emerald-500/10 border-l-4 border-emerald-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>💡 Tip:</strong> <span>${renderInline(body)}</span></div>`);
+      continue;
+    }
+    if (/^>\s*⚠️/.test(trimmed) || /^>\s*\[!WARNING\]/i.test(trimmed)) {
+      closeList();
+      const body = trimmed.replace(/^>\s*(?:⚠️|\[!WARNING\])\s*/i, '');
+      outputBlocks.push(`<div class="flex items-start gap-2.5 p-3.5 my-3 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>⚠️ Warning:</strong> <span>${renderInline(body)}</span></div>`);
+      continue;
+    }
+
     // Blockquote
     if (/^>\s+/.test(trimmed)) {
       closeList();
       outputBlocks.push(`<blockquote class="border-l-4 border-primary/70 pl-3.5 py-1 text-outline italic my-2 bg-surface-container-low/40 rounded-r-lg">${renderInline(trimmed.replace(/^>\s+/, ''))}</blockquote>`);
+      continue;
+    }
+
+    // Checklists: - [ ] item or - [x] item
+    if (/^-\s*\[([ xX])\]\s+/.test(trimmed)) {
+      closeList();
+      const checked = /^-\s*\[[xX]\]/.test(trimmed);
+      const itemText = trimmed.replace(/^-\s*\[[ xX]\]\s+/, '');
+      outputBlocks.push(`<div class="flex items-center gap-2 my-1.5"><input type="checkbox" ${checked ? 'checked' : ''} class="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary" /><span class="text-xs sm:text-sm">${renderInline(itemText)}</span></div>`);
       continue;
     }
 
@@ -201,6 +212,13 @@ export function markdownToRichHtml(markdown: string): string {
       continue;
     }
 
+    // Horizontal Rule
+    if (trimmed === '---' || trimmed === '***') {
+      closeList();
+      outputBlocks.push('<hr class="my-4 border-t border-outline-variant/60" />');
+      continue;
+    }
+
     // Regular paragraph
     closeList();
     outputBlocks.push(`<p class="my-1.5 leading-relaxed">${renderInline(trimmed)}</p>`);
@@ -210,36 +228,152 @@ export function markdownToRichHtml(markdown: string): string {
   return outputBlocks.join('');
 }
 
-interface NotionKeepNotesProps {
-  initialNotes?: string | null;
-  onSaveNotes: (notes: string) => void;
-  onAddResource?: (material: MaterialItem) => void;
+/**
+ * Convert HTML content back to standard Markdown + LaTeX
+ */
+export function notionHtmlToMarkdown(html: string): string {
+  if (!html) return '';
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Extract KaTeX annotations
+    const annotations = doc.querySelectorAll('annotation[encoding*="tex"], annotation[encoding*="latex"]');
+    annotations.forEach((ann) => {
+      const tex = ann.textContent?.trim();
+      if (tex) {
+        const container = ann.closest('.katex-display, .katex, math, .math') || ann.parentElement;
+        if (container) {
+          const isDisplay = container.classList.contains('katex-display') || container.tagName.toLowerCase() === 'div';
+          const replacement = isDisplay ? `\n\n$$\n${tex}\n$$\n\n` : `$${tex}$`;
+          const textNode = doc.createTextNode(replacement);
+          container.parentNode?.replaceChild(textNode, container);
+        }
+      }
+    });
+
+    function walk(node: Node): string {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent || '';
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const elem = node as HTMLElement;
+      const tag = elem.tagName.toLowerCase();
+      const childrenText = Array.from(elem.childNodes).map(walk).join('');
+
+      // Checkbox
+      if (tag === 'input' && elem.getAttribute('type') === 'checkbox') {
+        const isChecked = (elem as HTMLInputElement).checked;
+        return isChecked ? '- [x] ' : '- [ ] ';
+      }
+
+      // Callout box detection
+      if (tag === 'div' && (elem.className.includes('bg-primary') || elem.className.includes('bg-emerald') || elem.className.includes('bg-amber'))) {
+        const isWarning = elem.className.includes('bg-amber');
+        const isTip = elem.className.includes('bg-emerald');
+        const prefix = isWarning ? '> ⚠️ ' : isTip ? '> 💡 ' : '> ℹ️ ';
+        return `\n\n${prefix}${childrenText.trim()}\n\n`;
+      }
+
+      switch (tag) {
+        case 'h1':
+          return `\n\n# ${childrenText.trim()}\n\n`;
+        case 'h2':
+          return `\n\n## ${childrenText.trim()}\n\n`;
+        case 'h3':
+          return `\n\n### ${childrenText.trim()}\n\n`;
+        case 'h4':
+          return `\n\n#### ${childrenText.trim()}\n\n`;
+        case 'strong':
+        case 'b':
+          return childrenText.trim() ? `**${childrenText.trim()}**` : '';
+        case 'em':
+        case 'i':
+          return childrenText.trim() ? `*${childrenText.trim()}*` : '';
+        case 'u':
+          return childrenText.trim() ? `<u>${childrenText.trim()}</u>` : '';
+        case 'del':
+        case 's':
+        case 'strike':
+          return childrenText.trim() ? `~~${childrenText.trim()}~~` : '';
+        case 'code':
+          if (elem.parentElement?.tagName.toLowerCase() === 'pre') {
+            return childrenText;
+          }
+          return childrenText.trim() ? `\`${childrenText.trim()}\`` : '';
+        case 'pre':
+          return `\n\n\`\`\`\n${childrenText.trim()}\n\`\`\`\n\n`;
+        case 'blockquote':
+          return `\n\n> ${childrenText.trim().replace(/\n/g, '\n> ')}\n\n`;
+        case 'a':
+          const href = elem.getAttribute('href');
+          return href ? `[${childrenText.trim()}](${href})` : childrenText;
+        case 'ul':
+        case 'ol':
+          return `\n\n${childrenText.trim()}\n\n`;
+        case 'li':
+          const parentTag = elem.parentElement?.tagName.toLowerCase();
+          const prefix = parentTag === 'ol' ? '1. ' : '- ';
+          return `${prefix}${childrenText.trim()}\n`;
+        case 'hr':
+          return '\n\n---\n\n';
+        case 'p':
+        case 'div':
+          return `\n${childrenText.trim()}\n`;
+        case 'br':
+          return '\n';
+        case 'span':
+          return childrenText;
+        case 'table':
+          return `\n\n${childrenText.trim()}\n\n`;
+        case 'tr':
+          return `| ${childrenText.trim()} |\n`;
+        case 'th':
+        case 'td':
+          return `${childrenText.trim()} | `;
+        default:
+          return childrenText;
+      }
+    }
+
+    const converted = walk(doc.body).replace(/\n{3,}/g, '\n\n').trim();
+    if (converted && converted.length > 0) {
+      return converted;
+    }
+  } catch (err) {
+    console.warn('HTML to Markdown conversion error:', err);
+  }
+
+  return html;
 }
 
-export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
-  initialNotes,
-  onSaveNotes,
-  onAddResource,
+export const NotionBlogEditor: React.FC<NotionBlogEditorProps> = ({
+  value,
+  onChange,
+  placeholder = 'Type / for slash commands or paste Markdown & LaTeX math formulas ($E=mc^2$)...',
+  minHeight = '320px',
 }) => {
-  const [pages, setPages] = useState<NotionPage[]>([]);
-  const [activePageId, setActivePageId] = useState<string>('page-1');
-  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
-  const [isSaved, setIsSaved] = useState(true);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [showFontSizePicker, setShowFontSizePicker] = useState(false);
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+
   const [selectedFont, setSelectedFont] = useState('Inter, sans-serif');
   const [selectedFontSize, setSelectedFontSize] = useState('14px');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const isTypingRef = useRef<boolean>(false);
+
   const colorPickerRef = useRef<HTMLDivElement | null>(null);
   const fontPickerRef = useRef<HTMLDivElement | null>(null);
   const sizePickerRef = useRef<HTMLDivElement | null>(null);
+  const slashMenuRef = useRef<HTMLDivElement | null>(null);
 
+  // Close popovers on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
@@ -251,110 +385,48 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
       if (sizePickerRef.current && !sizePickerRef.current.contains(e.target as Node)) {
         setShowFontSizePicker(false);
       }
+      if (slashMenuRef.current && !slashMenuRef.current.contains(e.target as Node)) {
+        setShowSlashMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Initialize pages and convert initial markdown notes to rich HTML
+  // Sync editor HTML when value prop changes externally
   useEffect(() => {
-    if (!initialNotes) {
-      const defaultContent = markdownToRichHtml(
-        '# Study Notes\n\n- Copied notes, AI tutor formulas, and answers will format automatically!\n- Example LaTeX Math: $E = mc^2$ and $$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$\n\nClick anywhere to type or edit notes directly.'
-      );
-      setPages([
-        {
-          id: 'page-1',
-          title: 'Main Notes',
-          content: defaultContent,
-        },
-      ]);
-      setActivePageId('page-1');
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(initialNotes);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-        const enriched = parsed.map((p: NotionPage) => ({
-          ...p,
-          content: markdownToRichHtml(p.content || ''),
-        }));
-        setPages(enriched);
-        setActivePageId(enriched[0].id);
-        return;
-      }
-    } catch {
-      // Legacy plain-text / markdown notes
-    }
-
-    setPages([
-      {
-        id: 'page-1',
-        title: 'Main Notes',
-        content: markdownToRichHtml(initialNotes),
-      },
-    ]);
-    setActivePageId('page-1');
-  }, [initialNotes]);
-
-  const activePage = pages.find((p) => p.id === activePageId) || pages[0];
-
-  // Sync editor innerHTML when active page changes (without overriding while typing)
-  useEffect(() => {
-    if (editorRef.current && activePage && !isTypingRef.current) {
-      if (editorRef.current.innerHTML !== activePage.content) {
-        editorRef.current.innerHTML = activePage.content || '';
+    if (editorRef.current && !isTypingRef.current) {
+      const richHtml = markdownToNotionHtml(value);
+      if (editorRef.current.innerHTML !== richHtml) {
+        editorRef.current.innerHTML = richHtml || '';
       }
     }
-  }, [activePageId, activePage?.content]);
+  }, [value]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const handleEditorInput = () => {
+  const syncHtmlToMarkdown = () => {
     if (!editorRef.current) return;
     isTypingRef.current = true;
-    const newContent = editorRef.current.innerHTML;
-    setPages((prev) =>
-      prev.map((p) => (p.id === activePageId ? { ...p, content: newContent } : p))
-    );
-    setIsSaved(false);
+    const currentHtml = editorRef.current.innerHTML;
+    const markdown = notionHtmlToMarkdown(currentHtml);
+    onChange(markdown);
     setTimeout(() => {
       isTypingRef.current = false;
     }, 100);
   };
 
-  /**
-   * Notion-style Smart Paste:
-   * Catches pasted text/markdown from AI Tutor or elsewhere,
-   * automatically converts it into formatted rich HTML with bold, lists, math,
-   * and inserts it right at the user's cursor position without breaking!
-   */
-  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const clipboard = e.clipboardData;
-    const plainText = clipboard.getData('text/plain');
-    const html = clipboard.getData('text/html');
+  const handleEditorInput = () => {
+    syncHtmlToMarkdown();
+  };
 
-    // If copying from AI Tutor or markdown source, turn markdown into rich HTML
-    let richSnippet = '';
-    if (plainText && (plainText.includes('**') || plainText.includes('- ') || plainText.includes('#') || plainText.includes('$') || !html)) {
-      richSnippet = markdownToRichHtml(plainText);
-    } else if (html) {
-      richSnippet = html;
-    } else {
-      richSnippet = markdownToRichHtml(plainText);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === '/') {
+      setShowSlashMenu(true);
     }
-
-    if (!richSnippet) return;
-
-    // Insert rich HTML at current cursor position
-    insertHtmlAtCursor(richSnippet);
-    handleEditorInput();
-    showToast('✨ Formatted and pasted!');
   };
 
   const insertHtmlAtCursor = (html: string) => {
@@ -369,7 +441,6 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     }
 
     const range = selection.getRangeAt(0);
-    // Ensure selection is inside editor
     if (!editor.contains(range.commonAncestorContainer)) {
       editor.innerHTML = (editor.innerHTML || '') + html;
       return;
@@ -395,64 +466,51 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     }
   };
 
-  // Listen for direct "Insert into Workspace" event from AI Tutor
-  useEffect(() => {
-    const handleInsertEvent = (event: Event) => {
-      const customEvent = event as CustomEvent<{ text: string }>;
-      const newText = customEvent.detail?.text;
-      if (!newText) return;
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const clipboard = e.clipboardData;
+    const plainText = clipboard.getData('text/plain');
+    const html = clipboard.getData('text/html');
 
-      const formattedHtml = markdownToRichHtml(newText);
+    let richSnippet = '';
+    if (plainText && (plainText.includes('**') || plainText.includes('- ') || plainText.includes('#') || plainText.includes('$') || !html)) {
+      richSnippet = markdownToNotionHtml(plainText);
+    } else if (html) {
+      richSnippet = html;
+    } else {
+      richSnippet = markdownToNotionHtml(plainText);
+    }
 
-      setPages((prev) =>
-        prev.map((p) => {
-          if (p.id === activePageId) {
-            const separator = p.content ? '<div class="my-3"></div>' : '';
-            return {
-              ...p,
-              content: p.content ? `${p.content}${separator}${formattedHtml}` : formattedHtml,
-            };
-          }
-          return p;
-        })
-      );
+    if (!richSnippet) return;
 
-      if (editorRef.current) {
-        const separator = editorRef.current.innerHTML ? '<div class="my-3"></div>' : '';
-        editorRef.current.innerHTML = `${editorRef.current.innerHTML}${separator}${formattedHtml}`;
-      }
+    insertHtmlAtCursor(richSnippet);
+    syncHtmlToMarkdown();
+    showToast('✨ Formatted & pasted!');
+  };
 
-      setIsSaved(false);
-      showToast('✨ Added from AI Tutor to notes!');
-    };
-
-    window.addEventListener('eduspare:insert-notes', handleInsertEvent);
-    return () => window.removeEventListener('eduspare:insert-notes', handleInsertEvent);
-  }, [activePageId]);
-
-  // Notion-like Formatting Commands
+  // Exec commands for formatting
   const executeCommand = (command: string, value: string | undefined = undefined) => {
     editorRef.current?.focus();
     document.execCommand(command, false, value);
-    handleEditorInput();
+    syncHtmlToMarkdown();
   };
 
-  const handleInsertMath = () => {
-    const formula = window.prompt('Enter LaTeX Inline Math formula (e.g. E = mc^2 or \\int_0^1 x dx):', 'E = mc^2');
+  const handleInsertMath = (customTex?: string) => {
+    const formula = customTex || window.prompt('Enter LaTeX Inline Math formula (e.g. E = mc^2 or \\int_0^1 x dx):', 'E = mc^2');
     if (!formula) return;
     try {
       const rendered = katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
       const mathHtml = `<span class="katex-inline inline-block px-1 select-all" contenteditable="false">${rendered}</span>&nbsp;`;
       insertHtmlAtCursor(mathHtml);
-      handleEditorInput();
+      syncHtmlToMarkdown();
     } catch {
       insertHtmlAtCursor(`$${formula}$`);
-      handleEditorInput();
+      syncHtmlToMarkdown();
     }
   };
 
-  const handleInsertMathBlock = () => {
-    const formula = window.prompt(
+  const handleInsertMathBlock = (customTex?: string) => {
+    const formula = customTex || window.prompt(
       'Enter LaTeX Display Math Block formula (e.g. \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}):',
       '\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}'
     );
@@ -461,24 +519,24 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
       const rendered = katex.renderToString(formula.trim(), { displayMode: true, throwOnError: false });
       const mathHtml = `<div class="katex-display my-3 select-all" contenteditable="false">${rendered}</div><p><br></p>`;
       insertHtmlAtCursor(mathHtml);
-      handleEditorInput();
+      syncHtmlToMarkdown();
     } catch {
       insertHtmlAtCursor(`<p class="my-2 font-mono text-xs">$$${formula}$$</p>`);
-      handleEditorInput();
+      syncHtmlToMarkdown();
     }
   };
 
   const handleInsertCallout = (type: 'info' | 'warning' | 'tip' = 'info') => {
     let calloutHtml = '';
     if (type === 'warning') {
-      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>⚠️ Warning:</strong> <span>Important concept or exam note...</span></div><p><br></p>`;
+      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>⚠️ Warning:</strong> <span>Important key concept...</span></div><p><br></p>`;
     } else if (type === 'tip') {
-      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-emerald-500/10 border-l-4 border-emerald-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>💡 Study Tip:</strong> <span>Key formula or shortcut...</span></div><p><br></p>`;
+      calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-emerald-500/10 border-l-4 border-emerald-500 rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>💡 Study Tip:</strong> <span>Key formula or shortcut note...</span></div><p><br></p>`;
     } else {
       calloutHtml = `<div class="flex items-start gap-2.5 p-3.5 my-3 bg-primary/10 border-l-4 border-primary rounded-r-2xl text-xs sm:text-sm text-on-surface"><strong>ℹ️ Info:</strong> <span>Definition or reference detail...</span></div><p><br></p>`;
     }
     insertHtmlAtCursor(calloutHtml);
-    handleEditorInput();
+    syncHtmlToMarkdown();
   };
 
   const handleInsertTable = () => {
@@ -507,17 +565,17 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
       <p><br></p>
     `;
     insertHtmlAtCursor(tableHtml);
-    handleEditorInput();
+    syncHtmlToMarkdown();
   };
 
   const handleInsertDivider = () => {
     insertHtmlAtCursor('<hr class="my-4 border-t border-outline-variant/60" /><p><br></p>');
-    handleEditorInput();
+    syncHtmlToMarkdown();
   };
 
   const handleInsertChecklist = () => {
-    insertHtmlAtCursor('<div class="flex items-center gap-2 my-1.5"><input type="checkbox" class="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary" /><span class="text-xs sm:text-sm"> Action item checklist...</span></div>');
-    handleEditorInput();
+    insertHtmlAtCursor('<div class="flex items-center gap-2 my-1.5"><input type="checkbox" class="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary" /><span class="text-xs sm:text-sm"> Action checklist item...</span></div>');
+    syncHtmlToMarkdown();
   };
 
   const applyTextColor = (color: string) => {
@@ -544,7 +602,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
       wrapper.style.fontSize = sizePx;
       const range = sel.getRangeAt(0);
       range.surroundContents(wrapper);
-      handleEditorInput();
+      syncHtmlToMarkdown();
     } else {
       executeCommand('fontSize', '4');
     }
@@ -555,309 +613,193 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     try {
       const text = await navigator.clipboard.readText();
       if (!text) return;
-      const formattedHtml = markdownToRichHtml(text);
+      const formattedHtml = markdownToNotionHtml(text);
       insertHtmlAtCursor(formattedHtml);
-      handleEditorInput();
-      showToast('✨ Formatted and pasted!');
+      syncHtmlToMarkdown();
+      showToast('✨ Formatted & pasted!');
     } catch {
       editorRef.current?.focus();
     }
   };
 
-  const handleRenamePage = (id: string, newTitle: string) => {
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, title: newTitle } : p))
-    );
-    setIsSaved(false);
-  };
-
-  const handleFinishRename = (id: string) => {
-    setPages((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, title: p.title.trim() || 'Untitled Page' } : p
-      )
-    );
-    setEditingTitleId(null);
-  };
-
-  const handleAddPage = () => {
-    const newId = `page-${Date.now()}`;
-    const newPage: NotionPage = {
-      id: newId,
-      title: `Page ${pages.length + 1}`,
-      content: '<p>Click here to start writing or paste notes directly from AI Tutor...</p>',
-    };
-    setPages((prev) => [...prev, newPage]);
-    setActivePageId(newId);
-    setIsSaved(false);
-  };
-
-  const handleDeletePage = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (pages.length <= 1) return;
-    const nextPages = pages.filter((p) => p.id !== id);
-    setPages(nextPages);
-    if (activePageId === id) {
-      setActivePageId(nextPages[0].id);
-    }
-    setIsSaved(false);
-  };
-
-  const handleSave = () => {
-    onSaveNotes(JSON.stringify(pages));
-    setIsSaved(true);
-    showToast('Saved workspace notes!');
-  };
-
-  const generatePdfDocument = (page: NotionPage) => {
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${page.title}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" />
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; }
-    h1 { color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
-    h2 { color: #1e40af; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-    ul, ol { padding-left: 24px; margin: 12px 0; }
-    li { margin-bottom: 4px; }
-    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
-    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; }
-    blockquote { border-left: 4px solid #3b82f6; padding-left: 16px; color: #64748b; font-style: italic; margin: 12px 0; }
-  </style>
-</head>
-<body>
-  <h1>${page.title}</h1>
-  <div style="font-size: 14px; margin-top: 20px;">${page.content}</div>
-</body>
-</html>`;
-  };
-
-  const handleDownloadNote = () => {
-    if (!activePage) return;
-    const pdfHtml = generatePdfDocument(activePage);
-    const blob = new Blob([pdfHtml], { type: 'application/pdf;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${activePage.title.replace(/[^a-z0-9_-]/gi, '_')}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleAddAsResource = () => {
-    if (!activePage || !onAddResource) return;
-    const pdfHtml = generatePdfDocument(activePage);
-    const blob = new Blob([pdfHtml], { type: 'application/pdf;charset=utf-8' });
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      const newMat: MaterialItem = {
-        id: `mat-note-${Date.now()}`,
-        title: `${activePage.title}.pdf`,
-        type: 'pdf',
-        url: dataUrl || '',
-        size: `${(blob.size / 1024).toFixed(1)} KB`,
-        notes: 'Exported from Study Workspace Notes',
-        createdAt: new Date().toISOString(),
-      };
-      onAddResource(newMat);
-      showToast('Exported to Study Materials!');
-    };
-    reader.readAsDataURL(blob);
-  };
-
   return (
-    <div className="space-y-3 bg-surface-lowest p-4 sm:p-5 rounded-3xl border border-outline-variant/60 shadow-sm">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
-            <FileText className="w-4 h-4" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-on-surface">Study Workspace</h4>
-            <p className="text-[10px] text-outline">Directly edit & auto-formats like Notion</p>
-          </div>
+    <div className="space-y-2.5">
+      {/* Toast Notice Toast Banner if present */}
+      {toastMessage && (
+        <div className="flex items-center justify-end">
+          <span className="text-[11px] text-primary font-bold bg-primary/10 px-2.5 py-1 rounded-lg animate-in fade-in">
+            {toastMessage}
+          </span>
         </div>
+      )}
 
-        {/* Right Action Buttons */}
-        <div className="flex items-center gap-2">
-          {toastMessage && (
-            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-xl animate-in fade-in zoom-in-95">
-              <span>{toastMessage}</span>
-            </div>
-          )}
-
-          {/* Stateful Save Button */}
-          {isSaved ? (
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/30 rounded-xl select-none">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Saved</span>
-            </div>
-          ) : (
+      {/* Notion Workspace Formatting Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-1.5 px-3 py-2 bg-surface-lowest rounded-2xl border border-outline-variant/60 shadow-xs text-outline text-xs">
+        <div className="flex items-center gap-1 flex-wrap">
+          {/* Slash Menu Trigger */}
+          <div ref={slashMenuRef} className="relative">
             <button
               type="button"
-              onClick={handleSave}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-primary rounded-xl shadow-sm transition-all hover:bg-primary-container cursor-pointer"
+              onClick={() => setShowSlashMenu(!showSlashMenu)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold hover:bg-primary hover:text-white transition-colors text-[11px] border border-primary/20"
+              title="Open Notion Slash Commands Menu"
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>Save</span>
-            </button>
-          )}
-
-          {/* 3-Dot Options Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-1.5 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
-              title="Workspace options"
-            >
-              <MoreVertical className="w-4 h-4" />
+              <Command className="w-3.5 h-3.5" />
+              <span>/ Slash Commands</span>
             </button>
 
-            {isMenuOpen && activePage && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-8 z-50 w-52 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl p-1.5 space-y-1 opacity-100 animate-in fade-in zoom-in-95 duration-100"
-              >
+            {showSlashMenu && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-64 bg-surface-lowest dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl p-2 space-y-1 animate-in fade-in zoom-in-95 max-h-72 overflow-y-auto">
+                <p className="px-2.5 py-1 text-[10px] font-bold text-outline uppercase tracking-wider">
+                  Insert Notion Block
+                </p>
+
                 <button
                   type="button"
                   onClick={() => {
-                    setIsMenuOpen(false);
-                    if (activePageId) setEditingTitleId(activePageId);
+                    executeCommand('formatBlock', '<h1>');
+                    setShowSlashMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-low rounded-xl transition-colors truncate"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
                 >
-                  <Pencil className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">Rename {activePage.title}</span>
+                  <Heading1 className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Heading 1</p>
+                    <p className="text-[10px] text-outline">Large section title</p>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setIsMenuOpen(false);
-                    handleDownloadNote();
+                    executeCommand('formatBlock', '<h2>');
+                    setShowSlashMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-low rounded-xl transition-colors truncate"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
                 >
-                  <Download className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">Download {activePage.title}.pdf</span>
+                  <Heading2 className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Heading 2</p>
+                    <p className="text-[10px] text-outline">Medium section heading</p>
+                  </div>
                 </button>
 
-                {onAddResource && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleAddAsResource();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 rounded-xl transition-colors truncate"
-                  >
-                    <FilePlus className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="truncate">Add to Resources</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    executeCommand('formatBlock', '<h3>');
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <Heading3 className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Heading 3</p>
+                    <p className="text-[10px] text-outline">Small sub-heading</p>
+                  </div>
+                </button>
 
-                {pages.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleDeletePage(activePageId);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-500/10 rounded-xl transition-colors truncate"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span className="truncate">Delete {activePage.title}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    executeCommand('insertUnorderedList');
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <List className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Bullet List</p>
+                    <p className="text-[10px] text-outline">Unordered bullet items</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    executeCommand('insertOrderedList');
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <ListOrdered className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Numbered List</p>
+                    <p className="text-[10px] text-outline">Sequential numbered items</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleInsertChecklist();
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <CheckSquare className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Checklist</p>
+                    <p className="text-[10px] text-outline">Task item with checkbox</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleInsertCallout('info');
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <Info className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Callout Box</p>
+                    <p className="text-[10px] text-outline">Highlighted info callout banner</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleInsertMathBlock();
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <Sigma className="w-4 h-4 text-purple-600" />
+                  <div className="text-left">
+                    <p className="font-bold">LaTeX Math Formula</p>
+                    <p className="text-[10px] text-outline">Equations & Math formulas</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleInsertTable();
+                    setShowSlashMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container-high rounded-xl"
+                >
+                  <TableIcon className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="font-bold">Table Grid</p>
+                    <p className="text-[10px] text-outline">Data table layout</p>
+                  </div>
+                </button>
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Notion Pages Tabs Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none">
-        {pages.map((page) => {
-          const isActive = page.id === activePageId;
-          return (
-            <div
-              key={page.id}
-              onClick={() => setActivePageId(page.id)}
-              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${isActive
-                ? 'bg-primary text-white border-primary shadow-sm'
-                : 'bg-surface-container-low text-outline hover:text-on-surface hover:bg-surface-container-high border-outline-variant/40'
-                }`}
-            >
-              <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-primary'}`} />
-              {editingTitleId === page.id ? (
-                <input
-                  type="text"
-                  value={page.title}
-                  autoFocus
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => handleRenamePage(page.id, e.target.value)}
-                  onBlur={() => handleFinishRename(page.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFinishRename(page.id);
-                  }}
-                  className="w-28 px-1.5 py-0.5 bg-surface-lowest text-on-surface rounded border border-primary/50 text-xs font-bold focus:outline-none"
-                />
-              ) : (
-                <span
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    setEditingTitleId(page.id);
-                  }}
-                  className="truncate max-w-[130px]"
-                  title="Double-click to rename page"
-                >
-                  {page.title}
-                </span>
-              )}
+          <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
 
-              {pages.length > 1 && (
-                <button
-                  type="button"
-                  onClick={(e) => handleDeletePage(page.id, e)}
-                  className={`p-0.5 rounded-md transition-colors shrink-0 ${isActive
-                    ? 'text-white/80 hover:text-white hover:bg-white/20'
-                    : 'text-outline hover:text-rose-600 hover:bg-rose-500/10'
-                    }`}
-                  title="Delete page"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Add New Notion Page Button */}
-        <button
-          type="button"
-          onClick={handleAddPage}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-xl transition-all shrink-0"
-          title="Create new page"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Page</span>
-        </button>
-      </div>
-
-      {/* Notion-Style Formatting Toolbar with Full Elements */}
-      <div className="flex items-center justify-between flex-wrap gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-2xl border border-outline-variant/60 text-outline text-xs">
-        <div className="flex items-center gap-1 flex-wrap">
-          {/* 1. Font Family Dropdown */}
+          {/* Font Family */}
           <div ref={fontPickerRef} className="relative">
             <button
               type="button"
               onClick={() => setShowFontPicker(!showFontPicker)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors font-medium border border-outline-variant/30 text-[11px]"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors font-medium border border-outline-variant/30 text-[11px]"
               title="Font Family"
             >
               <Type className="w-3.5 h-3.5 text-primary" />
@@ -886,12 +828,12 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
             )}
           </div>
 
-          {/* 2. Font Size Dropdown */}
+          {/* Font Size */}
           <div ref={sizePickerRef} className="relative">
             <button
               type="button"
               onClick={() => setShowFontSizePicker(!showFontSizePicker)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors font-medium border border-outline-variant/30 text-[11px]"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors font-medium border border-outline-variant/30 text-[11px]"
               title="Font Size"
             >
               <span>{selectedFontSize}</span>
@@ -920,11 +862,11 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
 
           <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
 
-          {/* 3. Text Styles: Bold, Italic, Underline, Strikethrough */}
+          {/* Bold, Italic, Underline, Strikethrough */}
           <button
             type="button"
             onClick={() => executeCommand('bold')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Bold (Ctrl+B)"
           >
             <Bold className="w-3.5 h-3.5" />
@@ -932,7 +874,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('italic')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Italic (Ctrl+I)"
           >
             <Italic className="w-3.5 h-3.5" />
@@ -940,7 +882,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('underline')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Underline (Ctrl+U)"
           >
             <Underline className="w-3.5 h-3.5" />
@@ -948,18 +890,18 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('strikeThrough')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Strikethrough"
           >
             <Strikethrough className="w-3.5 h-3.5" />
           </button>
 
-          {/* 4. Text Color & Highlight Popover */}
+          {/* Color & Highlight */}
           <div ref={colorPickerRef} className="relative">
             <button
               type="button"
               onClick={() => setShowColorPicker(!showColorPicker)}
-              className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+              className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
               title="Text Color & Highlight"
             >
               <Palette className="w-3.5 h-3.5 text-primary" />
@@ -1020,11 +962,11 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
 
           <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
 
-          {/* 5. Headings */}
+          {/* Headings */}
           <button
             type="button"
             onClick={() => executeCommand('formatBlock', '<h1>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Heading 1"
           >
             <Heading1 className="w-3.5 h-3.5" />
@@ -1032,7 +974,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('formatBlock', '<h2>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Heading 2"
           >
             <Heading2 className="w-3.5 h-3.5" />
@@ -1040,7 +982,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('formatBlock', '<h3>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Heading 3"
           >
             <Heading3 className="w-3.5 h-3.5" />
@@ -1048,11 +990,11 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
 
           <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
 
-          {/* 6. Lists & Checklists */}
+          {/* Lists */}
           <button
             type="button"
             onClick={() => executeCommand('insertUnorderedList')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Bullet List"
           >
             <List className="w-3.5 h-3.5" />
@@ -1060,7 +1002,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => executeCommand('insertOrderedList')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Numbered List"
           >
             <ListOrdered className="w-3.5 h-3.5" />
@@ -1068,7 +1010,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={handleInsertChecklist}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Checkbox Checklist"
           >
             <CheckSquare className="w-3.5 h-3.5" />
@@ -1076,11 +1018,11 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
 
           <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
 
-          {/* 7. Notion Elements: Quote, Callout, Table, Divider */}
+          {/* Quote, Callout, Table, Divider */}
           <button
             type="button"
             onClick={() => executeCommand('formatBlock', '<blockquote>')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
             title="Quote Block"
           >
             <Quote className="w-3.5 h-3.5" />
@@ -1088,60 +1030,95 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           <button
             type="button"
             onClick={() => handleInsertCallout('info')}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors text-primary font-bold"
-            title="Insert Callout Box"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors text-primary font-bold"
+            title="Insert Callout Info Box"
           >
             <Info className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
             onClick={handleInsertTable}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
-            title="Insert Table"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
+            title="Insert Table Grid"
           >
             <TableIcon className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
             onClick={handleInsertDivider}
-            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface transition-colors"
-            title="Insert Divider Line"
+            className="p-1.5 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition-colors"
+            title="Insert Horizontal Divider"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
 
           <div className="h-4 w-[1px] bg-outline-variant/40 mx-0.5" />
 
-          {/* 8. Equations: Inline Math & Block Math */}
+          {/* LaTeX Math Buttons */}
           <button
             type="button"
-            onClick={handleInsertMath}
-            className="px-1.5 py-0.5 text-[11px] font-mono font-bold rounded-lg hover:bg-surface-lowest hover:text-primary transition-colors border border-outline-variant/40"
+            onClick={() => handleInsertMath()}
+            className="px-1.5 py-0.5 text-[11px] font-mono font-bold rounded-lg hover:bg-surface-container-low hover:text-primary transition-colors border border-outline-variant/40"
             title="Insert Inline LaTeX Math ($...$)"
           >
             $ Math
           </button>
           <button
             type="button"
-            onClick={handleInsertMathBlock}
-            className="px-1.5 py-0.5 text-[11px] font-mono font-bold rounded-lg hover:bg-surface-lowest hover:text-purple-600 transition-colors border border-outline-variant/40"
+            onClick={() => handleInsertMathBlock()}
+            className="px-1.5 py-0.5 text-[11px] font-mono font-bold rounded-lg hover:bg-surface-container-low hover:text-purple-600 transition-colors border border-outline-variant/40"
             title="Insert Display Math Block ($$...$$)"
           >
             $$ Block
           </button>
         </div>
+
+
+      </div>
+
+      {/* Quick LaTeX Formula Chips Bar */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-mono text-outline select-none">
+        <span className="text-[10px] font-bold text-outline uppercase tracking-wider shrink-0 flex items-center gap-1">
+          <Sigma className="w-3 h-3 text-primary" /> Formulas:
+        </span>
+        {[
+          { label: 'Fraction', tex: '\\frac{a}{b}' },
+          { label: 'Square Root', tex: '\\sqrt{x}' },
+          { label: 'Integral', tex: '\\int_0^\\infty f(x)dx' },
+          { label: 'Summation', tex: '\\sum_{i=1}^n x_i' },
+          { label: 'Einstein', tex: 'E = mc^2' },
+          { label: 'Infinity', tex: '\\infty' },
+          { label: 'Pi / Theta', tex: '\\pi, \\theta' },
+        ].map((chip) => (
+          <button
+            key={chip.label}
+            type="button"
+            onClick={() => handleInsertMath(chip.tex)}
+            className="px-2 py-0.5 rounded-lg bg-surface-container-low border border-outline-variant/40 hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors shrink-0 font-mono text-[11px]"
+            title={`Insert ${chip.label}`}
+          >
+            {chip.label}
+          </button>
+        ))}
       </div>
 
       {/* Notion Unified WYSIWYG Editable Document Surface */}
-      <div className="relative rounded-2xl bg-surface-container-low border border-outline-variant/60 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary focus-within:bg-surface-lowest transition-all min-h-[360px]">
+      <div className="relative rounded-2xl bg-surface-container-low border border-outline-variant/60 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary focus-within:bg-surface-lowest transition-all">
         <div
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
           onInput={handleEditorInput}
+          onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className="w-full p-4 sm:p-5 text-on-surface text-sm leading-relaxed outline-none min-h-[360px] max-h-[650px] overflow-y-auto font-sans"
+          style={{ minHeight }}
+          className="w-full p-4 sm:p-5 text-on-surface text-sm leading-relaxed outline-none max-h-[550px] overflow-y-auto font-sans"
         />
+        {!value && (
+          <div className="absolute top-5 left-5 pointer-events-none text-outline/50 text-sm font-mono italic">
+            {placeholder}
+          </div>
+        )}
       </div>
     </div>
   );
