@@ -437,20 +437,6 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     handleEditorInput();
   };
 
-  const handleInsertMath = () => {
-    const formula = window.prompt('Enter LaTeX Inline Math formula (e.g. E = mc^2 or \\int_0^1 x dx):', 'E = mc^2');
-    if (!formula) return;
-    try {
-      const rendered = katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
-      const mathHtml = `<span class="katex-inline inline-block px-1 select-all" contenteditable="false">${rendered}</span>&nbsp;`;
-      insertHtmlAtCursor(mathHtml);
-      handleEditorInput();
-    } catch {
-      insertHtmlAtCursor(`$${formula}$`);
-      handleEditorInput();
-    }
-  };
-
   const handleInsertMathBlock = () => {
     const formula = window.prompt(
       'Enter LaTeX Display Math Block formula (e.g. \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}):',
@@ -788,11 +774,10 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
             <div
               key={page.id}
               onClick={() => setActivePageId(page.id)}
-              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                isActive
+              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${isActive
                   ? 'bg-primary text-white border-primary shadow-sm'
                   : 'bg-surface-container-low text-outline hover:text-on-surface hover:bg-surface-container-high border-outline-variant/40'
-              }`}
+                }`}
             >
               <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-primary'}`} />
               {editingTitleId === page.id ? (
@@ -825,11 +810,10 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
                 <button
                   type="button"
                   onClick={(e) => handleDeletePage(page.id, e)}
-                  className={`p-0.5 rounded-md transition-colors shrink-0 ${
-                    isActive
+                  className={`p-0.5 rounded-md transition-colors shrink-0 ${isActive
                       ? 'text-white/80 hover:text-white hover:bg-white/20'
                       : 'text-outline hover:text-rose-600 hover:bg-rose-500/10'
-                  }`}
+                    }`}
                   title="Delete page"
                 >
                   <X className="w-3.5 h-3.5" />
