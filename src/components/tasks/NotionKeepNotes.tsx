@@ -437,6 +437,20 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     handleEditorInput();
   };
 
+  const handleInsertMath = () => {
+    const formula = window.prompt('Enter LaTeX Inline Math formula (e.g. E = mc^2 or \\int_0^1 x dx):', 'E = mc^2');
+    if (!formula) return;
+    try {
+      const rendered = katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
+      const mathHtml = `<span class="katex-inline inline-block px-1 select-all" contenteditable="false">${rendered}</span>&nbsp;`;
+      insertHtmlAtCursor(mathHtml);
+      handleEditorInput();
+    } catch {
+      insertHtmlAtCursor(`$${formula}$`);
+      handleEditorInput();
+    }
+  };
+
   const handleInsertMathBlock = () => {
     const formula = window.prompt(
       'Enter LaTeX Display Math Block formula (e.g. \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}):',
