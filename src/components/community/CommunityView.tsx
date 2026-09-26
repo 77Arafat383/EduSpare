@@ -1,20 +1,20 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useEduSpare } from '@/context/EduSpareContext';
 import { BlogPostCard } from '../blog/BlogPostCard';
 const CreateBlogModal = dynamic(() => import('../blog/CreateBlogModal').then((m) => m.CreateBlogModal), { ssr: false });
 import { CommunityHeader } from './CommunityHeader';
-import { CommunitySelectorPills } from './CommunitySelectorPills';
+import { CommunitySelectorPills, CommunityFilterTab } from './CommunitySelectorPills';
 import { CommunityCoverCard } from './CommunityCoverCard';
 import { CommunityPostBoxCard } from './CommunityPostBoxCard';
 import { AdminApprovalQueueCard } from './AdminApprovalQueueCard';
 import { CommunityMembersCard } from './CommunityMembersCard';
 const CreateCommunityModal = dynamic(() => import('./CreateCommunityModal').then((m) => m.CreateCommunityModal), { ssr: false });
 const EditCommunityCoverModal = dynamic(() => import('./EditCommunityCoverModal').then((m) => m.EditCommunityCoverModal), { ssr: false });
-import { Shield, Clock, Sparkles, PenSquare } from 'lucide-react';
+import { Shield, Clock, Sparkles, Users } from 'lucide-react';
+import { CommunityItem } from '@/types/eduspare';
 
 export const CommunityView: React.FC = () => {
   const {
@@ -44,27 +44,87 @@ export const CommunityView: React.FC = () => {
   const [isEditCoverOpen, setIsEditCoverOpen] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
-  const activeCommunity =
-    communities.find((c) => c.id === selectedCommunityId) || communities[0];
+  // Active filter tab: All, Joined, or Admin
+  const [filterTab, setFilterTab] = useState<CommunityFilterTab>('all');
+
+  // Track the user's selected community ID independently per tab so switching tabs never carries over an un-joined selection
+  const [selectedByTab, setSelectedByTab] = useState<Record<CommunityFilterTab, string | null>>({
+    all: null,
+    joined: null,
+    admin: null,
+  });
+
+  const isUserMember = (comm?: CommunityItem | null) => {
+    if (!currentUser || !comm) return false;
+    return Boolean(
+      comm.memberIds?.includes(currentUser.id) ||
+      (currentUser.username && comm.memberIds?.includes(currentUser.username))
+    );
+  };
+
+  const isUserAdmin = (comm?: CommunityItem | null) => {
+    if (!currentUser || !comm) return false;
+    return Boolean(
+      comm.createdById === currentUser.id ||
+      comm.adminIds?.includes(currentUser.id) ||
+      (currentUser.username &&
+        (comm.createdById === currentUser.username || comm.adminIds?.includes(currentUser.username)))
+    );
+  };
+
+  const joinedCommunities = useMemo(() => communities.filter(isUserMember), [communities, currentUser]);
+  const adminCommunities = useMemo(() => communities.filter(isUserAdmin), [communities, currentUser]);
+
+  const displayedCommunities = useMemo(() => {
+    if (filterTab === 'joined') return joinedCommunities;
+    if (filterTab === 'admin') return adminCommunities;
+    return communities;
+  }, [filterTab, joinedCommunities, adminCommunities, communities]);
+
+  // Determine active community strictly within the current tab's communities
+  const activeCommunity = useMemo(() => {
+    const tabSelectedId = selectedByTab[filterTab];
+    if (tabSelectedId) {
+      const match = displayedCommunities.find((c) => c.id === tabSelectedId);
+      if (match) return match;
+    }
+    return displayedCommunities[0] || null;
+  }, [filterTab, selectedByTab, displayedCommunities]);
+
+  const handleSelectCommunity = (id: string) => {
+    setSelectedByTab((prev) => ({ ...prev, [filterTab]: id }));
+    setSelectedCommunityId(id);
+  };
+
+  const handleTabChange = (newTab: CommunityFilterTab) => {
+    setFilterTab(newTab);
+    const targetList =
+      newTab === 'joined' ? joinedCommunities : newTab === 'admin' ? adminCommunities : communities;
+    if (targetList.length > 0) {
+      const existing = selectedByTab[newTab];
+      const match = targetList.find((c) => c.id === existing);
+      const chosenId = match ? match.id : targetList[0].id;
+      setSelectedByTab((prev) => ({ ...prev, [newTab]: chosenId }));
+      setSelectedCommunityId(chosenId);
+    }
+  };
 
   // User Membership & Role checks
-  const isMember = Boolean(
-    currentUser && activeCommunity && activeCommunity.memberIds?.includes(currentUser.id)
-  );
-
-  const isAdmin = Boolean(
-    currentUser &&
-    activeCommunity &&
-    (activeCommunity.createdById === currentUser.id ||
-      activeCommunity.adminIds?.includes(currentUser.id))
-  );
+  const isMember = isUserMember(activeCommunity);
+  const isAdmin = isUserAdmin(activeCommunity);
 
   const isPending = Boolean(
-    currentUser && activeCommunity && activeCommunity.pendingRequestIds?.includes(currentUser.id)
+    currentUser &&
+    activeCommunity &&
+    (activeCommunity.pendingRequestIds?.includes(currentUser.id) ||
+      (currentUser.username && activeCommunity.pendingRequestIds?.includes(currentUser.username)))
   );
 
   const isInvited = Boolean(
-    currentUser && activeCommunity && activeCommunity.invitedUserIds?.includes(currentUser.id)
+    currentUser &&
+    activeCommunity &&
+    (activeCommunity.invitedUserIds?.includes(currentUser.id) ||
+      (currentUser.username && activeCommunity.invitedUserIds?.includes(currentUser.username)))
   );
 
   // Community-exclusive blogs
@@ -101,16 +161,58 @@ export const CommunityView: React.FC = () => {
       {/* 1. Header Bar */}
       <CommunityHeader onOpenCreate={() => setIsCreateOpen(true)} />
 
-      {/* 2. Horizontal Community Selector Pills */}
+      {/* 2. Horizontal Community Selector Tabs & Pills */}
       <CommunitySelectorPills
-        communities={communities}
+        filterTab={filterTab}
+        onTabChange={handleTabChange}
+        communities={displayedCommunities}
         activeCommunityId={activeCommunity?.id}
         currentUser={currentUser}
-        onSelectCommunity={(id) => setSelectedCommunityId(id)}
+        onSelectCommunity={handleSelectCommunity}
+        allCount={communities.length}
+        joinedCount={joinedCommunities.length}
+        adminCount={adminCommunities.length}
       />
 
-      {/* 3. Selected Community Workspace */}
-      {activeCommunity && (
+      {/* Empty State when tab has no communities */}
+      {displayedCommunities.length === 0 ? (
+        <div className="bg-surface-lowest p-8 sm:p-10 rounded-3xl border border-outline-variant/60 text-center space-y-3.5 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-inner">
+            <Users className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-on-surface">
+              {filterTab === 'joined'
+                ? "You haven't joined any communities yet"
+                : "You are not an admin of any communities yet"}
+            </h3>
+            <p className="text-xs text-outline max-w-md mx-auto">
+              {filterTab === 'joined'
+                ? 'Explore All Groups to find research hubs, study groups, and academic communities to join.'
+                : 'Create your own member-gated community to lead discussions, share notes, and collaborate.'}
+            </p>
+          </div>
+          <div>
+            {filterTab === 'joined' ? (
+              <button
+                type="button"
+                onClick={() => handleTabChange('all')}
+                className="px-5 py-2.5 bg-primary text-white font-bold text-xs rounded-xl shadow-md hover:bg-primary-container transition-all cursor-pointer"
+              >
+                Explore All Groups ({communities.length})
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(true)}
+                className="px-5 py-2.5 bg-primary text-white font-bold text-xs rounded-xl shadow-md hover:bg-primary-container transition-all cursor-pointer"
+              >
+                + Create Community
+              </button>
+            )}
+          </div>
+        </div>
+      ) : activeCommunity ? (
         <div className="space-y-3">
           {/* Cover Page Header & Post Creation Box Group (Tight Spacing) */}
           <div className="space-y-2">
@@ -176,12 +278,13 @@ export const CommunityView: React.FC = () => {
                 </div>
               ) : (
                 <button
+                  type="button"
                   onClick={() =>
                     activeCommunity.isPrivate
                       ? requestToJoinCommunity(activeCommunity.id)
                       : toggleJoinCommunity(activeCommunity.id, 'join')
                   }
-                  className="px-5 py-2.5 bg-primary text-white font-bold text-xs rounded-xl shadow-md hover:bg-primary-container transition-all"
+                  className="px-5 py-2.5 bg-primary text-white font-bold text-xs rounded-xl shadow-md hover:bg-primary-container transition-all cursor-pointer"
                 >
                   {activeCommunity.isPrivate ? 'Request Membership Approval' : 'Join Community Now'}
                 </button>
@@ -191,16 +294,15 @@ export const CommunityView: React.FC = () => {
             <div className="space-y-3">
               {/* Community Blog Feed */}
               <div className="space-y-4">
-
-
                 {approvedCommunityBlogs.length === 0 ? (
                   <div className="p-8 text-center text-xs text-outline bg-surface-lowest rounded-3xl border border-outline-variant/60 shadow-sm space-y-2">
                     <Sparkles className="w-6 h-6 text-primary mx-auto opacity-80" />
                     <p className="font-bold text-on-surface">No approved community posts published yet.</p>
                     <p>Be the first member to post a research article or study guide to this community!</p>
                     <button
+                      type="button"
                       onClick={() => setIsPostModalOpen(true)}
-                      className="mt-2 px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-sm hover:bg-primary-container"
+                      className="mt-2 px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-sm hover:bg-primary-container cursor-pointer"
                     >
                       Post First Article
                     </button>
@@ -216,24 +318,24 @@ export const CommunityView: React.FC = () => {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* 4. Modals */}
       {isCreateOpen && (
-      <CreateCommunityModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSubmit={handleCreateSubmit}
-      />
+        <CreateCommunityModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          onSubmit={handleCreateSubmit}
+        />
       )}
 
-      {isEditCoverOpen && (
-      <EditCommunityCoverModal
-        isOpen={isEditCoverOpen}
-        community={activeCommunity}
-        onClose={() => setIsEditCoverOpen(false)}
-        onSubmit={handleEditCoverSubmit}
-      />
+      {isEditCoverOpen && activeCommunity && (
+        <EditCommunityCoverModal
+          isOpen={isEditCoverOpen}
+          community={activeCommunity}
+          onClose={() => setIsEditCoverOpen(false)}
+          onSubmit={handleEditCoverSubmit}
+        />
       )}
 
       {isPostModalOpen && activeCommunity && (

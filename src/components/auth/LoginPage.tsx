@@ -239,40 +239,9 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Prominent 1-Click Instant Demo Login Button */}
-          <div className="space-y-1.5 bg-gradient-to-br from-primary/10 via-primary/5 to-amber-500/10 p-3.5 rounded-2xl border border-primary/20 shadow-xs">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleDemoLogin('alex_dev')}
-              className="w-full py-3 px-4 bg-primary hover:bg-primary-container text-white font-bold text-sm rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-70"
-            >
-              {demoLoadingUser === 'alex_dev' ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Logging in as Alex Rivera...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
-                  <span>1-Click Quick Demo Login</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform shrink-0" />
-                </>
-              )}
-            </button>
-            <div className="flex items-center justify-between text-[11px] text-outline px-1 pt-0.5">
-              <span className="font-medium">Instant access as Alex Rivera (MIT)</span>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                1-Click • No Password
-              </span>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-outline-variant/40" />
-            <span className="text-[10px] font-bold text-outline uppercase tracking-wider">or continue with account</span>
-            <div className="flex-1 h-px bg-outline-variant/40" />
-          </div>
+
+
 
           {error && (
             <div className="p-3 text-xs text-rose-700 bg-rose-500/10 border border-rose-500/20 rounded-xl font-bold">
@@ -314,17 +283,7 @@ export const LoginPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs text-outline px-0.5">
-                <button
-                  type="button"
-                  onClick={() => handleFillDemoCredentials('alex_dev')}
-                  className="hover:text-primary transition-colors flex items-center gap-1 font-semibold text-[11px]"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  Auto-fill demo credentials
-                </button>
-                <span className="text-[10px] text-outline/80 font-mono">pass: password123</span>
-              </div>
+
 
               <button
                 type="submit"

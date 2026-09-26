@@ -1,117 +1,91 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { CommunityItem, User } from '@/types/eduspare';
 import { Lock, Globe } from 'lucide-react';
 
+export type CommunityFilterTab = 'all' | 'joined' | 'admin';
+
 interface CommunitySelectorPillsProps {
+  filterTab: CommunityFilterTab;
+  onTabChange: (tab: CommunityFilterTab) => void;
   communities: CommunityItem[];
   activeCommunityId?: string;
   currentUser: User | null;
   onSelectCommunity: (id: string) => void;
+  allCount: number;
+  joinedCount: number;
+  adminCount: number;
 }
 
 export const CommunitySelectorPills: React.FC<CommunitySelectorPillsProps> = ({
+  filterTab,
+  onTabChange,
   communities,
   activeCommunityId,
   currentUser,
   onSelectCommunity,
+  allCount,
+  joinedCount,
+  adminCount,
 }) => {
-  const [filterTab, setFilterTab] = useState<'all' | 'joined' | 'admin'>('all');
-
-  const joinedCommunities = communities.filter((c) =>
-    currentUser ? Boolean(c.memberIds?.includes(currentUser.id)) : false
-  );
-
-  const adminCommunities = communities.filter((c) =>
-    currentUser ? Boolean(c.createdById === currentUser.id || c.adminIds?.includes(currentUser.id)) : false
-  );
-
-  const handleSelectAll = () => {
-    setFilterTab('all');
-  };
-
-  const handleSelectJoined = () => {
-    setFilterTab('joined');
-    if (joinedCommunities.length > 0) {
-      const isCurrentInJoined = joinedCommunities.some((c) => c.id === activeCommunityId);
-      if (!isCurrentInJoined) {
-        onSelectCommunity(joinedCommunities[0].id);
-      }
-    }
-  };
-
-  const handleSelectAdmin = () => {
-    setFilterTab('admin');
-    if (adminCommunities.length > 0) {
-      const isCurrentInAdmin = adminCommunities.some((c) => c.id === activeCommunityId);
-      if (!isCurrentInAdmin) {
-        onSelectCommunity(adminCommunities[0].id);
-      }
-    }
-  };
-
-  const filteredCommunities =
-    filterTab === 'joined'
-      ? joinedCommunities
-      : filterTab === 'admin'
-      ? adminCommunities
-      : communities;
-
   return (
     <div className="space-y-3">
-      {/* Category Filter Sub-Tabs */}
+      {/* Category Filter Tabs */}
       <div className="flex items-center gap-2 border-b border-outline-variant/40 pb-2 text-xs font-bold text-outline">
         <button
           type="button"
-          onClick={handleSelectAll}
+          onClick={() => onTabChange('all')}
           className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold ${
             filterTab === 'all'
               ? 'bg-primary/10 text-primary border border-primary/20'
               : 'hover:bg-surface-container-high text-on-surface-variant'
           }`}
         >
-          All Groups ({communities.length})
+          All Groups ({allCount})
         </button>
 
         {currentUser && (
           <button
             type="button"
-            onClick={handleSelectJoined}
+            onClick={() => onTabChange('joined')}
             className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold ${
               filterTab === 'joined'
                 ? 'bg-primary/10 text-primary border border-primary/20'
                 : 'hover:bg-surface-container-high text-on-surface-variant'
             }`}
           >
-            Joined Groups ({joinedCommunities.length})
+            Joined Groups ({joinedCount})
           </button>
         )}
 
         {currentUser && (
           <button
             type="button"
-            onClick={handleSelectAdmin}
+            onClick={() => onTabChange('admin')}
             className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold ${
               filterTab === 'admin'
                 ? 'bg-primary/10 text-primary border border-primary/20'
                 : 'hover:bg-surface-container-high text-on-surface-variant'
             }`}
           >
-            Admin Groups ({adminCommunities.length})
+            Admin Groups ({adminCount})
           </button>
         )}
       </div>
 
       {/* Horizontal Scrollable Pills */}
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-        {filteredCommunities.length === 0 ? (
-          <div className="p-3 text-xs text-outline italic">No communities in this section.</div>
-        ) : (
-          filteredCommunities.map((comm) => {
+      {communities.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+          {communities.map((comm) => {
             const isSelected = activeCommunityId === comm.id;
             const isUserAdmin =
-              currentUser && (comm.createdById === currentUser.id || comm.adminIds?.includes(currentUser.id));
+              currentUser &&
+              (comm.createdById === currentUser.id ||
+                comm.adminIds?.includes(currentUser.id) ||
+                (currentUser.username &&
+                  (comm.createdById === currentUser.username ||
+                    comm.adminIds?.includes(currentUser.username))));
 
             return (
               <button
@@ -148,9 +122,9 @@ export const CommunitySelectorPills: React.FC<CommunitySelectorPillsProps> = ({
                 </div>
               </button>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 };
