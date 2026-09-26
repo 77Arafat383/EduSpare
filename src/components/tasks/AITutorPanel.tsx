@@ -17,6 +17,7 @@ import {
   Brain,
   BookOpen,
   ShieldCheck,
+  FilePlus,
 } from 'lucide-react';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
 
@@ -31,104 +32,60 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   text: string;
   modelId?: string;
+  switchedNotice?: string;
+  isError?: boolean;
+  failedModel?: string;
+  originalPrompt?: string;
 }
 
 const AI_STUDY_MODELS = [
   {
-    id: 'gpt-5.6-luna',
-    name: 'GPT-5.6 Luna',
-    tag: 'OpenAI Active Assistant',
-
-    icon: Bot,
-    badgeColor: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
-  },
-  {
-    id: 'gpt-5.6',
-    name: 'GPT-5.6',
-    tag: 'OpenAI',
-
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o mini',
+    tag: 'OpenAI Fast Q&A',
+    provider: 'OpenAI',
     icon: Bot,
     badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
   },
   {
-    id: 'gpt-5.6-mini',
-    name: 'GPT-5.6 mini',
-    tag: 'OpenAI',
-
-    icon: Bot,
-    badgeColor: 'bg-emerald-400/10 text-emerald-500 border-emerald-400/20',
-  },
-  {
-    id: 'gpt-5.5',
-    name: 'GPT-5.5',
-    tag: 'OpenAI',
-
-    icon: Bot,
-    badgeColor: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
-  },
-  {
-    id: 'gpt-5.5-mini',
-    name: 'GPT-5.5 mini',
-    tag: 'OpenAI',
-
-    icon: Bot,
-    badgeColor: 'bg-sky-400/10 text-sky-500 border-sky-400/20',
-  },
-  {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o mini',
-    tag: 'OpenAI',
-
-    icon: Bot,
-    badgeColor: 'bg-zinc-500/10 text-zinc-600 border-zinc-500/20',
-  },
-  {
-    id: 'gemini-3.6-flash',
-    name: 'Gemini 3.6 Flash',
-    tag: 'Google',
-
+    id: 'gemini-flash',
+    name: 'Gemini 2.5 Flash',
+    tag: 'Google Smart Q&A',
+    provider: 'Google',
     icon: Sparkles,
     badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
   },
   {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash',
-    tag: 'Google',
-
-    icon: Sparkles,
-    badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  },
-  {
-    id: 'claude-3.5-sonnet',
-    name: 'Claude 3.5 Sonnet',
-    tag: 'Anthropic',
-
-    icon: BookOpen,
-    badgeColor: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  },
-  {
-    id: 'deepseek-r1',
-    name: 'DeepSeek R1',
-    tag: 'DeepSeek',
-
-    icon: Brain,
-    badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
-  },
-  {
-    id: 'gemma-2',
-    name: 'Gemma 2 27B',
-    tag: 'Google Open',
-
+    id: 'gemma',
+    name: 'Gemma 3 (27B)',
+    tag: 'Google Open Q&A',
+    provider: 'Google Open',
     icon: Cpu,
     badgeColor: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
   },
   {
+    id: 'deepseek-chat',
+    name: 'DeepSeek Chat',
+    tag: 'DeepSeek Direct Q&A',
+    provider: 'DeepSeek',
+    icon: Brain,
+    badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+  },
+  {
     id: 'llama-3.3',
-    name: 'Llama 3.3 70B',
-    tag: 'Meta Open',
-
+    name: 'Llama 3.3 (70B)',
+    tag: 'Meta Open Q&A',
+    provider: 'Meta',
     icon: ShieldCheck,
     badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  },
+  {
+    id: 'gpt-oss-120b',
+    name: 'GPT-OSS (120B)',
+    tag: 'Groq Ultra-Fast',
+    provider: 'Groq',
+    icon: Bot,
+    badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   },
 ];
 
@@ -139,9 +96,10 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
 }) => {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('gpt-5.6-luna');
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini');
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [insertedId, setInsertedId] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -150,13 +108,21 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
 
   useEffect(() => {
     setMounted(true);
+    fetch('/api/ai-tutor')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.recommendedModel) {
+          setSelectedModel(data.recommendedModel);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const initialWelcomeMsg: ChatMessage = {
     id: 'welcome-1',
     sender: 'ai',
-    modelId: 'gpt-5.6-luna',
-    text: `Hello! How can I assist you with your studies today? You can switch AI models anytime using the 3-dot icon (⋮) on the chat input box.`,
+    modelId: 'gpt-4o-mini',
+    text: `Hello! How can I assist you with your studies today? You can switch question-and-answer models anytime (GPT, Gemini, Gemma, DeepSeek, Llama, Groq) using the chips or the 3-dot icon (⋮).`,
   };
 
   const [messages, setMessages] = useState<ChatMessage[]>([initialWelcomeMsg]);
@@ -179,11 +145,11 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSendMessage = async (customPrompt?: string, actionType?: string) => {
+  const handleSendMessage = async (customPrompt?: string, actionType?: string, modelOverride?: string) => {
     const userText = (customPrompt || prompt).trim();
     if (!userText || loading) return;
 
-    const currentModel = selectedModel;
+    const currentModel = modelOverride || selectedModel;
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       sender: 'user',
@@ -198,7 +164,7 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
       // Send the prior conversation (excluding the static welcome bubble) so the
       // tutor keeps context across follow-up questions.
       const history = messages
-        .filter((m) => m.id !== 'welcome-1')
+        .filter((m) => m.id !== 'welcome-1' && !m.isError)
         .slice(-12)
         .map((m) => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }));
 
@@ -216,14 +182,19 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
         }),
       });
       const data = await res.json().catch(() => ({}));
+      const isError = !res.ok || (data.error && !data.result);
 
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        modelId: currentModel,
+        modelId: data.model || currentModel,
+        switchedNotice: data.switchedNotice,
+        isError,
+        failedModel: isError ? currentModel : undefined,
+        originalPrompt: isError ? userText : undefined,
         text:
           data.result ||
-          (data.error ? `**${data.error}**` : 'I encountered an issue generating a response. Please try again.'),
+          (data.error ? `**${data.error}**` : 'I encountered an issue generating a response. Please try again or switch to another model.'),
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -233,7 +204,10 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
         id: `ai-err-${Date.now()}`,
         sender: 'ai',
         modelId: currentModel,
-        text: 'Sorry, I failed to reach the AI Tutor service. Please check your internet connection.',
+        isError: true,
+        failedModel: currentModel,
+        originalPrompt: userText,
+        text: 'Sorry, I failed to reach the AI Tutor service. Please check your internet connection or switch to another model.',
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -252,6 +226,12 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleInsertToWorkspace = (id: string, text: string) => {
+    window.dispatchEvent(new CustomEvent('eduspare:insert-notes', { detail: { text } }));
+    setInsertedId(id);
+    setTimeout(() => setInsertedId(null), 2000);
   };
 
   const toggleFullScreen = () => {
@@ -335,6 +315,14 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
                   </div>
                 )}
 
+                {/* Auto-switch notice if rate limit triggered fallback */}
+                {msg.switchedNotice && (
+                  <div className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg flex items-center gap-1.5 mb-1.5">
+                    <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span>{msg.switchedNotice}</span>
+                  </div>
+                )}
+
                 {/* Message Content: Markdown formatting for AI teacher responses */}
                 {msg.sender === 'ai' ? (
                   <div className="text-on-surface">
@@ -346,18 +334,71 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
                   </p>
                 )}
 
-                {/* Copy Button for AI responses */}
+                {/* Rate Limit / Error: Quick Model Switcher Actions */}
+                {msg.isError && (
+                  <div className="mt-2.5 pt-2 border-t border-rose-500/20 space-y-1.5">
+                    <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                      ⚡ Rate limit exceeded on this model. Switch to continue immediately:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {AI_STUDY_MODELS.filter((m) => m.id !== msg.failedModel).slice(0, 3).map((alt) => (
+                        <button
+                          key={alt.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel(alt.id);
+                            if (msg.originalPrompt) {
+                              handleSendMessage(msg.originalPrompt, 'custom', alt.id);
+                            }
+                          }}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-surface-lowest hover:bg-primary/10 hover:text-primary hover:border-primary border border-outline-variant/60 transition-all flex items-center gap-1 shadow-xs"
+                        >
+                          <alt.icon className="w-3 h-3 text-primary" />
+                          Switch to {alt.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions for AI responses: Insert directly to Workspace & Copy */}
                 {msg.sender === 'ai' && (
-                  <div className="flex items-center justify-end pt-1">
+                  <div className="flex items-center justify-end gap-1.5 pt-1.5">
                     <button
+                      type="button"
+                      onClick={() => handleInsertToWorkspace(msg.id, msg.text)}
+                      className="px-2 py-0.5 text-outline hover:text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1 text-[10px] font-semibold border border-outline-variant/40 shadow-xs transition-colors"
+                      title="Insert directly into Study Workspace notes"
+                    >
+                      {insertedId === msg.id ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span className="text-emerald-600 font-bold">Added to Notes!</span>
+                        </>
+                      ) : (
+                        <>
+                          <FilePlus className="w-3 h-3 text-primary" />
+                          <span>Insert to Workspace</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleCopyText(msg.id, msg.text)}
-                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 transition-opacity p-1 text-outline hover:text-primary rounded-lg flex items-center gap-1 text-[10px]"
+                      className="px-2 py-0.5 text-outline hover:text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1 text-[10px] font-semibold border border-outline-variant/40 shadow-xs transition-colors"
                       title="Copy Markdown Text"
                     >
                       {copiedId === msg.id ? (
-                        <Check className="w-3 h-3 text-emerald-600" />
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span className="text-emerald-600 font-bold">Copied!</span>
+                        </>
                       ) : (
-                        <Copy className="w-3 h-3" />
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
                       )}
                     </button>
                   </div>
@@ -375,7 +416,6 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
               <p className="text-xs font-bold text-on-surface">
                 {activeModelObj.name} is thinking...
               </p>
-
             </div>
           </div>
         )}
@@ -396,14 +436,14 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
           {showModelMenu && (
             <div
               ref={modelMenuRef}
-              className="absolute bottom-full mb-2 right-0 z-30 w-64 bg-surface-lowest border border-outline-variant/60 rounded-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-bottom-2 space-y-1.5"
+              className="absolute bottom-full mb-2 right-0 z-30 w-72 bg-surface-lowest border border-outline-variant/60 rounded-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-bottom-2 space-y-1.5"
             >
               <div className="flex items-center justify-between px-2 py-1 border-b border-outline-variant/30">
                 <span className="text-[10px] font-bold text-outline uppercase tracking-wider flex items-center gap-1">
                   <Cpu className="w-3 h-3 text-primary" /> Select AI Study Model
                 </span>
                 <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                  100% Free
+                  Active
                 </span>
               </div>
 
@@ -416,7 +456,7 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
                       key={model.id}
                       type="button"
                       onClick={() => {
-                        setSelectedModel(model.id as any);
+                        setSelectedModel(model.id);
                         setShowModelMenu(false);
                       }}
                       className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border ${isSelected
@@ -424,15 +464,16 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
                         : 'hover:bg-surface-container-high text-on-surface border-transparent'
                         }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1 rounded-lg ${model.badgeColor}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`p-1 rounded-lg shrink-0 ${model.badgeColor}`}>
                           <IconComp className="w-3.5 h-3.5" />
                         </div>
-                        <div className="text-left">
-                          <p className="font-bold text-xs leading-tight">{model.name}</p>
+                        <div className="text-left min-w-0">
+                          <p className="font-bold text-xs leading-tight truncate">{model.name}</p>
+                          <p className="text-[9px] text-outline truncate">{model.tag}</p>
                         </div>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-primary" />}
+                      {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
                     </button>
                   );
                 })}
@@ -440,20 +481,37 @@ export const AITutorPanel: React.FC<AITutorPanelProps> = ({
             </div>
           )}
 
-          {/* Integrated Textarea Container with Top Bar for Active Model Badge & 3-Dot Icon */}
+          {/* Integrated Textarea Container with Top Bar for Active Model Badge & Quick Switchers */}
           <div className="relative flex flex-col bg-surface-lowest border border-outline-variant/60 focus-within:ring-2 focus-within:ring-primary rounded-xl shadow-inner overflow-hidden">
             {/* Top Toolbar inside input box */}
             <div className="flex items-center justify-between px-3 py-1.5 border-b border-outline-variant/30 bg-surface-container-low/40">
-              <span className={`px-2 py-0.5 rounded-md font-bold border flex items-center gap-1 text-[10px] ${activeModelObj.badgeColor}`}>
-                <activeModelObj.icon className="w-3 h-3" />
-                {activeModelObj.name} ({activeModelObj.tag})
-              </span>
+              <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar min-w-0">
+                <span className={`px-2 py-0.5 rounded-md font-bold border flex items-center gap-1 text-[10px] shrink-0 ${activeModelObj.badgeColor}`}>
+                  <activeModelObj.icon className="w-3 h-3" />
+                  {activeModelObj.name}
+                </span>
+
+                {/* Quick Model Switcher Chips */}
+                <div className="hidden sm:flex items-center gap-1 shrink-0">
+                  {AI_STUDY_MODELS.filter((m) => m.id !== selectedModel).slice(0, 3).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSelectedModel(m.id)}
+                      className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold text-outline hover:text-primary hover:bg-surface-container-high transition-colors shrink-0"
+                      title={`Switch to ${m.name}`}
+                    >
+                      {m.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* 3-Dot Menu Icon Button */}
               <button
                 type="button"
                 onClick={() => setShowModelMenu(!showModelMenu)}
-                className={`p-1 rounded-lg transition-all flex items-center gap-1 ${showModelMenu
+                className={`p-1 rounded-lg transition-all flex items-center gap-1 shrink-0 ${showModelMenu
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-outline hover:text-on-surface hover:bg-surface-container-high'
                   }`}

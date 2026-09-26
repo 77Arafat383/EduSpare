@@ -36,31 +36,46 @@ interface ModelTarget {
   preferred: Provider[];
 }
 
-/** UI model id -> real provider model ids. */
+/** UI model id -> real provider model ids.
+ * Tailored specifically for fast, accurate Question & Answer study without heavy agentic loops.
+ */
 const MODEL_MAP: Record<string, ModelTarget> = {
-  'gpt-5.6-luna': { openai: 'gpt-4.1', openrouter: 'openai/gpt-4.1', preferred: ['openai', 'openrouter'] },
-  'gpt-5.6': { openai: 'gpt-4.1', openrouter: 'openai/gpt-4.1', preferred: ['openai', 'openrouter'] },
-  'gpt-5.6-mini': { openai: 'gpt-4.1-mini', openrouter: 'openai/gpt-4.1-mini', preferred: ['openai', 'openrouter'] },
-  'gpt-5.5': { openai: 'gpt-4o', openrouter: 'openai/gpt-4o', preferred: ['openai', 'openrouter'] },
-  'gpt-5.5-mini': { openai: 'gpt-4o-mini', openrouter: 'openai/gpt-4o-mini', preferred: ['openai', 'openrouter'] },
-  'gpt-4o-mini': { openai: 'gpt-4o-mini', openrouter: 'openai/gpt-4o-mini', preferred: ['openai', 'openrouter'] },
-  'gemini-3.6-flash': { gemini: 'gemini-2.5-flash', openrouter: 'google/gemini-2.5-flash', preferred: ['gemini', 'openrouter'] },
-  'gemini-1.5-flash': { gemini: 'gemini-2.0-flash', openrouter: 'google/gemini-2.0-flash-001', preferred: ['gemini', 'openrouter'] },
-  'claude-3.5-sonnet': { anthropic: 'claude-sonnet-4-20250514', openrouter: 'anthropic/claude-sonnet-4', preferred: ['anthropic', 'openrouter'] },
-  'deepseek-r1': { groq: 'deepseek-r1-distill-llama-70b', openrouter: 'deepseek/deepseek-r1', preferred: ['groq', 'openrouter'] },
-  'gemma-2': { groq: 'gemma2-9b-it', gemini: 'gemma-3-27b-it', openrouter: 'google/gemma-3-27b-it', preferred: ['gemini', 'groq', 'openrouter'] },
-  'llama-3.3': { groq: 'llama-3.3-70b-versatile', openrouter: 'meta-llama/llama-3.3-70b-instruct', preferred: ['groq', 'openrouter'] },
+  // OpenAI GPT Models (Fast, reliable study Q&A)
+  'gpt-4o-mini': { openrouter: 'openai/gpt-4o-mini', openai: 'gpt-4o-mini', preferred: ['openrouter', 'openai'] },
+  'gpt-5.6-luna': { openrouter: 'openai/gpt-4o-mini', openai: 'gpt-4o-mini', preferred: ['openrouter', 'openai'] },
+  'gpt-4o': { openrouter: 'openai/gpt-4o', openai: 'gpt-4o', preferred: ['openrouter', 'openai'] },
+
+  // Google Gemini (Fast, smart Q&A)
+  'gemini-flash': { openrouter: 'google/gemini-2.5-flash', gemini: 'gemini-3.8-flash', preferred: ['openrouter', 'gemini'] },
+  'gemini-3.8-flash': { openrouter: 'google/gemini-2.5-flash', gemini: 'gemini-3.8-flash', preferred: ['openrouter', 'gemini'] },
+
+  // Google Gemma (Pure open-source Q&A)
+  'gemma': { openrouter: 'google/gemma-3-27b-it', preferred: ['openrouter'] },
+  'gemma-2': { openrouter: 'google/gemma-2-27b-it', preferred: ['openrouter'] },
+
+  // DeepSeek Chat (Direct Conversational Q&A, non-agentic)
+  'deepseek-chat': { openrouter: 'deepseek/deepseek-chat', preferred: ['openrouter'] },
+  'deepseek-r1': { openrouter: 'deepseek/deepseek-chat', preferred: ['openrouter'] },
+
+  // Meta Llama 3.3 (High quality open weights Q&A)
+  'llama-3.3': { openrouter: 'meta-llama/llama-3.3-70b-instruct', preferred: ['openrouter'] },
+
+  // Groq GPT-OSS 120B (Ultra-fast Q&A on Groq hardware)
+  'gpt-oss-120b': { groq: 'openai/gpt-oss-120b', openrouter: 'openai/gpt-4o-mini', preferred: ['groq', 'openrouter'] },
+
+  // Anthropic Claude
+  'claude-3.5-sonnet': { openrouter: 'anthropic/claude-sonnet-4', anthropic: 'claude-3-5-sonnet-20241022', preferred: ['openrouter', 'anthropic'] },
 };
 
-const DEFAULT_TARGET = MODEL_MAP['gpt-5.6-luna'];
+const DEFAULT_TARGET = MODEL_MAP['gpt-4o-mini'];
 
 /** Generic fallback models used when the requested model's provider isn't configured. */
 const GENERIC_MODEL: Record<Provider, string> = {
+  openrouter: 'openai/gpt-4o-mini',
+  groq: 'openai/gpt-oss-120b',
   openai: 'gpt-4o-mini',
-  anthropic: 'claude-sonnet-4-20250514',
-  gemini: 'gemini-2.0-flash',
-  groq: 'llama-3.3-70b-versatile',
-  openrouter: 'google/gemini-2.0-flash-001',
+  gemini: 'gemini-3.8-flash',
+  anthropic: 'claude-3-5-haiku-20241022',
 };
 
 const env = (...names: string[]) => {
@@ -152,8 +167,8 @@ async function callOpenAICompatible(
     body: JSON.stringify({
       model,
       messages: [{ role: 'system', content: system }, ...messages],
-      temperature: 0.4,
-      max_tokens: 2048,
+      temperature: 0.3,
+      max_tokens: 1200,
     }),
   });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
@@ -183,26 +198,55 @@ async function callAnthropic(key: string, model: string, system: string, message
 }
 
 async function callGemini(key: string, model: string, system: string, messages: HistoryMessage[]): Promise<string> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: system }] },
-        contents: messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
-        generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
-      }),
+  const candidateModels = [
+    model.startsWith('gemini') || model.startsWith('gemma') ? model : 'gemini-3.8-flash',
+    'gemini-3.8-flash',
+    'gemma-4-31b-it',
+  ];
+  const uniqueModels = Array.from(new Set(candidateModels));
+
+  let lastError: Error | null = null;
+  for (const m of uniqueModels) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: system }] },
+          contents: messages.map((msg) => ({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] })),
+          generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+        }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        lastError = new Error(`${res.status} [${m}] ${errorText}`);
+        // If 404 or 503, try next candidate model
+        continue;
+      }
+
+      const data = await res.json();
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const nonThoughtParts = parts.filter((p: any) => !p.thought);
+      let text = (nonThoughtParts.length > 0 ? nonThoughtParts : parts)
+        .map((p: any) => p.text || '')
+        .join('')
+        .trim();
+
+      // Clean any residual reasoning/thought tags
+      text = text
+        .replace(/<thought>[\s\S]*?<\/thought>\s*/gi, '')
+        .replace(/<think>[\s\S]*?<\/think>\s*/gi, '')
+        .trim();
+
+      if (text) return text;
+    } catch (err: any) {
+      lastError = err;
     }
-  );
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  const data = await res.json();
-  const text = (data.candidates?.[0]?.content?.parts || [])
-    .map((p: any) => p.text || '')
-    .join('')
-    .trim();
-  if (!text) throw new Error(data.promptFeedback?.blockReason ? `Blocked: ${data.promptFeedback.blockReason}` : 'Empty completion');
-  return text;
+  }
+
+  throw lastError || new Error('Failed to generate response from Google AI');
 }
 
 async function callProvider(provider: Provider, key: string, model: string, system: string, messages: HistoryMessage[]) {
@@ -227,15 +271,24 @@ async function callProvider(provider: Provider, key: string, model: string, syst
 
 export async function GET() {
   const keys = getKeys();
-  const providers = (Object.keys(keys) as Provider[]).filter((p) => !!keys[p]);
-  return NextResponse.json({ configured: providers.length > 0, providers });
+  const configured = (Object.keys(keys) as Provider[]).filter((p) => !!keys[p]);
+  return NextResponse.json({
+    configured: configured.length > 0,
+    providers: configured,
+    geminiActive: !!keys.gemini,
+    openaiActive: !!keys.openai,
+    groqActive: !!keys.groq,
+    anthropicActive: !!keys.anthropic,
+    openrouterActive: !!keys.openrouter,
+    recommendedModel: keys.gemini ? 'gemini-3.8-flash' : keys.openai ? 'gpt-4o' : keys.groq ? 'llama-3.3' : 'gemini-3.8-flash',
+  });
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { prompt, action, taskTitle, category, notes, history } = body;
-    const modelId: string = typeof body.model === 'string' ? body.model : 'gpt-5.6-luna';
+    const modelId: string = typeof body.model === 'string' ? body.model : 'gemini-3.8-flash';
 
     const userPrompt = (prompt || '').toString().trim();
     if (!userPrompt) {
@@ -250,9 +303,13 @@ export async function POST(request: Request) {
         {
           error: 'AI Tutor is not configured.',
           result:
-            '**AI Tutor is not connected yet.**\n\nAdd at least one API key to `.env.local` on the server and restart:\n\n' +
-            '- `GROQ_API_KEY` (free — Llama / DeepSeek / Gemma)\n- `GEMINI_API_KEY` (free tier — Gemini)\n- `OPENAI_API_KEY`\n- `ANTHROPIC_API_KEY`\n- `OPENROUTER_API_KEY` (all models)\n\n' +
-            'See `.env.example` for details.',
+            '**AI Tutor is not connected yet.**\n\nAdd your API key to `.env` or `.env.local`:\n\n' +
+            '- `GEMINI_API_KEY` (Free & Active on Google AI Studio)\n' +
+            '- `OPENAI_API_KEY` (OpenAI GPT-4o)\n' +
+            '- `GROQ_API_KEY` (Free ultra-fast Gemma & Llama)\n' +
+            '- `ANTHROPIC_API_KEY` (Claude 3.5 Sonnet)\n' +
+            '- `OPENROUTER_API_KEY` (Universal access)\n\n' +
+            'See `.env` or `.env.example` for details.',
         },
         { status: 503 }
       );
@@ -275,12 +332,22 @@ export async function POST(request: Request) {
     ];
 
     const errors: string[] = [];
-    for (const provider of order) {
+    for (let i = 0; i < order.length; i++) {
+      const provider = order[i];
       const key = keys[provider]!;
       const providerModel = (target[provider] as string | undefined) || GENERIC_MODEL[provider];
       try {
         const text = await withTimeout(callProvider(provider, key, providerModel, system, messages), 45_000);
-        return NextResponse.json({ result: text, provider, model: providerModel, requestedModel: modelId });
+        return NextResponse.json({
+          result: text,
+          provider,
+          model: providerModel,
+          requestedModel: modelId,
+          switched: i > 0,
+          switchedNotice: i > 0
+            ? `Auto-switched to ${provider.toUpperCase()} (${providerModel}) because primary provider hit rate/quota limits.`
+            : undefined,
+        });
       } catch (err: any) {
         const msg = `${provider}/${providerModel}: ${String(err?.message || err).slice(0, 300)}`;
         console.warn('[ai-tutor]', msg);
@@ -292,9 +359,8 @@ export async function POST(request: Request) {
       {
         error: 'All configured AI providers failed.',
         result:
-          '**Sorry, I could not reach the AI service right now.**\n\n' +
-          'Please try again in a moment or switch to another model from the ⋮ menu.' +
-          (process.env.NODE_ENV !== 'production' ? `\n\n\`\`\`\n${errors.join('\n')}\n\`\`\`` : ''),
+          '**Rate limit reached or AI service unavailable for this model.**\n\n' +
+          'You can switch to another model (such as Gemini 3.8 Flash, Gemma 2, or Llama 3.3) using the model switcher or the ⋮ menu.',
         details: errors,
       },
       { status: 502 }

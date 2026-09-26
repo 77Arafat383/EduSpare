@@ -1,22 +1,31 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { MaterialItem } from '@/types/eduspare';
-import { MarkdownRenderer, preprocessLatex } from '../common/MarkdownRenderer';
+import { preprocessLatex } from '../common/MarkdownRenderer';
 import {
   FileText,
   CheckCircle2,
-  Edit3,
   Save,
   Plus,
   X,
-  Eye,
   Download,
   FilePlus,
   Pencil,
   MoreVertical,
   Trash2,
+  Sparkles,
+  Bold,
+  Italic,
+  Heading1,
+  Heading2,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  ClipboardPaste,
 } from 'lucide-react';
 
 export interface NotionPage {
@@ -26,82 +35,165 @@ export interface NotionPage {
   createdAt?: string;
 }
 
-/** Convert copied rich HTML (e.g. a rendered AI answer) back to Markdown + TeX. */
-function htmlToMarkdown(html: string): string {
-  if (typeof window === 'undefined') return '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+/**
+ * Convert markdown (from AI Tutor, clipboard, or plain text) into rich HTML
+ * with rendered KaTeX equations, headings, bold/italics, bullet lists, etc.
+ * just like Notion.
+ */
+export function markdownToRichHtml(markdown: string): string {
+  if (!markdown) return '';
 
-  // KaTeX keeps the original TeX source in <annotation encoding="application/x-tex">.
-  doc.querySelectorAll('.katex-display, .katex').forEach((node) => {
-    if (node.parentElement?.closest('.katex-display, .katex') && node.parentElement.closest('.katex-display, .katex') !== node) return;
-    const ann = node.querySelector('annotation[encoding="application/x-tex"]');
-    if (!ann) return;
-    const tex = (ann.textContent || '').trim();
-    const isDisplay = node.classList.contains('katex-display') || !!node.closest('.katex-display');
-    node.replaceWith(doc.createTextNode(isDisplay ? `\n\n$$\n${tex}\n$$\n\n` : `$${tex}$`));
-  });
+  // If it's already full HTML (e.g. from a previous rich edit session)
+  const isHtml = /<([a-z]+)[^>]*>[\s\S]*<\/\1>/i.test(markdown) || /<br\s*\/?>/i.test(markdown);
+  if (isHtml) return markdown;
 
-  const walk = (node: Node, listDepth = 0): string => {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
-    if (node.nodeType !== Node.ELEMENT_NODE) return '';
-    const el = node as HTMLElement;
-    const tag = el.tagName.toLowerCase();
-    const inner = () => Array.from(el.childNodes).map((c) => walk(c, listDepth)).join('');
+  let text = preprocessLatex(markdown);
 
-    switch (tag) {
-      case 'br': return '\n';
-      case 'h1': return `\n\n# ${inner().trim()}\n\n`;
-      case 'h2': return `\n\n## ${inner().trim()}\n\n`;
-      case 'h3': return `\n\n### ${inner().trim()}\n\n`;
-      case 'h4': case 'h5': case 'h6': return `\n\n#### ${inner().trim()}\n\n`;
-      case 'p': case 'div': case 'section': case 'article': return `\n\n${inner().trim()}\n\n`;
-      case 'strong': case 'b': { const t = inner().trim(); return t ? `**${t}**` : ''; }
-      case 'em': case 'i': { const t = inner().trim(); return t ? `*${t}*` : ''; }
-      case 'code':
-        if (el.parentElement?.tagName.toLowerCase() === 'pre') return el.textContent || '';
-        return `\`${el.textContent || ''}\``;
-      case 'pre': {
-        const code = el.querySelector('code');
-        const lang = (code?.className.match(/language-([\w-]+)/) || [])[1] || '';
-        return `\n\n\`\`\`${lang}\n${(el.textContent || '').replace(/\n$/, '')}\n\`\`\`\n\n`;
+  const rawLines = text.split(/\r?\n/);
+  const outputBlocks: string[] = [];
+  let inList: 'ul' | 'ol' | null = null;
+  let inCodeBlock = false;
+  let codeBlockContent: string[] = [];
+
+  const renderInline = (str: string): string => {
+    // 1. Math: $$ ... $$ display math
+    let s = str.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+      try {
+        return `<span class="katex-display my-2 block select-all" contenteditable="false">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</span>`;
+      } catch {
+        return `$$${tex}$$`;
       }
-      case 'blockquote':
-        return `\n\n${inner().trim().split('\n').map((l) => `> ${l}`).join('\n')}\n\n`;
-      case 'ul': case 'ol': {
-        const ordered = tag === 'ol';
-        let i = 0;
-        const items = Array.from(el.children)
-          .filter((c) => c.tagName.toLowerCase() === 'li')
-          .map((li) => {
-            i += 1;
-            const body = Array.from(li.childNodes).map((c) => walk(c, listDepth + 1)).join('').trim().replace(/\n{2,}/g, '\n');
-            return `${'  '.repeat(listDepth)}${ordered ? `${i}.` : '-'} ${body}`;
-          });
-        return `\n\n${items.join('\n')}\n\n`;
+    });
+
+    // 2. Math: $ ... $ inline math
+    s = s.replace(/\$([^\$\n]+?)\$/g, (_, tex) => {
+      try {
+        return `<span class="katex-inline inline-block px-1 select-all" contenteditable="false">${katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })}</span>`;
+      } catch {
+        return `$${tex}$`;
       }
-      case 'li': return inner();
-      case 'table': {
-        const rows = Array.from(el.querySelectorAll('tr')).map((tr) =>
-          Array.from(tr.children).map((td) => walk(td, listDepth).trim().replace(/\|/g, '\\|'))
-        );
-        if (!rows.length) return '';
-        const header = rows[0];
-        const out = [`| ${header.join(' | ')} |`, `| ${header.map(() => '---').join(' | ')} |`];
-        rows.slice(1).forEach((r) => out.push(`| ${r.join(' | ')} |`));
-        return `\n\n${out.join('\n')}\n\n`;
-      }
-      case 'a': { const href = el.getAttribute('href'); const t = inner().trim(); return href ? `[${t}](${href})` : t; }
-      case 'hr': return '\n\n---\n\n';
-      case 'script': case 'style': return '';
-      default: return inner();
+    });
+
+    // 3. Bold: **text** or __text__
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+    // 4. Italic: *text* or _text_
+    s = s.replace(/(^|[^\*])\*([^\*]+?)\*([^\*]|$)/g, '$1<em>$2</em>$3');
+    s = s.replace(/(^|[^_])_([^_]+?)_([^_]|$)/g, '$1<em>$2</em>$3');
+
+    // 5. Inline code: `code`
+    s = s.replace(/`([^`]+?)`/g, '<code class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-mono text-xs">$1</code>');
+
+    // 6. Links: [text](url)
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="text-primary underline font-medium">$1</a>');
+
+    return s;
+  };
+
+  const closeList = () => {
+    if (inList) {
+      outputBlocks.push(`</${inList}>`);
+      inList = null;
     }
   };
 
-  return walk(doc.body)
-    .replace(/\u00a0/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    const trimmed = line.trim();
+
+    // Code blocks ```
+    if (trimmed.startsWith('```')) {
+      if (!inCodeBlock) {
+        closeList();
+        inCodeBlock = true;
+        codeBlockContent = [];
+      } else {
+        inCodeBlock = false;
+        outputBlocks.push(
+          `<pre class="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-xs my-2.5 overflow-x-auto"><code>${codeBlockContent.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
+        );
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockContent.push(line);
+      continue;
+    }
+
+    // Display math lines: $$ ... $$
+    if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 2) {
+      closeList();
+      const tex = trimmed.slice(2, -2).trim();
+      try {
+        const rendered = katex.renderToString(tex, { displayMode: true, throwOnError: false });
+        outputBlocks.push(`<div class="katex-display my-2" contenteditable="false">${rendered}</div>`);
+      } catch {
+        outputBlocks.push(`<p class="my-1.5 font-mono text-xs">$$${tex}$$</p>`);
+      }
+      continue;
+    }
+
+    // Empty line
+    if (!trimmed) {
+      closeList();
+      continue;
+    }
+
+    // Headings
+    if (/^#\s+/.test(trimmed)) {
+      closeList();
+      outputBlocks.push(`<h1 class="text-xl font-black text-on-surface mt-4 mb-2">${renderInline(trimmed.replace(/^#\s+/, ''))}</h1>`);
+      continue;
+    }
+    if (/^##\s+/.test(trimmed)) {
+      closeList();
+      outputBlocks.push(`<h2 class="text-lg font-bold text-on-surface mt-3 mb-1.5 border-b border-outline-variant/30 pb-1">${renderInline(trimmed.replace(/^##\s+/, ''))}</h2>`);
+      continue;
+    }
+    if (/^###\s+/.test(trimmed)) {
+      closeList();
+      outputBlocks.push(`<h3 class="text-base font-bold text-on-surface mt-2.5 mb-1">${renderInline(trimmed.replace(/^###\s+/, ''))}</h3>`);
+      continue;
+    }
+
+    // Blockquote
+    if (/^>\s+/.test(trimmed)) {
+      closeList();
+      outputBlocks.push(`<blockquote class="border-l-4 border-primary/70 pl-3.5 py-1 text-outline italic my-2 bg-surface-container-low/40 rounded-r-lg">${renderInline(trimmed.replace(/^>\s+/, ''))}</blockquote>`);
+      continue;
+    }
+
+    // Bullet List (- or *)
+    if (/^[-*]\s+/.test(trimmed)) {
+      if (inList !== 'ul') {
+        closeList();
+        outputBlocks.push('<ul class="list-disc pl-5 my-1.5 space-y-1">');
+        inList = 'ul';
+      }
+      outputBlocks.push(`<li class="leading-relaxed">${renderInline(trimmed.replace(/^[-*]\s+/, ''))}</li>`);
+      continue;
+    }
+
+    // Numbered List (1. )
+    if (/^\d+\.\s+/.test(trimmed)) {
+      if (inList !== 'ol') {
+        closeList();
+        outputBlocks.push('<ol class="list-decimal pl-5 my-1.5 space-y-1">');
+        inList = 'ol';
+      }
+      outputBlocks.push(`<li class="leading-relaxed">${renderInline(trimmed.replace(/^\d+\.\s+/, ''))}</li>`);
+      continue;
+    }
+
+    // Regular paragraph
+    closeList();
+    outputBlocks.push(`<p class="my-1.5 leading-relaxed">${renderInline(trimmed)}</p>`);
+  }
+
+  closeList();
+  return outputBlocks.join('');
 }
 
 interface NotionKeepNotesProps {
@@ -118,19 +210,24 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
   const [pages, setPages] = useState<NotionPage[]>([]);
   const [activePageId, setActivePageId] = useState<string>('page-1');
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [isSaved, setIsSaved] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Initialize Notion Pages from initialNotes (supports JSON array or plain text)
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const isTypingRef = useRef<boolean>(false);
+
+  // Initialize pages and convert initial markdown notes to rich HTML
   useEffect(() => {
     if (!initialNotes) {
+      const defaultContent = markdownToRichHtml(
+        '# Study Notes\n\n- Copied notes, AI tutor formulas, and answers will format automatically!\n- Example LaTeX Math: $E = mc^2$ and $$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$\n\nClick anywhere to type or edit notes directly.'
+      );
       setPages([
         {
           id: 'page-1',
           title: 'Main Notes',
-          content: '# Study Notes\n\n- Copied notes and AI tutor formulas will render Markdown & LaTeX automatically!\n- Example LaTeX Math: $E = mc^2$ and $$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$',
+          content: defaultContent,
         },
       ]);
       setActivePageId('page-1');
@@ -140,19 +237,23 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     try {
       const parsed = JSON.parse(initialNotes);
       if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-        setPages(parsed);
-        setActivePageId(parsed[0].id);
+        const enriched = parsed.map((p: NotionPage) => ({
+          ...p,
+          content: markdownToRichHtml(p.content || ''),
+        }));
+        setPages(enriched);
+        setActivePageId(enriched[0].id);
         return;
       }
-    } catch (e) {
-      // Fallback for legacy plain-text notes
+    } catch {
+      // Legacy plain-text / markdown notes
     }
 
     setPages([
       {
         id: 'page-1',
         title: 'Main Notes',
-        content: initialNotes,
+        content: markdownToRichHtml(initialNotes),
       },
     ]);
     setActivePageId('page-1');
@@ -160,63 +261,170 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
 
   const activePage = pages.find((p) => p.id === activePageId) || pages[0];
 
-  const handleContentChange = (newContent: string) => {
+  // Sync editor innerHTML when active page changes (without overriding while typing)
+  useEffect(() => {
+    if (editorRef.current && activePage && !isTypingRef.current) {
+      if (editorRef.current.innerHTML !== activePage.content) {
+        editorRef.current.innerHTML = activePage.content || '';
+      }
+    }
+  }, [activePageId, activePage?.content]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  const handleEditorInput = () => {
+    if (!editorRef.current) return;
+    isTypingRef.current = true;
+    const newContent = editorRef.current.innerHTML;
     setPages((prev) =>
       prev.map((p) => (p.id === activePageId ? { ...p, content: newContent } : p))
     );
     setIsSaved(false);
+    setTimeout(() => {
+      isTypingRef.current = false;
+    }, 100);
   };
 
   /**
-   * Smart paste: anything copied from the AI Tutor chat (Markdown, LaTeX
-   * \( \) / \[ \] delimiters, ```math blocks, raw \frac{}{} equations, or the
-   * rendered HTML of a message) is normalised into the same Markdown + $math$
-   * syntax the renderer understands, so it formats automatically in preview.
+   * Notion-style Smart Paste:
+   * Catches pasted text/markdown from AI Tutor or elsewhere,
+   * automatically converts it into formatted rich HTML with bold, lists, math,
+   * and inserts it right at the user's cursor position without breaking!
    */
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
     const clipboard = e.clipboardData;
-    let text = clipboard.getData('text/plain');
+    const plainText = clipboard.getData('text/plain');
     const html = clipboard.getData('text/html');
 
-    // If the user copied rendered output (selection in the chat bubble),
-    // recover the original TeX from KaTeX's <annotation> nodes and basic
-    // structure (headings, lists, code, emphasis) from the HTML.
-    if (html && (!text || /katex|<(h[1-6]|ul|ol|pre|code|strong|em|table)\b/i.test(html))) {
-      const fromHtml = htmlToMarkdown(html);
-      if (fromHtml.trim()) text = fromHtml;
+    // If copying from AI Tutor or markdown source, turn markdown into rich HTML
+    let richSnippet = '';
+    if (plainText && (plainText.includes('**') || plainText.includes('- ') || plainText.includes('#') || plainText.includes('$') || !html)) {
+      richSnippet = markdownToRichHtml(plainText);
+    } else if (html) {
+      richSnippet = html;
+    } else {
+      richSnippet = markdownToRichHtml(plainText);
     }
 
-    if (!text) return;
+    if (!richSnippet) return;
 
-    const formatted = preprocessLatex(text)
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/^\n+/, '')
-      .replace(/\n+$/, '');
-
-    if (!formatted) return;
-
-    e.preventDefault();
-    const el = e.currentTarget;
-    const { selectionStart, selectionEnd, value } = el;
-    const before = value.slice(0, selectionStart);
-    const after = value.slice(selectionEnd);
-    // Keep block math / headings on their own lines.
-    const needsLeadingBreak = before.length > 0 && !before.endsWith('\n') && /^(\$\$|#|-|\*|\d+\.|```|>)/.test(formatted);
-    const insert = (needsLeadingBreak ? '\n' : '') + formatted;
-    const next = before + insert + after;
-
-    handleContentChange(next);
-    const caret = before.length + insert.length;
-    requestAnimationFrame(() => {
-      const ta = textareaRef.current;
-      if (ta) {
-        ta.selectionStart = ta.selectionEnd = caret;
-        ta.focus();
-      }
-    });
+    // Insert rich HTML at current cursor position
+    insertHtmlAtCursor(richSnippet);
+    handleEditorInput();
+    showToast('✨ Formatted and pasted!');
   };
 
-  // Renaming: allow empty string while typing so user can backspace & erase previous name completely!
+  const insertHtmlAtCursor = (html: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      editor.innerHTML = (editor.innerHTML || '') + html;
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    // Ensure selection is inside editor
+    if (!editor.contains(range.commonAncestorContainer)) {
+      editor.innerHTML = (editor.innerHTML || '') + html;
+      return;
+    }
+
+    range.deleteContents();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    const frag = document.createDocumentFragment();
+    let node: ChildNode | null = null;
+    let lastNode: ChildNode | null = null;
+    while ((node = tempDiv.firstChild)) {
+      lastNode = frag.appendChild(node);
+    }
+    range.insertNode(frag);
+
+    if (lastNode) {
+      const newRange = document.createRange();
+      newRange.setStartAfter(lastNode);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+  };
+
+  // Listen for direct "Insert into Workspace" event from AI Tutor
+  useEffect(() => {
+    const handleInsertEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ text: string }>;
+      const newText = customEvent.detail?.text;
+      if (!newText) return;
+
+      const formattedHtml = markdownToRichHtml(newText);
+
+      setPages((prev) =>
+        prev.map((p) => {
+          if (p.id === activePageId) {
+            const separator = p.content ? '<div class="my-3"></div>' : '';
+            return {
+              ...p,
+              content: p.content ? `${p.content}${separator}${formattedHtml}` : formattedHtml,
+            };
+          }
+          return p;
+        })
+      );
+
+      if (editorRef.current) {
+        const separator = editorRef.current.innerHTML ? '<div class="my-3"></div>' : '';
+        editorRef.current.innerHTML = `${editorRef.current.innerHTML}${separator}${formattedHtml}`;
+      }
+
+      setIsSaved(false);
+      showToast('✨ Added from AI Tutor to notes!');
+    };
+
+    window.addEventListener('eduspare:insert-notes', handleInsertEvent);
+    return () => window.removeEventListener('eduspare:insert-notes', handleInsertEvent);
+  }, [activePageId]);
+
+  // Notion-like Formatting Commands
+  const executeCommand = (command: string, value: string | undefined = undefined) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    handleEditorInput();
+  };
+
+  const handleInsertMath = () => {
+    const formula = window.prompt('Enter LaTeX Math formula (e.g. E = mc^2 or \\int_0^1 x dx):', 'E = mc^2');
+    if (!formula) return;
+    try {
+      const rendered = katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
+      const mathHtml = `<span class="katex-inline inline-block px-1 select-all" contenteditable="false">${rendered}</span>&nbsp;`;
+      insertHtmlAtCursor(mathHtml);
+      handleEditorInput();
+    } catch {
+      insertHtmlAtCursor(`$${formula}$`);
+      handleEditorInput();
+    }
+  };
+
+  const handleQuickPaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      const formattedHtml = markdownToRichHtml(text);
+      insertHtmlAtCursor(formattedHtml);
+      handleEditorInput();
+      showToast('✨ Formatted and pasted!');
+    } catch {
+      editorRef.current?.focus();
+    }
+  };
+
   const handleRenamePage = (id: string, newTitle: string) => {
     setPages((prev) =>
       prev.map((p) => (p.id === id ? { ...p, title: newTitle } : p))
@@ -224,7 +432,6 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     setIsSaved(false);
   };
 
-  // On blur or Enter: fallback to 'Untitled Page' if empty
   const handleFinishRename = (id: string) => {
     setPages((prev) =>
       prev.map((p) =>
@@ -239,7 +446,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     const newPage: NotionPage = {
       id: newId,
       title: `Page ${pages.length + 1}`,
-      content: '## New Notion Page\n\nStart typing notes or paste LaTeX math equations from AI chat...',
+      content: '<p>Click here to start writing or paste notes directly from AI Tutor...</p>',
     };
     setPages((prev) => [...prev, newPage]);
     setActivePageId(newId);
@@ -248,7 +455,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
 
   const handleDeletePage = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (pages.length <= 1) return; // Keep at least one page
+    if (pages.length <= 1) return;
     const nextPages = pages.filter((p) => p.id !== id);
     setPages(nextPages);
     if (activePageId === id) {
@@ -260,6 +467,7 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
   const handleSave = () => {
     onSaveNotes(JSON.stringify(pages));
     setIsSaved(true);
+    showToast('Saved workspace notes!');
   };
 
   const generatePdfDocument = (page: NotionPage) => {
@@ -272,19 +480,21 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; }
     h1 { color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
-    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; }
-    blockquote { border-left: 4px solid #3b82f6; padding-left: 16px; color: #64748b; font-style: italic; }
+    h2 { color: #1e40af; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
+    ul, ol { padding-left: 24px; margin: 12px 0; }
+    li { margin-bottom: 4px; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; }
+    blockquote { border-left: 4px solid #3b82f6; padding-left: 16px; color: #64748b; font-style: italic; margin: 12px 0; }
   </style>
 </head>
 <body>
   <h1>${page.title}</h1>
-  <div style="white-space: pre-wrap; font-family: monospace; font-size: 13px; margin-top: 20px;">${page.content}</div>
+  <div style="font-size: 14px; margin-top: 20px;">${page.content}</div>
 </body>
 </html>`;
   };
 
-  // Download Note directly as PDF file (.pdf)
   const handleDownloadNote = () => {
     if (!activePage) return;
     const pdfHtml = generatePdfDocument(activePage);
@@ -297,7 +507,6 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Export & Add CURRENT Note directly to Study Materials as a PDF resource (.pdf)
   const handleAddAsResource = () => {
     if (!activePage || !onAddResource) return;
     const pdfHtml = generatePdfDocument(activePage);
@@ -315,25 +524,34 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
         createdAt: new Date().toISOString(),
       };
       onAddResource(newMat);
+      showToast('Exported to Study Materials!');
     };
     reader.readAsDataURL(blob);
   };
 
   return (
-    <div className="space-y-3 bg-surface-lowest p-5 rounded-3xl border border-outline-variant/60 shadow-sm">
+    <div className="space-y-3 bg-surface-lowest p-4 sm:p-5 rounded-3xl border border-outline-variant/60 shadow-sm">
       {/* Header Bar */}
       <div className="flex items-center justify-between border-b border-outline-variant/40 pb-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
             <FileText className="w-4 h-4" />
           </div>
           <div>
             <h4 className="text-sm font-bold text-on-surface">Study Workspace</h4>
+            <p className="text-[10px] text-outline">Directly edit & auto-formats like Notion</p>
           </div>
         </div>
 
+        {/* Right Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* Stateful Save Button / Saved Badge in fixed position */}
+          {toastMessage && (
+            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-xl animate-in fade-in zoom-in-95">
+              <span>{toastMessage}</span>
+            </div>
+          )}
+
+          {/* Stateful Save Button */}
           {isSaved ? (
             <div className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/30 rounded-xl select-none">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -361,33 +579,11 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
               <MoreVertical className="w-4 h-4" />
             </button>
 
-            {/* 3-Dot Options Menu - Scoped to Current Active Page */}
             {isMenuOpen && activePage && (
               <div
                 onClick={(e) => e.stopPropagation()}
                 className="absolute right-0 top-8 z-50 w-52 bg-white dark:bg-slate-900 border border-outline-variant/60 rounded-2xl shadow-2xl p-1.5 space-y-1 opacity-100 animate-in fade-in zoom-in-95 duration-100"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setViewMode(viewMode === 'edit' ? 'preview' : 'edit');
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-low rounded-xl transition-colors"
-                >
-                  {viewMode === 'edit' ? (
-                    <>
-                      <Eye className="w-3.5 h-3.5 text-primary" />
-                      <span>Preview {activePage.title}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Edit3 className="w-3.5 h-3.5 text-primary" />
-                      <span>Edit {activePage.title}</span>
-                    </>
-                  )}
-                </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -446,17 +642,18 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
       </div>
 
       {/* Notion Pages Tabs Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 select-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none">
         {pages.map((page) => {
           const isActive = page.id === activePageId;
           return (
             <div
               key={page.id}
               onClick={() => setActivePageId(page.id)}
-              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${isActive
-                ? 'bg-primary text-white border-primary shadow-sm'
-                : 'bg-surface-container-low text-outline hover:text-on-surface hover:bg-surface-container-high border-outline-variant/40'
-                }`}
+              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                isActive
+                  ? 'bg-primary text-white border-primary shadow-sm'
+                  : 'bg-surface-container-low text-outline hover:text-on-surface hover:bg-surface-container-high border-outline-variant/40'
+              }`}
             >
               <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-primary'}`} />
               {editingTitleId === page.id ? (
@@ -489,10 +686,11 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
                 <button
                   type="button"
                   onClick={(e) => handleDeletePage(page.id, e)}
-                  className={`p-0.5 rounded-md transition-colors shrink-0 ${isActive
-                    ? 'text-white/80 hover:text-white hover:bg-white/20'
-                    : 'text-outline hover:text-rose-600 hover:bg-rose-500/10'
-                    }`}
+                  className={`p-0.5 rounded-md transition-colors shrink-0 ${
+                    isActive
+                      ? 'text-white/80 hover:text-white hover:bg-white/20'
+                      : 'text-outline hover:text-rose-600 hover:bg-rose-500/10'
+                  }`}
                   title="Delete page"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -507,36 +705,104 @@ export const NotionKeepNotes: React.FC<NotionKeepNotesProps> = ({
           type="button"
           onClick={handleAddPage}
           className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-xl transition-all shrink-0"
-          title="Create new Notion page"
+          title="Create new page"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Page</span>
         </button>
       </div>
 
-      {/* Editor / Preview Panel Container */}
-      {activePage && (
-        <div className="relative">
-          {viewMode === 'edit' ? (
-            <textarea
-              ref={textareaRef}
-              rows={12}
-              value={activePage.content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              onPaste={handlePaste}
-              placeholder="Type notes, Markdown, or paste LaTeX math equations directly from AI Tutor..."
-              className="w-full p-4 rounded-2xl bg-surface-container-low text-on-surface text-xs sm:text-sm font-mono border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-lowest leading-relaxed transition-all resize-y"
-            />
-          ) : (
-            <div className="p-5 rounded-2xl bg-surface-container-low border border-outline-variant/60 min-h-[260px] text-on-surface overflow-x-auto leading-relaxed">
-              <MarkdownRenderer
-                className="text-xs sm:text-sm"
-                content={activePage.content || '*No content in this page yet.*'}
-              />
-            </div>
-          )}
+      {/* Notion-Style Formatting Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-1 px-3 py-1.5 bg-surface-container-low rounded-2xl border border-outline-variant/60 text-outline">
+        <div className="flex items-center gap-1 flex-wrap">
+          <button
+            type="button"
+            onClick={() => executeCommand('bold')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Bold (Ctrl+B)"
+          >
+            <Bold className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('italic')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Italic (Ctrl+I)"
+          >
+            <Italic className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('formatBlock', '<h1>')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Heading 1"
+          >
+            <Heading1 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('formatBlock', '<h2>')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Heading 2"
+          >
+            <Heading2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('insertUnorderedList')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Bullet List"
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('insertOrderedList')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Numbered List"
+          >
+            <ListOrdered className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => executeCommand('formatBlock', '<blockquote>')}
+            className="p-1.5 rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Quote"
+          >
+            <Quote className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleInsertMath}
+            className="px-2 py-0.5 text-xs font-mono font-bold rounded-lg hover:bg-surface-lowest hover:text-on-surface hover:shadow-xs transition-colors"
+            title="Insert LaTeX Math"
+          >
+            $$ Math
+          </button>
         </div>
-      )}
+
+        <button
+          type="button"
+          onClick={handleQuickPaste}
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-xl transition-all cursor-pointer"
+          title="Paste and auto-format from clipboard"
+        >
+          <ClipboardPaste className="w-3.5 h-3.5" />
+          <span>Paste AI Text</span>
+        </button>
+      </div>
+
+      {/* Notion Unified WYSIWYG Editable Document Surface */}
+      <div className="relative rounded-2xl bg-surface-container-low border border-outline-variant/60 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary focus-within:bg-surface-lowest transition-all min-h-[360px]">
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleEditorInput}
+          onPaste={handlePaste}
+          className="w-full p-4 sm:p-5 text-on-surface text-sm leading-relaxed outline-none min-h-[360px] max-h-[650px] overflow-y-auto font-sans"
+        />
+      </div>
     </div>
   );
 };
