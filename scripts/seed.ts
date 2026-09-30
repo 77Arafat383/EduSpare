@@ -19,7 +19,7 @@ async function main() {
   // Create Users
   const alex = await prisma.user.create({
     data: {
-      username: 'alex_dev',
+      username: 'arafat383',
       name: 'Alex Rivera',
       email: 'alex@eduspare.io',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',

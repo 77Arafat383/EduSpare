@@ -382,55 +382,6 @@ export const LoginPage: React.FC = () => {
             </form>
           )}
 
-          {/* Quick Demo Login Switcher */}
-          <div className="pt-3.5 border-t border-outline-variant/40 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-on-surface flex items-center gap-1.5 uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                Quick 1-Click Demo Login
-              </div>
-              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                Instant Access
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {displayDemoUsers.map((u) => {
-                const isCurrentLoading = demoLoadingUser === u.username;
-                return (
-                  <button
-                    key={u.username}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleDemoLogin(u.username)}
-                    className="p-2.5 rounded-2xl bg-surface-container-low hover:bg-primary/10 hover:border-primary/50 border border-outline-variant/50 text-left transition-all duration-150 flex items-center gap-2.5 group relative disabled:opacity-60 disabled:cursor-not-allowed hover:shadow-sm"
-                  >
-                    <div className="relative shrink-0">
-                      <img
-                        loading="lazy"
-                        decoding="async"
-                        src={u.avatar}
-                        alt={u.name}
-                        className="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/60 group-hover:ring-primary transition-all"
-                      />
-                      {isCurrentLoading && (
-                        <div className="absolute inset-0 bg-primary/80 rounded-full flex items-center justify-center">
-                          <Loader2 className="w-4 h-4 text-white animate-spin" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-on-surface group-hover:text-primary truncate">
-                        {u.name}
-                      </div>
-                      <div className="text-[10px] text-outline truncate">{u.role}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <p className="text-[11px] text-center text-outline pt-2">
             By continuing, you agree to EduSpare's Terms of Service and Privacy Policy.
           </p>
