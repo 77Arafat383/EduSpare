@@ -206,7 +206,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                         >
                           {/* Actor Avatar Profile Link */}
                           <img loading="lazy" decoding="async"
-                            src={n.actor?.avatar || '/assets/default_avatar.png'}
+                            src={n.actor?.avatar || '/assets/default_avatar.svg'}
                             alt={n.actor?.name || 'User'}
                             onClick={(e) => {
                               e.stopPropagation();

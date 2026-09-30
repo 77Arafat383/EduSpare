@@ -127,7 +127,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 -mt-10 sm:-mt-12 pr-12 sm:pr-0">
           {/* Avatar with Glowing Blue Light Circle Ring for Active Status */}
           <img loading="lazy" decoding="async"
-            src={user.avatar || '/assets/default_avatar.png'}
+            src={user.avatar || '/assets/default_avatar.svg'}
             alt={user.name}
             className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-xl bg-surface-lowest shrink-0 transition-all ${
               isActive

@@ -98,7 +98,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         <label className="block text-[11px] font-bold text-outline uppercase">Profile Picture</label>
         <div className="flex items-center gap-3">
           <img loading="lazy" decoding="async"
-            src={editAvatar || '/assets/default_avatar.png'}
+            src={editAvatar || '/assets/default_avatar.svg'}
             alt="Avatar Preview"
             className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-primary/20"
           />

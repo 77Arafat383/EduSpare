@@ -65,7 +65,7 @@ export const ProfileView: React.FC = () => {
           setEditName(data.user.name);
           setEditBio(data.user.bio || '');
           setEditUniversity(data.user.university || '');
-          setEditAvatar(data.user.avatar || '/assets/default_avatar.png');
+          setEditAvatar(data.user.avatar || '/assets/default_avatar.svg');
           setEditCoverImage(data.user.coverImage || '/assets/default_cover.png');
           setEditBirthday(data.user.birthday || '');
           setEditGender(data.user.gender || '');

@@ -38,7 +38,7 @@ export const EditCommunityCoverModal: React.FC<EditCommunityCoverModalProps> = (
   useEffect(() => {
     if (community) {
       setCoverImage(community.image || DEFAULT_COMMUNITY_COVERS[0]);
-      setAvatarImage(community.avatarImage || community.image || '/assets/default_avatar.png');
+      setAvatarImage(community.avatarImage || community.image || '/assets/default_avatar.svg');
       setName(community.name || '');
       setDescription(community.description || '');
       setRules(community.rules || DEFAULT_COMMUNITY_RULES);
